@@ -2,13 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCdIrh_ohM7GjB_qpvbqayKiMA67ZVkMcw",
-  authDomain: "volleyball-team-app-e1a2f.firebaseapp.com",
-  projectId: "volleyball-team-app-e1a2f",
-  storageBucket: "volleyball-team-app-e1a2f.firebasestorage.app",
-  messagingSenderId: "740298383548",
-  appId: "1:740298383548:web:f897e9c4b5c68a3bcdb0b9",
-  measurementId: "G-FTHBRGE0VX"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: `${process.env.REACT_APP_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
