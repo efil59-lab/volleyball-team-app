@@ -499,6 +499,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
@@ -550,7 +551,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           </button>
         ))}
       </div>
-
+      </div>
       <div style={{ padding: 16 }}>
         {/* ── EVENT TAB ── */}
         {tab === "event" && (
@@ -990,6 +991,7 @@ function AdminPanel(props) {
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         <div style={{ fontSize: 32 }}>🔐</div>
@@ -1002,6 +1004,7 @@ function AdminPanel(props) {
             {label}
           </button>
         ))}
+      </div>
       </div>
       <div style={{ padding: 16 }}>
         {tab === "attendance" && <AdminAttendance {...props} />}
