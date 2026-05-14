@@ -499,7 +499,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
@@ -551,7 +550,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           </button>
         ))}
       </div>
-      </div>
+
       <div style={{ padding: 16 }}>
         {/* ── EVENT TAB ── */}
         {tab === "event" && (
@@ -991,7 +990,6 @@ function AdminPanel(props) {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         <div style={{ fontSize: 32 }}>🔐</div>
@@ -1004,7 +1002,6 @@ function AdminPanel(props) {
             {label}
           </button>
         ))}
-      </div>
       </div>
       <div style={{ padding: 16 }}>
         {tab === "attendance" && <AdminAttendance {...props} />}
@@ -1656,8 +1653,8 @@ function HelpScreen({ pc, sc, settings, onBack }) {
     { icon: "✅", title: "אישור הגעה לאימון", text: "לחצי על שמך במסך הבית, ואז על הכפתור 'מגיעה' או 'לא מגיעה'. ניתן גם להוסיף הערה קצרה. ניתן לשנות תשובה בכל עת לפני האימון." },
     { icon: "👀", title: "מי מגיעה?", text: "לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
     { icon: "📸", title: "גלריה", text: "בלשונית 'גלריה' ניתן להעלות תמונות מהאימון או המשחק. התמונה תסומן עם שמך ותאריך ההעלאה." },
-    { icon: "💬", title: "עדכונים", text: "בלשונית 'עדכונים' תמצאי הודעות מהמאמן או המנהל — כגון הודעת ביטול, הודעות כלליות ועדכונים חשובים." },
     { icon: "🏆", title: "לוח משחקים", text: "בלשונית 'משחקים' תמצאי את לוח המשחקים העתידיים. לאחר המשחק יוצג גם התוצאה." },
+    { icon: "🤖", title: "מאמן AI", text: "בלשונית 'מאמן AI' תמצאי מאמן אישי חכם. מלאי פרופיל ספורטיבי (עמדה, רמת כושר, מטרה) וקבלי המלצות אימון מותאמות אישית — תוכנית שבועית, שיפור קפיצה, תזונה, התאוששות ועוד." },
   ];
 
   return (
