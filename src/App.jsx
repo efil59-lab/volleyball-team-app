@@ -171,7 +171,7 @@ export default function App() {
   const sc = settings.secondaryColor || "#f5c842";
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, upd, pc, sc, askConfirm };
 
-  if (screen === "splash") return <Splash pc={pc} sc={sc} />;
+  if (screen === "splash" && !showInstall) return <Splash pc={pc} sc={sc} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} onDone={() => { localStorage.setItem("installSeen","1"); setShowInstall(false); setScreen("home"); }} />;
 
   return (
