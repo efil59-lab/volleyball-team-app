@@ -14,6 +14,7 @@ const KEYS = {
   games: "games",
   gallery: "gallery",
   playerProfiles: "profiles",
+  installVersion: "installVersion",
 };
 
 const DEFAULT_SETTINGS = {
@@ -148,8 +149,9 @@ export default function App() {
       setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
       setSettings({ ...DEFAULT_SETTINGS, ...s });
       setArchive(ar); setGames(g); setGallery(gal); setPlayerProfiles(pp);
-      const seen = localStorage.getItem("installSeen");
-      setTimeout(() => { if (!seen) setShowInstall(true); else setScreen("home"); }, 600);
+      const installVer = await load(KEYS.installVersion, 1);
+      const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
+      setTimeout(() => { if (seenVer < installVer) setShowInstall(true); else setScreen("home"); }, 600);
     })();
   }, []);
 
@@ -163,6 +165,7 @@ export default function App() {
     games: async v => { setGames(v); await save(KEYS.games, v); },
     gallery: async v => { setGallery(v); await save(KEYS.gallery, v); },
     playerProfiles: async v => { setPlayerProfiles(v); await save(KEYS.playerProfiles, v); },
+    installVersion: async v => { setSettings(s => ({ ...s, installVersion: v })); await save(KEYS.installVersion, v); },
   };
 
   function askConfirm(msg, onOk) { setConfirm({ msg, onOk }); }
@@ -172,7 +175,7 @@ export default function App() {
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, upd, pc, sc, askConfirm };
 
   if (screen === "splash" && !showInstall) return <Splash pc={pc} sc={sc} />;
-  if (showInstall) return <InstallScreen pc={pc} sc={sc} onDone={() => { localStorage.setItem("installSeen","1"); setShowInstall(false); setScreen("home"); }} />;
+  if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => { localStorage.setItem("installSeenVer", String(ver)); setShowInstall(false); setScreen("home"); }} />;
 
   return (
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
@@ -189,7 +192,7 @@ export default function App() {
 }
 
 // ── INSTALL SCREEN ───────────────────────────────────────────────────────────
-function InstallScreen({ pc, sc, onDone }) {
+function InstallScreen({ pc, sc, onDone, installVersion }) {
   return (
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
       <div style={{ fontSize: 72, marginBottom: 16 }}>📲</div>
@@ -205,10 +208,10 @@ function InstallScreen({ pc, sc, onDone }) {
           <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>כפתור שיתוף ↑ ← הוסף למסך הבית</div>
         </div>
       </div>
-      <button onClick={onDone} style={{ background: sc, color: pc, border: "none", borderRadius: 14, padding: "14px 40px", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 14, width: "100%", maxWidth: 320 }}>
+      <button onClick={() => onDone(installVersion)} style={{ background: sc, color: pc, border: "none", borderRadius: 14, padding: "14px 40px", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 14, width: "100%", maxWidth: 320 }}>
         הבנתי! נמשיך 🏐
       </button>
-      <button onClick={onDone} style={{ background: "transparent", color: "rgba(255,255,255,0.7)", border: "none", fontSize: 13, cursor: "pointer", padding: 8 }}>
+      <button onClick={() => onDone(installVersion)} style={{ background: "transparent", color: "rgba(255,255,255,0.7)", border: "none", fontSize: 13, cursor: "pointer", padding: 8 }}>
         דלג
       </button>
     </div>
@@ -1670,6 +1673,14 @@ function AdminSettings({ settings, upd, pc, sc }) {
         </div>
         <Label>סיסמת מנהל</Label>
         <input type="password" value={s.captainPassword} onChange={e => handleChange("captainPassword", e.target.value)} style={S.input} />
+        <Label>מסך פתיחה להתקנה</Label>
+        <button onClick={async () => {
+          const newVer = (s.installVersion || 1) + 1;
+          await handleChange("installVersion", newVer);
+          await save(KEYS.installVersion, newVer);
+        }} style={{ width: "100%", padding: "11px", background: "#1a237e", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
+          📲 הצג מסך התקנה לכולם מחדש
+        </button>
         <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>✅ הגדרות נשמרות אוטומטית</div>
       </div>
     </div>
