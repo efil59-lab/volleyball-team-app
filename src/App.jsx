@@ -130,6 +130,7 @@ export default function App() {
   const [gallery, setGallery] = useState([]);
   const [playerProfiles, setPlayerProfiles] = useState({});
   const [confirm, setConfirm] = useState(null);
+  const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -147,7 +148,8 @@ export default function App() {
       setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
       setSettings({ ...DEFAULT_SETTINGS, ...s });
       setArchive(ar); setGames(g); setGallery(gal); setPlayerProfiles(pp);
-      setTimeout(() => setScreen("home"), 600);
+      const seen = localStorage.getItem("installSeen");
+      setTimeout(() => { if (!seen) setShowInstall(true); else setScreen("home"); }, 600);
     })();
   }, []);
 
@@ -170,6 +172,7 @@ export default function App() {
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, upd, pc, sc, askConfirm };
 
   if (screen === "splash") return <Splash pc={pc} sc={sc} />;
+  if (showInstall) return <InstallScreen pc={pc} sc={sc} onDone={() => { localStorage.setItem("installSeen","1"); setShowInstall(false); setScreen("home"); }} />;
 
   return (
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
@@ -181,6 +184,33 @@ export default function App() {
       {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onSuccess={() => setScreen("admin")} onBack={() => setScreen("home")} />}
       {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
       {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
+    </div>
+  );
+}
+
+// ── INSTALL SCREEN ───────────────────────────────────────────────────────────
+function InstallScreen({ pc, sc, onDone }) {
+  return (
+    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
+      <div style={{ fontSize: 72, marginBottom: 16 }}>📲</div>
+      <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 10px", textAlign: "center" }}>התקיני את האפליקציה!</h2>
+      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, textAlign: "center", lineHeight: 1.7, margin: "0 0 32px" }}>
+        כדי לפתוח את האפליקציה מהר יותר ישירות מהמסך הבית:
+      </p>
+      <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 16, padding: "18px 22px", width: "100%", maxWidth: 320, marginBottom: 28 }}>
+        <div style={{ color: "white", fontSize: 14, lineHeight: 2 }}>
+          <div>📱 <strong>אנדרואיד (Chrome):</strong></div>
+          <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>תפריט ⋮ ← הוסף למסך הבית</div>
+          <div style={{ marginTop: 10 }}>🍎 <strong>אייפון (Safari):</strong></div>
+          <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>כפתור שיתוף ↑ ← הוסף למסך הבית</div>
+        </div>
+      </div>
+      <button onClick={onDone} style={{ background: sc, color: pc, border: "none", borderRadius: 14, padding: "14px 40px", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 14, width: "100%", maxWidth: 320 }}>
+        הבנתי! נמשיך 🏐
+      </button>
+      <button onClick={onDone} style={{ background: "transparent", color: "rgba(255,255,255,0.7)", border: "none", fontSize: 13, cursor: "pointer", padding: 8 }}>
+        דלג
+      </button>
     </div>
   );
 }
@@ -1649,7 +1679,7 @@ function AdminSettings({ settings, upd, pc, sc }) {
 // ── HELP SCREEN ───────────────────────────────────────────────────────────────
 function HelpScreen({ pc, sc, settings, onBack }) {
   const sections = [
-    { icon: "📲", title: "התקנה על הנייד — מומלץ!", text: "אנדרואיד (Chrome): תפריט ⋮ ← 'הוסף למסך הבית'\n\nאייפון (Safari): כפתור שיתוף ↑ ← 'הוסף למסך הבית'\n\nכך האפליקציה תיפתח ישירות ומהר יותר!", featured: true },
+    { icon: "📲", title: "התקנה על הנייד — מומלץ!", text: "אנדרואיד (Chrome): תפריט ⋮ ← 'הוסף למסך הבית'\nאייפון (Safari): כפתור שיתוף ↑ ← 'הוסף למסך הבית'\nכך האפליקציה תיפתח ישירות ומהר יותר!", featured: true },
     { icon: "👋", title: "כניסה ראשונה", text: "בכניסה הראשונה לחצי על שמך ברשימה. תתבקשי לבחור סיסמה אישית ולהוסיף תמונת פרופיל ופרטי קשר. מהפעם הבאה — רק סיסמה." },
     { icon: "✅", title: "אישור הגעה לאימון", text: "לחצי על שמך במסך הבית, ואז על הכפתור 'מגיעה' או 'לא מגיעה'. ניתן גם להוסיף הערה קצרה. ניתן לשנות תשובה בכל עת לפני האימון." },
     { icon: "👀", title: "מי מגיעה?", text: "לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
@@ -1668,7 +1698,7 @@ function HelpScreen({ pc, sc, settings, onBack }) {
       </div>
       <div style={{ padding: 16 }}>
         {sections.map((sec, i) => (
-          <div key={i} style={{ ...S.card, marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", ...(sec.featured ? { border: `2px solid ${pc}`, background: `${pc}08` } : {}) }}>
+          <div key={i} style={{ ...S.card, marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", ...(sec.featured ? { border: "1px solid #e2e8f0", background: `${pc}08` } : {}) }}>
             <div style={{ fontSize: 28, flexShrink: 0 }}>{sec.icon}</div>
             <div>
               <div style={{ fontWeight: 700, color: pc, fontSize: sec.featured ? 15 : 14, marginBottom: 4 }}>{sec.title}</div>
