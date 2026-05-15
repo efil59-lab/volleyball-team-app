@@ -1649,6 +1649,7 @@ function AdminSettings({ settings, upd, pc, sc }) {
 // ── HELP SCREEN ───────────────────────────────────────────────────────────────
 function HelpScreen({ pc, sc, settings, onBack }) {
   const sections = [
+    { icon: "📲", title: "התקנה על הנייד — מומלץ!", text: "אנדרואיד (Chrome): תפריט ⋮ ← 'הוסף למסך הבית'\n\nאייפון (Safari): כפתור שיתוף ↑ ← 'הוסף למסך הבית'\n\nכך האפליקציה תיפתח ישירות ומהר יותר!", featured: true },
     { icon: "👋", title: "כניסה ראשונה", text: "בכניסה הראשונה לחצי על שמך ברשימה. תתבקשי לבחור סיסמה אישית ולהוסיף תמונת פרופיל ופרטי קשר. מהפעם הבאה — רק סיסמה." },
     { icon: "✅", title: "אישור הגעה לאימון", text: "לחצי על שמך במסך הבית, ואז על הכפתור 'מגיעה' או 'לא מגיעה'. ניתן גם להוסיף הערה קצרה. ניתן לשנות תשובה בכל עת לפני האימון." },
     { icon: "👀", title: "מי מגיעה?", text: "לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
@@ -1667,11 +1668,11 @@ function HelpScreen({ pc, sc, settings, onBack }) {
       </div>
       <div style={{ padding: 16 }}>
         {sections.map((sec, i) => (
-          <div key={i} style={{ ...S.card, marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <div key={i} style={{ ...S.card, marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", ...(sec.featured ? { border: `2px solid ${pc}`, background: `${pc}08` } : {}) }}>
             <div style={{ fontSize: 28, flexShrink: 0 }}>{sec.icon}</div>
             <div>
-              <div style={{ fontWeight: 700, color: pc, fontSize: 14, marginBottom: 4 }}>{sec.title}</div>
-              <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>{sec.text}</div>
+              <div style={{ fontWeight: 700, color: pc, fontSize: sec.featured ? 15 : 14, marginBottom: 4 }}>{sec.title}</div>
+              <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8, whiteSpace: "pre-line" }}>{sec.text}</div>
             </div>
           </div>
         ))}
