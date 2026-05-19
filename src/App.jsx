@@ -473,6 +473,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [editEmail, setEditEmail] = useState("");
   const [editWhatsapp, setEditWhatsapp] = useState("");
   const galleryRef = useRef();
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const photoRef = useRef();
 
   const prof = playerProfiles[player.id] || {};
@@ -717,7 +718,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             {gallery.length === 0 && <Empty icon="📸" text="אין תמונות עדיין - היי הראשונה!" />}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
               {[...gallery].reverse().map(item => (
-                <div key={item.id} style={{ borderRadius: 12, overflow: "hidden", position: "relative" }}>
+                <div key={item.id} onClick={() => setSelectedPhoto(item)} style={{ borderRadius: 12, overflow: "hidden", position: "relative", cursor: "pointer" }}>
                   <img src={item.photo} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.65))", padding: "16px 8px 6px" }}>
                     <div style={{ color: "white", fontSize: 11, fontWeight: 600 }}>{item.playerName}</div>
@@ -726,6 +727,16 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 </div>
               ))}
             </div>
+
+            {/* Lightbox */}
+            {selectedPhoto && (
+              <div onClick={() => setSelectedPhoto(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                <img src={selectedPhoto.photo} style={{ maxWidth: "100%", maxHeight: "80vh", borderRadius: 12, objectFit: "contain" }} />
+                <div style={{ color: "white", fontSize: 13, fontWeight: 600, marginTop: 12 }}>{selectedPhoto.playerName}</div>
+                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginTop: 4 }}>{selectedPhoto.eventTitle || new Date(selectedPhoto.date).toLocaleDateString("he-IL")}</div>
+                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 16 }}>לחץ לסגירה</div>
+              </div>
+            )}
           </div>
         )}
 
