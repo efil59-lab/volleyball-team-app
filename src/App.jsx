@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { db } from "./firebase";
+import { db, storage } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const TEAM_ID = "bibleumi";
 
@@ -517,15 +518,18 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   async function uploadGallery(e) {
     const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async ev => {
+    try {
+      const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
       await upd.gallery([...gallery, {
         id: Date.now(), playerId: player.id, playerName: player.name,
-        photo: ev.target.result, date: new Date().toISOString(),
+        photo: url, date: new Date().toISOString(),
         eventTitle: nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "כללי"
       }]);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("שגיאה בהעלאת תמונה:", err);
+    }
   }
 
   const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "gallery", label: "📸 גלריה" }, { key: "ai", label: "🤖 מאמן AI" }];
