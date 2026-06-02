@@ -16,6 +16,10 @@ const KEYS = {
   gallery: "gallery",
   playerProfiles: "profiles",
   installVersion: "installVersion",
+  applause: "applause",
+  polls: "polls",
+  personalNotifs: "personalNotifs",
+  whatsNewVersion: "whatsNewVersion",
 };
 
 const DEFAULT_SETTINGS = {
@@ -25,6 +29,18 @@ const DEFAULT_SETTINGS = {
   defaultTrainingLocation: "אולם ספורט הבנק הבינלאומי",
   defaultGameLocation: "אולם ספורט עירוני",
   captainPassword: "1234",
+};
+
+// "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
+const WHATS_NEW = {
+  version: 2,
+  versionName: "גרסה 2.0",
+  date: "יוני 2026",
+  features: [
+    { icon: "🎂", title: "ימי הולדת", text: "הוסיפי תאריך לידה בפרופיל ותקבלי ברכה חמה ביום שלך!" },
+    { icon: "👏", title: "מחיאות כפיים", text: "שלחי 'כל הכבוד' לחברות שהגיעו לאימון — ותראי כמה קיבלת החודש." },
+    { icon: "🗳️", title: "הצבעות", text: "לשונית חדשה להצבעות קבוצתיות — מה חוגגים, איפה ומתי." },
+  ],
 };
 
 const DEFAULT_PLAYERS = [
@@ -58,6 +74,51 @@ function formatShort(d) {
 function getNextEvent(events) {
   const today = new Date().toISOString().split("T")[0];
   return events.filter(e => e.date >= today && e.open).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+}
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+// returns "MM-DD" for a yyyy-mm-dd birthday string
+function monthDay(dateStr) {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  return parts.length === 3 ? `${parts[1]}-${parts[2]}` : "";
+}
+function isBirthdayToday(birthday) {
+  if (!birthday) return false;
+  const t = new Date();
+  const td = `${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  return monthDay(birthday) === td;
+}
+function isBirthdayTomorrow(birthday) {
+  if (!birthday) return false;
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  const td = `${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  return monthDay(birthday) === td;
+}
+function ageFromBirthday(birthday) {
+  if (!birthday) return null;
+  const b = new Date(birthday + "T12:00:00");
+  const t = new Date();
+  let age = t.getFullYear() - b.getFullYear();
+  const m = t.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
+  return age >= 0 && age < 120 ? age : null;
+}
+// current year-month, e.g. "2026-06"
+function currentYM() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`;
+}
+// count applause received this month for a player
+function applauseThisMonth(applause, playerId) {
+  const ym = currentYM();
+  return (applause || []).filter(a => a.toId === playerId && a.date.startsWith(ym)).length;
+}
+// has `fromId` already applauded `toId` today?
+function alreadyApplaudedToday(applause, fromId, toId) {
+  const today = todayStr();
+  return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
 async function load(key, fallback) {
   try {
@@ -131,8 +192,12 @@ export default function App() {
   const [games, setGames] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [playerProfiles, setPlayerProfiles] = useState({});
+  const [applause, setApplause] = useState([]);
+  const [polls, setPolls] = useState([]);
+  const [personalNotifs, setPersonalNotifs] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -150,9 +215,20 @@ export default function App() {
       setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
       setSettings({ ...DEFAULT_SETTINGS, ...s });
       setArchive(ar); setGames(g); setGallery(gal); setPlayerProfiles(pp);
+      const [ap, pl, pn] = await Promise.all([
+        load(KEYS.applause, []),
+        load(KEYS.polls, []),
+        load(KEYS.personalNotifs, {}),
+      ]);
+      setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
-      setTimeout(() => { if (seenVer < installVer) setShowInstall(true); else setScreen("home"); }, 600);
+      const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
+      setTimeout(() => {
+        if (seenVer < installVer) setShowInstall(true);
+        else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
+        else setScreen("home");
+      }, 600);
     })();
   }, []);
 
@@ -166,6 +242,9 @@ export default function App() {
     games: async v => { setGames(v); await save(KEYS.games, v); },
     gallery: async v => { setGallery(v); await save(KEYS.gallery, v); },
     playerProfiles: async v => { setPlayerProfiles(v); await save(KEYS.playerProfiles, v); },
+    applause: async v => { setApplause(v); await save(KEYS.applause, v); },
+    polls: async v => { setPolls(v); await save(KEYS.polls, v); },
+    personalNotifs: async v => { setPersonalNotifs(v); await save(KEYS.personalNotifs, v); },
     installVersion: async v => { setSettings(s => ({ ...s, installVersion: v })); await save(KEYS.installVersion, v); },
   };
 
@@ -173,10 +252,19 @@ export default function App() {
 
   const pc = settings.primaryColor || "#1a237e";
   const sc = settings.secondaryColor || "#f5c842";
-  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, upd, pc, sc, askConfirm };
+  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, upd, pc, sc, askConfirm };
 
-  if (screen === "splash" && !showInstall) return <Splash pc={pc} sc={sc} />;
-  if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => { localStorage.setItem("installSeenVer", String(ver)); setShowInstall(false); setScreen("home"); }} />;
+  if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
+  if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
+    localStorage.setItem("installSeenVer", String(ver));
+    setShowInstall(false);
+    const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
+    if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true); else setScreen("home");
+  }} />;
+  if (showWhatsNew) return <WhatsNewScreen pc={pc} sc={sc} onDone={() => {
+    localStorage.setItem("whatsNewSeenVer", String(WHATS_NEW.version));
+    setShowWhatsNew(false); setScreen("home");
+  }} />;
 
   return (
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
@@ -215,6 +303,38 @@ function InstallScreen({ pc, sc, onDone, installVersion }) {
       <button onClick={() => onDone(installVersion)} style={{ background: "transparent", color: "rgba(255,255,255,0.7)", border: "none", fontSize: 13, cursor: "pointer", padding: 8 }}>
         דלג
       </button>
+    </div>
+  );
+}
+
+// ── WHAT'S NEW SCREEN ─────────────────────────────────────────────────────────
+function WhatsNewScreen({ pc, sc, onDone }) {
+  return (
+    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: `linear-gradient(170deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 24, padding: "30px 24px", maxWidth: 360, width: "100%", boxShadow: "0 24px 70px rgba(0,0,0,0.3)" }}>
+        <div style={{ textAlign: "center", marginBottom: 22 }}>
+          <div style={{ fontSize: 56 }}>✨</div>
+          <h2 style={{ fontSize: 22, fontWeight: 900, color: pc, margin: "6px 0 2px" }}>מה חדש?</h2>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${sc}40`, borderRadius: 20, padding: "4px 14px", marginTop: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: pc }}>{WHATS_NEW.versionName}</span>
+            <span style={{ fontSize: 11, color: "#64748b" }}>• {WHATS_NEW.date}</span>
+          </div>
+        </div>
+
+        {WHATS_NEW.features.map((f, i) => (
+          <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "12px 0", borderBottom: i < WHATS_NEW.features.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+            <div style={{ fontSize: 30, flexShrink: 0 }}>{f.icon}</div>
+            <div>
+              <div style={{ fontWeight: 800, color: "#1e293b", fontSize: 15, marginBottom: 2 }}>{f.title}</div>
+              <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{f.text}</div>
+            </div>
+          </div>
+        ))}
+
+        <button onClick={onDone} style={{ width: "100%", marginTop: 22, padding: 15, background: pc, color: "white", border: "none", borderRadius: 14, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>
+          מגניב! בואו נתחיל 🏐
+        </button>
+      </div>
     </div>
   );
 }
@@ -349,6 +469,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const [phone, setPhone] = useState(prof.phone || "");
   const [whatsapp, setWhatsapp] = useState(prof.whatsapp || "");
   const [email, setEmail] = useState(prof.email || "");
+  const [birthday, setBirthday] = useState(prof.birthday || "");
   const photoRef = useRef();
 
   const PLAYER_PASS = prof.password || "";
@@ -381,7 +502,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
     if (!valid) return;
     const updated = {
       ...playerProfiles,
-      [player.id]: { ...prof, photo, phone, whatsapp, email, setupDone: true, password: pass }
+      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true, password: pass }
     };
     await upd.playerProfiles(updated);
     onDone();
@@ -451,6 +572,9 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 
           <Label>מייל <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי)</span></Label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@email.com" style={S.input} />
+
+          <Label>🎂 תאריך לידה <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי)</span></Label>
+          <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)} style={S.input} />
         </div>
 
         <button onClick={completeSetup}
@@ -463,7 +587,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 }
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, upd, pc, sc, onBack }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, upd, pc, sc, onBack }) {
   const [tab, setTab] = useState("event");
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
@@ -472,6 +596,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editWhatsapp, setEditWhatsapp] = useState("");
+  const [editBirthday, setEditBirthday] = useState("");
+  const [entryPopups, setEntryPopups] = useState([]); // birthday + applause greetings shown once on entry
   const galleryRef = useRef();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const photoRef = useRef();
@@ -481,6 +607,38 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const myKey = nextEvent ? `${nextEvent.id}_${player.id}` : null;
   const myRecord = myKey ? attendance[myKey] : null;
   const activeNotifs = notifications.filter(n => n.active);
+
+  // ── Build entry popups (birthday greeting + unseen applause) — runs once on mount ──
+  useEffect(() => {
+    const popups = [];
+    // Birthday greeting (once per day)
+    if (isBirthdayToday(prof.birthday)) {
+      const seenKey = `bdaySeen_${player.id}_${todayStr()}`;
+      if (!localStorage.getItem(seenKey)) {
+        popups.push({ kind: "birthday", id: "bday" });
+        localStorage.setItem(seenKey, "1");
+      }
+    }
+    // Unseen applause notifications for this player
+    const myNotifs = (personalNotifs[player.id] || []).filter(n => !n.seen && n.type === "applause");
+    myNotifs.forEach(n => popups.push({ kind: "applause", id: n.id, fromName: n.fromName }));
+    if (popups.length > 0) {
+      setEntryPopups(popups);
+      // Mark applause notifs as seen
+      if (myNotifs.length > 0) {
+        const updated = {
+          ...personalNotifs,
+          [player.id]: (personalNotifs[player.id] || []).map(n => n.type === "applause" ? { ...n, seen: true } : n),
+        };
+        upd.personalNotifs(updated);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function dismissTopPopup() {
+    setEntryPopups(p => p.slice(1));
+  }
 
   function countAtt(status) {
     if (!nextEvent) return 0;
@@ -505,6 +663,26 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     const cur = attendance[key] || {};
     await upd.attendance({ ...attendance, [key]: { ...cur, note: noteInput } });
     setShowNoteFor(null); setNoteInput("");
+  }
+
+  async function sendApplause(toPlayer) {
+    if (toPlayer.id === player.id) return;
+    if (alreadyApplaudedToday(applause, player.id, toPlayer.id)) return;
+    // Record applause
+    const newApplause = [...applause, {
+      id: Date.now(), fromId: player.id, fromName: player.name,
+      toId: toPlayer.id, toName: toPlayer.name, date: todayStr(),
+    }];
+    await upd.applause(newApplause);
+    // Add personal notification for the recipient
+    const recipNotifs = personalNotifs[toPlayer.id] || [];
+    await upd.personalNotifs({
+      ...personalNotifs,
+      [toPlayer.id]: [...recipNotifs, {
+        id: Date.now() + 1, type: "applause", fromName: player.name,
+        seen: false, createdAt: new Date().toISOString(),
+      }],
+    });
   }
 
   async function handlePhotoUpload(e) {
@@ -533,10 +711,51 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     }
   }
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "gallery", label: "📸 גלריה" }, { key: "ai", label: "🤖 מאמן AI" }];
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ הצבעות" }, { key: "gallery", label: "📸 גלריה" }, { key: "ai", label: "🤖 מאמן AI" }];
+
+  // Attendees of the most recent event (last archived event, else current event's "coming" list)
+  const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
+  let lastEventAttendees = [];
+  let lastEventLabel = "";
+  if (lastArchived) {
+    const ids = (lastArchived.attendanceData || []).filter(a => a.status === "coming").map(a => a.playerId);
+    lastEventAttendees = players.filter(p => ids.includes(p.id));
+    lastEventLabel = `${lastArchived.type === "training" ? "אימון" : "משחק"} ${formatShort(lastArchived.date)}`;
+  } else if (nextEvent) {
+    lastEventAttendees = players.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === "coming");
+    lastEventLabel = `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}`;
+  }
+  const myApplauseCount = applauseThisMonth(applause, player.id);
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      {/* Entry popups: birthday greeting + applause received */}
+      {entryPopups.length > 0 && (() => {
+        const top = entryPopups[0];
+        const isBday = top.kind === "birthday";
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={dismissTopPopup}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 22, padding: "32px 26px", maxWidth: 320, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.35)", animation: "bounce 0.5s ease" }}>
+              <div style={{ fontSize: 64, marginBottom: 10 }}>{isBday ? "🎂" : "👏"}</div>
+              {isBday ? (
+                <>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: pc, marginBottom: 8 }}>יום הולדת שמח, {player.name}! 🎉</div>
+                  <p style={{ fontSize: 15, color: "#475569", lineHeight: 1.6, margin: "0 0 6px" }}>כל הקבוצה מאחלת לך יום מדהים ומלא שמחה!</p>
+                  <p style={{ fontSize: 14, color: pc, fontWeight: 700, margin: 0 }}>🏐 שתמשיכי לכבוש את המגרש! 🏐</p>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: pc, marginBottom: 8 }}>{top.fromName} שלחה לך כל הכבוד!</div>
+                  <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: 0 }}>על ההגעה לאימון/משחק. כל הכבוד! 💪</p>
+                </>
+              )}
+              <button onClick={dismissTopPopup} style={{ marginTop: 22, width: "100%", padding: 13, background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 800, fontSize: 15 }}>
+                {entryPopups.length > 1 ? "תודה! הבא ←" : "תודה! 🥰"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
@@ -548,10 +767,18 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
         </div>
         <h2 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: 0 }}>שלום, {player.name}! 👋</h2>
-        <button onClick={() => { setEditPhone(prof.phone||""); setEditEmail(prof.email||""); setEditWhatsapp(prof.whatsapp||""); setEditProfile(true); }}
-          style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginTop: 8 }}>
-          ✏️ עריכת פרופיל
-        </button>
+        {myApplauseCount > 0 && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "4px 12px", marginTop: 8 }}>
+            <span style={{ fontSize: 14 }}>👏</span>
+            <span style={{ color: "white", fontSize: 12, fontWeight: 700 }}>{myApplauseCount} מחיאות כפיים החודש</span>
+          </div>
+        )}
+        <div>
+          <button onClick={() => { setEditPhone(prof.phone||""); setEditEmail(prof.email||""); setEditWhatsapp(prof.whatsapp||""); setEditBirthday(prof.birthday||""); setEditProfile(true); }}
+            style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginTop: 8 }}>
+            ✏️ עריכת פרופיל
+          </button>
+        </div>
       </div>
 
       {/* Edit profile modal */}
@@ -568,9 +795,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             <Label>מייל</Label>
             <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
               placeholder="example@email.com" style={S.input} />
+            <Label>🎂 תאריך לידה</Label>
+            <input type="date" value={editBirthday} onChange={e => setEditBirthday(e.target.value)} style={S.input} />
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={async () => {
-                const updated = { ...playerProfiles, [player.id]: { ...prof, phone: editPhone, whatsapp: editWhatsapp, email: editEmail } };
+                const updated = { ...playerProfiles, [player.id]: { ...prof, phone: editPhone, whatsapp: editWhatsapp, email: editEmail, birthday: editBirthday } };
                 await upd.playerProfiles(updated);
                 setEditProfile(false);
               }} style={{ flex: 1, padding: 12, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700 }}>שמור</button>
@@ -674,6 +903,34 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     )}
                   </div>
                 )}
+
+                {/* 👏 Applause — to players who attended the last event */}
+                {lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
+                  <div style={{ ...S.card, marginTop: 14 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 3 }}>👏 כל הכבוד לחברות!</div>
+                    <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>שלחי מחיאות כפיים למי שהגיעה ל{lastEventLabel} (פעם ביום לכל אחת)</div>
+                    {lastEventAttendees.filter(p => p.id !== player.id).map(p => {
+                      const prof2 = playerProfiles[p.id] || {};
+                      const done = alreadyApplaudedToday(applause, player.id, p.id);
+                      const cnt = applauseThisMonth(applause, p.id);
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+                          {prof2.photo ? <img src={prof2.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                            : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
+                            {cnt > 0 && <div style={{ fontSize: 11, color: "#94a3b8" }}>👏 {cnt} החודש</div>}
+                          </div>
+                          <button onClick={() => sendApplause(p)} disabled={done}
+                            style={{ padding: "7px 14px", borderRadius: 20, border: "none", cursor: done ? "default" : "pointer", fontSize: 13, fontWeight: 700,
+                              background: done ? "#f0fdf4" : sc, color: done ? "#16a34a" : pc, opacity: done ? 1 : 1 }}>
+                            {done ? "✓ נשלח היום" : "👏 כל הכבוד"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
           </>
@@ -703,6 +960,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               </div>
             ))}
           </div>
+        )}
+
+        {/* ── POLLS TAB ── */}
+        {tab === "polls" && (
+          <PlayerPolls polls={polls} player={player} upd={upd} pc={pc} sc={sc} />
         )}
 
         {/* ── GALLERY TAB ── */}
@@ -768,6 +1030,56 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           attendance={attendance} eventId={nextEvent.id}
           onClose={() => setAttModal(null)} pc={pc} sc={sc} />
       )}
+    </div>
+  );
+}
+
+// ── PLAYER POLLS ──────────────────────────────────────────────────────────────
+function PlayerPolls({ polls, player, upd, pc, sc }) {
+  const activePolls = [...(polls || [])].filter(p => p.active !== false).reverse();
+
+  async function vote(pollId, optionIdx) {
+    const updated = polls.map(poll => {
+      if (poll.id !== pollId) return poll;
+      const votes = { ...(poll.votes || {}) };
+      votes[player.id] = optionIdx; // one vote per player; re-voting replaces
+      return { ...poll, votes };
+    });
+    await upd.polls(updated);
+  }
+
+  if (activePolls.length === 0) return <Empty icon="🗳️" text="אין הצבעות פעילות כרגע" />;
+
+  return (
+    <div>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🗳️ הצבעות</h3>
+      {activePolls.map(poll => {
+        const votes = poll.votes || {};
+        const myVote = votes[player.id];
+        const hasVoted = myVote !== undefined;
+        const total = Object.keys(votes).length;
+        const counts = poll.options.map((_, i) => Object.values(votes).filter(v => v === i).length);
+        return (
+          <div key={poll.id} style={{ ...S.card, marginBottom: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>{poll.question}</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 12 }}>{total} {total === 1 ? "הצביעה" : "הצביעו"} • {hasVoted ? "הצבעת ✓ (ניתן לשנות)" : "בחרי תשובה"}</div>
+            {poll.options.map((opt, i) => {
+              const pct = total > 0 ? Math.round((counts[i] / total) * 100) : 0;
+              const isMine = myVote === i;
+              return (
+                <button key={i} onClick={() => vote(poll.id, i)}
+                  style={{ position: "relative", width: "100%", textAlign: "right", border: `2px solid ${isMine ? pc : "#e2e8f0"}`, borderRadius: 10, padding: "11px 14px", marginBottom: 8, cursor: "pointer", background: "white", overflow: "hidden" }}>
+                  {hasVoted && <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: `${pct}%`, background: isMine ? `${pc}22` : "#f1f5f9", transition: "width 0.4s ease", zIndex: 0 }} />}
+                  <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 14, fontWeight: isMine ? 800 : 600, color: isMine ? pc : "#1e293b" }}>{isMine ? "● " : ""}{opt}</span>
+                    {hasVoted && <span style={{ fontSize: 13, fontWeight: 800, color: pc }}>{pct}% ({counts[i]})</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1033,7 +1345,7 @@ function AdminLogin({ settings, pc, sc, onSuccess, onBack }) {
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
   const { pc, sc, onBack } = props;
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
+  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ הצבעות"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -1056,6 +1368,7 @@ function AdminPanel(props) {
         {tab === "games" && <AdminGames {...props} />}
         {tab === "players" && <AdminPlayers {...props} />}
         {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
+        {tab === "polls" && <AdminPolls {...props} />}
         {tab === "archive" && <ArchiveStats {...props} />}
         {tab === "settings" && <AdminSettings {...props} />}
       </div>
@@ -1067,7 +1380,40 @@ function AdminPanel(props) {
 function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm }) {
   const [attModal, setAttModal] = useState(null);
   const nextEvent = getNextEvent(events);
-  if (!nextEvent) return <Empty icon="📅" text="אין אירוע פתוח כרגע" />;
+
+  // Birthday reminders for admin
+  const birthdaysToday = players.filter(p => isBirthdayToday((playerProfiles[p.id] || {}).birthday));
+  const birthdaysTomorrow = players.filter(p => isBirthdayTomorrow((playerProfiles[p.id] || {}).birthday));
+
+  const BirthdayBanners = () => (
+    <>
+      {birthdaysTomorrow.length > 0 && (
+        <div style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", border: "1px solid #fcd34d", borderRadius: 12, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 28 }}>🎂</span>
+          <div>
+            <div style={{ fontWeight: 800, color: "#92400e", fontSize: 14 }}>תזכורת: יום הולדת מחר!</div>
+            <div style={{ fontSize: 13, color: "#a16207", fontWeight: 600 }}>{birthdaysTomorrow.map(p => p.name).join(", ")} — אל תשכחי לברך 🎉</div>
+          </div>
+        </div>
+      )}
+      {birthdaysToday.length > 0 && (
+        <div style={{ background: "linear-gradient(135deg, #fce7f3, #fbcfe8)", border: "1px solid #f9a8d4", borderRadius: 12, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 28 }}>🎉</span>
+          <div>
+            <div style={{ fontWeight: 800, color: "#9d174d", fontSize: 14 }}>יום הולדת היום!</div>
+            <div style={{ fontSize: 13, color: "#be185d", fontWeight: 600 }}>{birthdaysToday.map(p => p.name).join(", ")} חוגגת היום 🥳</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  if (!nextEvent) return (
+    <div>
+      <BirthdayBanners />
+      <Empty icon="📅" text="אין אירוע פתוח כרגע" />
+    </div>
+  );
 
   const countAtt = s => s === "pending"
     ? players.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length
@@ -1078,7 +1424,8 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 
   function sendWAReminder() {
     const pending = getList("pending");
-    const msg = encodeURIComponent(`היי! 🏐 תזכורת לאישור השתתפות ב${nextEvent.type === "training" ? "אימון" : "משחק"} ב-${formatDate(nextEvent.date)} בשעה ${nextEvent.time}. אנא כנסי לאפליקציה ואשרי הגעה.`);
+    // Exact wording requested by captain
+    const msg = encodeURIComponent("היי, ראיתי שלא סימנת הגעה לאימון/משחק למחר. את מתכוונת להגיע?");
     let sent = 0;
     pending.forEach(p => {
       const prof = playerProfiles[p.id] || {};
@@ -1090,6 +1437,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 
   return (
     <div>
+      <BirthdayBanners />
       <div style={S.card}>
         <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
         <div style={{ fontWeight: 800, fontSize: 15, margin: "3px 0" }}>{formatDate(nextEvent.date)} • {nextEvent.time}</div>
@@ -1108,9 +1456,14 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 
       {countAtt("pending") > 0 && (
         <button onClick={sendWAReminder}
-          style={{ width: "100%", padding: "10px", background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 14 }}>
-          💬 שלח תזכורת וואטסאפ לטרם ענו ({countAtt("pending")})
+          style={{ width: "100%", padding: "10px", background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+          💬 שלח וואטסאפ לשחקניות שלא סימנו הגעה ({countAtt("pending")})
         </button>
+      )}
+      {countAtt("pending") > 0 && (
+        <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginBottom: 14, fontStyle: "italic" }}>
+          הטקסט: "היי, ראיתי שלא סימנת הגעה לאימון/משחק למחר. את מתכוונת להגיע?"
+        </div>
       )}
 
       {/* Read-only list */}
@@ -1276,6 +1629,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
   const [newName, setNewName] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [editData, setEditData] = useState({});
+  const [resetMsg, setResetMsg] = useState(null);
   const fileRefs = useRef({});
 
   async function handlePhoto(id, e) {
@@ -1286,6 +1640,15 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
       await upd.playerProfiles(updated);
     };
     reader.readAsDataURL(file);
+  }
+
+  async function resetPassword(p) {
+    const prof = playerProfiles[p.id] || {};
+    // Reset to default "1234" and force re-setup of personal password on next login
+    const updated = { ...playerProfiles, [p.id]: { ...prof, password: "", setupDone: false } };
+    await upd.playerProfiles(updated);
+    setResetMsg(p.name);
+    setTimeout(() => setResetMsg(null), 4000);
   }
 
   function startEdit(p) {
@@ -1302,6 +1665,11 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
 
   return (
     <div>
+      {resetMsg && (
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#ea580c", fontWeight: 600 }}>
+          🔑 הסיסמה של {resetMsg} אופסה. בכניסה הבאה היא תגדיר סיסמה חדשה (אפשר להיכנס זמנית עם 1234).
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם שחקנית חדשה"
           onKeyDown={e => e.key === "Enter" && newName.trim() && (upd.players([...players, { id: Date.now(), name: newName.trim(), phone:"", email:"", address:"", whatsapp:"" }]), setNewName(""))}
@@ -1329,6 +1697,8 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 5 }}>
+                <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? היא תתבקש להגדיר סיסמה חדשה בכניסה הבאה (סיסמה זמנית: 1234).`, () => resetPassword(p))}
+                  style={{ background: "#fff7ed", color: "#ea580c", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔑</button>
                 <button onClick={() => expanded === p.id ? setExpanded(null) : startEdit(p)}
                   style={{ background: `${pc}15`, color: pc, border: "none", borderRadius: 7, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️</button>
                 <button onClick={() => askConfirm(`למחוק את ${p.name}?`, () => upd.players(players.filter(x => x.id !== p.id)))}
@@ -1350,6 +1720,9 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
                 <input value={editData.email||""} onChange={e => setEditData({...editData, email: e.target.value})} style={{ ...S.input, marginBottom: 8 }} />
                 <Label>🏠 כתובת</Label>
                 <input value={editData.address||""} onChange={e => setEditData({...editData, address: e.target.value})} style={{ ...S.input, marginBottom: 8 }} />
+                {prof.birthday && (
+                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>🎂 יום הולדת: {formatShort(prof.birthday)}{ageFromBirthday(prof.birthday) != null ? ` (גיל ${ageFromBirthday(prof.birthday)})` : ""}</div>
+                )}
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => saveEdit(p.id)} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור</button>
                   <button onClick={() => setExpanded(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>ביטול</button>
@@ -1476,6 +1849,93 @@ function NotifCard({ notif, typeLabel, typeColor, onToggle, onEdit, onDelete, pc
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── ADMIN POLLS ───────────────────────────────────────────────────────────────
+function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm }) {
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState(["", ""]);
+
+  function setOpt(i, val) {
+    setOptions(opts => opts.map((o, idx) => idx === i ? val : o));
+  }
+  function addOpt() { if (options.length < 4) setOptions([...options, ""]); }
+  function removeOpt(i) { if (options.length > 2) setOptions(options.filter((_, idx) => idx !== i)); }
+
+  async function createPoll() {
+    const clean = options.map(o => o.trim()).filter(Boolean);
+    if (!question.trim() || clean.length < 2) return;
+    const poll = { id: Date.now(), question: question.trim(), options: clean, votes: {}, active: true, createdAt: new Date().toISOString() };
+    await upd.polls([...(polls || []), poll]);
+    setQuestion(""); setOptions(["", ""]);
+  }
+
+  async function toggleActive(id) {
+    await upd.polls(polls.map(p => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
+  }
+
+  const sorted = [...(polls || [])].reverse();
+
+  return (
+    <div>
+      {/* Create poll */}
+      <div style={S.card}>
+        <Label>שאלת ההצבעה</Label>
+        <input value={question} onChange={e => setQuestion(e.target.value)} placeholder='למשל: "איפה נחגוג סוף עונה?"' style={S.input} />
+        <Label>אפשרויות (2-4)</Label>
+        {options.map((opt, i) => (
+          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <input value={opt} onChange={e => setOpt(i, e.target.value)} placeholder={`אפשרות ${i + 1}`} style={{ ...S.input, margin: 0, flex: 1 }} />
+            {options.length > 2 && (
+              <button onClick={() => removeOpt(i)} style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontSize: 16 }}>×</button>
+            )}
+          </div>
+        ))}
+        {options.length < 4 && (
+          <button onClick={addOpt} style={{ background: `${pc}12`, color: pc, border: `1px dashed ${pc}55`, borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 13, fontWeight: 600, width: "100%", marginBottom: 10 }}>+ הוסף אפשרות</button>
+        )}
+        <button onClick={createPoll} style={{ width: "100%", padding: 12, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700 }}>
+          🗳️ צור הצבעה
+        </button>
+      </div>
+
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: pc, marginBottom: 10 }}>הצבעות קיימות</h3>
+      {sorted.length === 0 && <Empty icon="🗳️" text="עדיין לא יצרת הצבעות" />}
+      {sorted.map(poll => {
+        const votes = poll.votes || {};
+        const total = Object.keys(votes).length;
+        const counts = poll.options.map((_, i) => Object.values(votes).filter(v => v === i).length);
+        const maxCount = Math.max(0, ...counts);
+        return (
+          <div key={poll.id} style={{ ...S.card, marginBottom: 10, opacity: poll.active === false ? 0.6 : 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1e293b" }}>{poll.question}</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>{total} הצביעו</div>
+            </div>
+            {poll.options.map((opt, i) => {
+              const pct = total > 0 ? Math.round((counts[i] / total) * 100) : 0;
+              const isWinner = total > 0 && counts[i] === maxCount;
+              return (
+                <div key={i} style={{ position: "relative", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", marginBottom: 6, overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: `${pct}%`, background: isWinner ? `${sc}55` : "#f1f5f9", zIndex: 0 }} />
+                  <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, fontWeight: isWinner ? 800 : 600, color: "#1e293b" }}>{isWinner && total > 0 ? "🏆 " : ""}{opt}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: pc }}>{pct}% ({counts[i]})</span>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              <button onClick={() => toggleActive(poll.id)} style={{ padding: "5px 10px", background: poll.active === false ? "#f0fdf4" : "#fef3c7", color: poll.active === false ? "#16a34a" : "#92400e", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                {poll.active === false ? "🔔 הפעל" : "🔇 סגור הצבעה"}
+              </button>
+              <button onClick={() => askConfirm("למחוק הצבעה זו?", () => upd.polls(polls.filter(p => p.id !== poll.id)))} style={{ padding: "5px 10px", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1695,6 +2155,10 @@ function AdminSettings({ settings, upd, pc, sc }) {
         }} style={{ width: "100%", padding: "11px", background: "#1a237e", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
           📲 הצג מסך התקנה לכולם מחדש
         </button>
+        <button onClick={() => { localStorage.removeItem("whatsNewSeenVer"); alert("מסך 'מה חדש' יוצג לך שוב בכניסה הבאה. לכל שחקנית הוא יוצג פעם אחת אוטומטית כשמשתחררת גרסה חדשה."); }}
+          style={{ width: "100%", padding: "11px", background: "#7c3aed", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
+          ✨ הצג שוב את מסך "מה חדש"
+        </button>
         <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>✅ הגדרות נשמרות אוטומטית</div>
       </div>
     </div>
@@ -1710,6 +2174,9 @@ function HelpScreen({ pc, sc, settings, onBack }) {
     { icon: "👀", title: "מי מגיעה?", text: "לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
     { icon: "📸", title: "גלריה", text: "בלשונית 'גלריה' ניתן להעלות תמונות מהאימון או המשחק. התמונה תסומן עם שמך ותאריך ההעלאה." },
     { icon: "🏆", title: "לוח משחקים", text: "בלשונית 'משחקים' תמצאי את לוח המשחקים העתידיים. לאחר המשחק יוצג גם התוצאה." },
+    { icon: "👏", title: "מחיאות כפיים", text: "בלשונית 'אירוע' תוכלי לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או המשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
+    { icon: "🗳️", title: "הצבעות", text: "בלשונית 'הצבעות' תוכלי להצביע על נושאים שהמנהל פותח (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
+    { icon: "🎂", title: "יום הולדת", text: "הוסיפי תאריך לידה בפרופיל, ותקבלי ברכה חמה מהקבוצה ביום ההולדת שלך! 🎉" },
     { icon: "🤖", title: "מאמן AI", text: "בלשונית 'מאמן AI' תמצאי מאמן אישי חכם. מלאי פרופיל ספורטיבי (עמדה, רמת כושר, מטרה) וקבלי המלצות אימון מותאמות אישית — תוכנית שבועית, שיפור קפיצה, תזונה, התאוששות ועוד." },
   ];
 
