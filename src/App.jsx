@@ -197,6 +197,7 @@ export default function App() {
   const [personalNotifs, setPersonalNotifs] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [ballClicks, setBallClicks] = useState(0);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   useEffect(() => {
@@ -227,8 +228,8 @@ export default function App() {
       setTimeout(() => {
         if (seenVer < installVer) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
-        else setScreen("home");
-      }, 600);
+        else setScreen(s => s === "splash" ? "home" : s);
+      }, 2500);
     })();
   }, []);
 
@@ -254,7 +255,12 @@ export default function App() {
   const sc = settings.secondaryColor || "#f5c842";
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, upd, pc, sc, askConfirm };
 
-  if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
+  if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} onBallClick={() => {
+    const newCount = ballClicks + 1;
+    setBallClicks(newCount);
+    if (newCount >= 5) { setBallClicks(0); setScreen("superAdmin"); }
+  }} />;
+  if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} onBack={() => setScreen("splash")} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
     localStorage.setItem("installSeenVer", String(ver));
     setShowInstall(false);
@@ -340,11 +346,125 @@ function WhatsNewScreen({ pc, sc, onDone }) {
 }
 
 // ── SPLASH ────────────────────────────────────────────────────────────────────
-function Splash({ pc, sc }) {
+function Splash({ pc, sc, onBallClick }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: pc }}>
-      <div style={{ fontSize: 80, animation: "bounce 0.6s ease" }}>🏐</div>
+      <div onClick={onBallClick} style={{ fontSize: 80, animation: "bounce 0.6s ease", cursor: "pointer", userSelect: "none" }}>🏐</div>
       <div style={{ width: 60, height: 4, background: sc, borderRadius: 2, marginTop: 28 }} />
+    </div>
+  );
+}
+
+// ── SUPER ADMIN ──────────────────────────────────────────────────────────────
+// Simple hash function for password (not cryptographic but deters casual viewing)
+async function hashPassword(pw) {
+  const buf = new TextEncoder().encode(pw);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function SuperAdminScreen({ pc, sc, onBack }) {
+  const [authed, setAuthed] = useState(false);
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState("");
+  const [section, setSection] = useState("menu");
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function tryLogin() {
+    setError("");
+    try {
+      const stored = await load(KEYS.superAdminPassword, null);
+      const inputHash = await hashPassword(pw);
+      // Default password efil1959 hash
+      const defaultHash = await hashPassword("efil1959");
+      const validHash = stored || defaultHash;
+      if (inputHash === validHash) {
+        setAuthed(true);
+        if (!stored) await save(KEYS.superAdminPassword, defaultHash);
+      } else {
+        setError("סיסמה שגויה");
+      }
+    } catch (e) {
+      setError("שגיאה: " + e.message);
+    }
+  }
+
+  async function changePassword() {
+    setMsg("");
+    if (newPw.length < 6) { setMsg("הסיסמה חייבת להיות לפחות 6 תווים"); return; }
+    if (newPw !== newPw2) { setMsg("הסיסמאות לא תואמות"); return; }
+    const hash = await hashPassword(newPw);
+    await save(KEYS.superAdminPassword, hash);
+    setMsg("✅ הסיסמה עודכנה בהצלחה");
+    setNewPw(""); setNewPw2("");
+    setTimeout(() => { setMsg(""); setSection("menu"); }, 1500);
+  }
+
+  if (!authed) {
+    return (
+      <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ fontSize: 60, marginBottom: 12 }}>🔐</div>
+        <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 24px" }}>סופר אדמין</h2>
+        <div style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 340 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: pc, marginBottom: 6 }}>סיסמה</label>
+          <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && tryLogin()}
+            style={{ width: "100%", padding: "11px", border: "2px solid #e2e8f0", borderRadius: 10, fontSize: 14, marginBottom: 12, boxSizing: "border-box", textAlign: "center" }} />
+          {error && <div style={{ color: "#dc2626", fontSize: 12, marginBottom: 10, textAlign: "center", fontWeight: 600 }}>{error}</div>}
+          <button onClick={tryLogin} style={{ width: "100%", padding: "12px", background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+            כניסה
+          </button>
+          <button onClick={onBack} style={{ width: "100%", padding: "10px", background: "transparent", color: "#64748b", border: "none", cursor: "pointer", fontSize: 13 }}>
+            ביטול
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
+      <div style={{ background: pc, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
+        <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← יציאה</button>
+        <div style={{ fontSize: 32 }}>👑</div>
+        <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0" }}>סופר אדמין</h2>
+      </div>
+
+      <div style={{ padding: 16 }}>
+        {section === "menu" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <a href="https://github.com/efil59-lab/volleyball-team-app/blob/main/ROADMAP.md" target="_blank" rel="noopener noreferrer"
+              style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
+            </a>
+            <button onClick={() => setSection("changePw")} style={{ background: "white", borderRadius: 14, padding: "16px 18px", border: "none", color: pc, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🔑</span> שינוי סיסמה
+            </button>
+            <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", color: "#94a3b8", fontWeight: 600, fontSize: 13, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>👥</span> ניהול מנהלי קבוצות
+              <span style={{ marginRight: "auto", fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "3px 8px", borderRadius: 8 }}>בקרוב</span>
+            </div>
+          </div>
+        )}
+
+        {section === "changePw" && (
+          <div style={{ background: "white", borderRadius: 16, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <button onClick={() => setSection("menu")} style={{ background: "transparent", border: "none", color: pc, fontSize: 13, cursor: "pointer", marginBottom: 14, fontWeight: 600 }}>← חזור</button>
+            <h3 style={{ color: pc, fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 14 }}>🔑 שינוי סיסמה</h3>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>סיסמה חדשה</label>
+            <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+              style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: 8, fontSize: 13, marginBottom: 10, boxSizing: "border-box" }} />
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>אישור סיסמה</label>
+            <input type="password" value={newPw2} onChange={e => setNewPw2(e.target.value)}
+              style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: 8, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }} />
+            {msg && <div style={{ fontSize: 13, marginBottom: 10, textAlign: "center", fontWeight: 600, color: msg.startsWith("✅") ? "#16a34a" : "#dc2626" }}>{msg}</div>}
+            <button onClick={changePassword} style={{ width: "100%", padding: "11px", background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
+              שמור סיסמה חדשה
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
