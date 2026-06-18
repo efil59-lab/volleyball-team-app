@@ -62,7 +62,7 @@ const WHATS_NEW = {
   features: [
     { icon: "🎂", title: "ימי הולדת", text: "הוסיפי תאריך לידה בפרופיל ותקבלי ברכה חמה ביום שלך!" },
     { icon: "👏", title: "מחיאות כפיים", text: "שלחי 'כל הכבוד' לחברות שהגיעו לאימון — ותראי כמה קיבלת החודש." },
-    { icon: "🗳️", title: "הצבעות", text: "לשונית חדשה להצבעות קבוצתיות — מה חוגגים, איפה ומתי." },
+    { icon: "🗳️", title: "סקר", text: "לשונית חדשה לסקרים קבוצתיים — מה חוגגים, איפה ומתי." },
   ],
 };
 
@@ -1025,7 +1025,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     setSelectedPhoto(null);
   }
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ הצבעות" }, { key: "gallery", label: "📸 גלריה" }];
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 גלריה" }];
 
   // Attendees of the most recent event (last archived event, else current event's "coming" list)
   const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1363,11 +1363,11 @@ function PlayerPolls({ polls, player, upd, pc, sc }) {
     await upd.polls(updated);
   }
 
-  if (activePolls.length === 0) return <Empty icon="🗳️" text="אין הצבעות פעילות כרגע" />;
+  if (activePolls.length === 0) return <Empty icon="🗳️" text="אין סקרים פעילים כרגע" />;
 
   return (
     <div>
-      <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🗳️ הצבעות</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🗳️ סקר</h3>
       {activePolls.map(poll => {
         const votes = poll.votes || {};
         const myVote = votes[player.id];
@@ -1492,7 +1492,7 @@ function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
   const { pc, sc, onBack } = props;
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ הצבעות"],["gallery","📸 גלריה"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
+  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 גלריה"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -2030,7 +2030,7 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
     <div>
       {/* Create poll */}
       <div style={S.card}>
-        <Label>שאלת ההצבעה</Label>
+        <Label>שאלת הסקר</Label>
         <input value={question} onChange={e => setQuestion(e.target.value)} placeholder='למשל: "איפה נחגוג סוף עונה?"' style={S.input} />
         <Label>אפשרויות (2-4)</Label>
         {options.map((opt, i) => (
@@ -2045,12 +2045,12 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
           <button onClick={addOpt} style={{ background: `${pc}12`, color: pc, border: `1px dashed ${pc}55`, borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 13, fontWeight: 600, width: "100%", marginBottom: 10 }}>+ הוסף אפשרות</button>
         )}
         <button onClick={createPoll} style={{ width: "100%", padding: 12, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700 }}>
-          🗳️ צור הצבעה
+          🗳️ צור סקר
         </button>
       </div>
 
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: pc, marginBottom: 10 }}>הצבעות קיימות</h3>
-      {sorted.length === 0 && <Empty icon="🗳️" text="עדיין לא יצרת הצבעות" />}
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: pc, marginBottom: 10 }}>סקרים קיימים</h3>
+      {sorted.length === 0 && <Empty icon="🗳️" text="עדיין לא יצרת סקרים" />}
       {sorted.map(poll => {
         const votes = poll.votes || {};
         const total = Object.keys(votes).length;
@@ -2077,9 +2077,9 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
             })}
             <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
               <button onClick={() => toggleActive(poll.id)} style={{ padding: "5px 10px", background: poll.active === false ? "#f0fdf4" : "#fef3c7", color: poll.active === false ? "#16a34a" : "#92400e", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                {poll.active === false ? "🔔 הפעל" : "🔇 סגור הצבעה"}
+                {poll.active === false ? "🔔 הפעל" : "🔇 סגור סקר"}
               </button>
-              <button onClick={() => askConfirm("למחוק הצבעה זו?", () => upd.polls(polls.filter(p => p.id !== poll.id)))} style={{ padding: "5px 10px", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
+              <button onClick={() => askConfirm("למחוק סקר זה?", () => upd.polls(polls.filter(p => p.id !== poll.id)))} style={{ padding: "5px 10px", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
             </div>
           </div>
         );
@@ -2417,7 +2417,7 @@ function HelpScreen({ pc, sc, settings, onBack }) {
     { icon: "📸", title: "גלריה", text: "בלשונית 'גלריה' ניתן להעלות תמונות מהאימון או המשחק. התמונה תסומן עם שמך ותאריך ההעלאה." },
     { icon: "🏆", title: "לוח משחקים", text: "בלשונית 'משחקים' תמצאי את לוח המשחקים העתידיים. לאחר המשחק יוצג גם התוצאה." },
     { icon: "👏", title: "מחיאות כפיים", text: "בלשונית 'אירוע' תוכלי לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או המשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
-    { icon: "🗳️", title: "הצבעות", text: "בלשונית 'הצבעות' תוכלי להצביע על נושאים שהמנהל פותח (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
+    { icon: "🗳️", title: "סקר", text: "בלשונית 'סקר' תוכלי להצביע על נושאים שהמנהל פותח (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
     { icon: "🎂", title: "יום הולדת", text: "הוסיפי תאריך לידה בפרופיל, ותקבלי ברכה חמה מהקבוצה ביום ההולדת שלך! 🎉" },
   ];
 
