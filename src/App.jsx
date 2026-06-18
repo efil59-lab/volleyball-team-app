@@ -2028,6 +2028,7 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
 // ── ARCHIVE & STATS ───────────────────────────────────────────────────────────
 function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
   const [view, setView] = useState("stats"); // "stats" | "table"
+  const [exporting, setExporting] = useState(false);
   const total = archive.length;
   const stats = players.map(p => {
     const attended = archive.filter(ev => ev.attendanceData?.find(a => a.playerId === p.id && a.status === "coming")).length;
@@ -2039,6 +2040,69 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
   const colTotals = archive.map(ev =>
     ev.attendanceData?.filter(a => a.status === "coming").length || 0
   );
+
+  // ייצוא לאקסל — שני גיליונות (נוכחות + סיכום) עם נוסחאות אמיתיות. SheetJS נטען רק בלחיצה.
+  async function exportToExcel() {
+    if (archive.length === 0) return;
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const enc = XLSX.utils.encode_cell, col = XLSX.utils.encode_col;
+      const evs = [...archive].sort((a, b) => a.date.localeCompare(b.date));
+      const N = evs.length;
+      const P = players.length;
+      const dm = d => { const x = new Date(d + "T12:00:00"); return x.getDate() + "/" + (x.getMonth() + 1); };
+      const cameSet = evs.map(e => new Set((e.attendanceData || []).filter(a => a.status === "coming").map(a => a.playerId)));
+
+      // גיליון 1 — נוכחות
+      const typeRow = ["סוג", ...evs.map(e => e.type === "training" ? "אימון" : "משחק")];
+      const dateRow = ["שחקנית \\ תאריך", ...evs.map(e => dm(e.date)), 'סה"כ', "אחוז"];
+      const playerRows = players.map(p => {
+        const r = [p.name];
+        evs.forEach((e, i) => r.push(cameSet[i].has(p.id) ? "✓" : ""));
+        r.push(null, null);
+        return r;
+      });
+      const totalRow = ['סה"כ נוכחות', ...new Array(N + 2).fill(null)];
+      const ws1 = XLSX.utils.aoa_to_sheet([typeRow, dateRow, ...playerRows, totalRow]);
+      const firstEv = 1, lastEv = N, totalCol = N + 1, pctCol = N + 2, firstPR = 2, lastPR = 1 + P;
+      players.forEach((p, pi) => {
+        const r = firstPR + pi, r1 = r + 1;
+        ws1[enc({ r, c: totalCol })] = { t: "n", f: `COUNTIF(${col(firstEv)}${r1}:${col(lastEv)}${r1},"✓")` };
+        ws1[enc({ r, c: pctCol })] = { t: "n", f: `${col(totalCol)}${r1}/${N}`, z: "0%" };
+      });
+      const tr = firstPR + P;
+      for (let c = firstEv; c <= lastEv; c++) {
+        const cl = col(c);
+        ws1[enc({ r: tr, c })] = { t: "n", f: `COUNTIF(${cl}${firstPR + 1}:${cl}${lastPR + 1},"✓")` };
+      }
+      ws1[enc({ r: tr, c: totalCol })] = { t: "n", f: `SUM(${col(totalCol)}${firstPR + 1}:${col(totalCol)}${lastPR + 1})` };
+
+      // גיליון 2 — סיכום
+      const summary = players.map(p => {
+        let trn = 0, gm = 0;
+        evs.forEach((e, i) => { if (cameSet[i].has(p.id)) { if (e.type === "training") trn++; else gm++; } });
+        return { name: p.name, total: trn + gm, training: trn, game: gm };
+      }).sort((a, b) => b.total - a.total);
+      const trainCount = evs.filter(e => e.type === "training").length;
+      const gameCount = N - trainCount;
+      const sAoa = [["שחקנית", 'סה"כ מפגשים', "אחוז כללי", "מתוכם אימונים", "מתוכם משחקים"],
+        ...summary.map(s => [s.name, s.total, null, s.training, s.game]), [],
+        [`סה"כ מפגשים: ${N}  |  אימונים: ${trainCount}  |  משחקים: ${gameCount}`]];
+      const ws2 = XLSX.utils.aoa_to_sheet(sAoa);
+      summary.forEach((s, i) => { ws2[enc({ r: i + 1, c: 2 })] = { t: "n", f: `B${i + 2}/${N}`, z: "0%" }; });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws1, "נוכחות");
+      XLSX.utils.book_append_sheet(wb, ws2, "סיכום");
+      XLSX.writeFile(wb, `נוכחות_שחקניות_${todayStr()}.xlsx`);
+    } catch (e) {
+      console.error("Excel export error:", e);
+      alert("שגיאה בייצוא הקובץ. נסה שוב.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div>
@@ -2054,6 +2118,12 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
         </div>
       </div>
 
+      {/* Export to Excel */}
+      <button onClick={exportToExcel} disabled={exporting || archive.length === 0}
+        style={{ width: "100%", padding: "11px", marginBottom: 12, background: archive.length === 0 ? "#cbd5e1" : "#16a34a", color: "white", border: "none", borderRadius: 10, cursor: (exporting || archive.length === 0) ? "default" : "pointer", fontWeight: 700, fontSize: 13 }}>
+        {exporting ? "מייצא..." : "📥 ייצוא לאקסל"}
+      </button>
+
       {/* View toggle */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button onClick={() => setView("stats")}
@@ -2065,6 +2135,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
           📅 טבלת נוכחות
         </button>
       </div>
+
 
       {/* Stats view */}
       {view === "stats" && (
