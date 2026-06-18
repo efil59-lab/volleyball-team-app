@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { signInAnonymously, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
@@ -279,6 +279,7 @@ export default function App() {
   const [ballClicks, setBallClicks] = useState(0);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [googleLoginError, setGoogleLoginError] = useState("");
+  const [authUser, setAuthUser] = useState(null);
 
   // ── שלב מעבר לאבטחה: bootstrap של Auth מתבצע באפקט המאוחד למטה ────────────────
   // קודם פותרים redirect של Google, ורק אם אין משתמש כלל — מתחברים אנונימית.
@@ -308,9 +309,16 @@ export default function App() {
     setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
   }
 
+  // משקיף בלבד על מצב ההזדהות (לא מתחבר — כך אין מרוץ עם ה-redirect). משמש לאבחון ולכפתור "המשך".
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setAuthUser(u));
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     (async () => {
-      const pending = sessionStorage.getItem("pendingGoogleLogin");
+      const wasPending = sessionStorage.getItem("pendingGoogleLogin") === "1";
+      sessionStorage.removeItem("pendingGoogleLogin");
       let adminUser = null;
 
       // 1) קודם כל — לפתור redirect של Google אם יש (לפני כל פעולת auth אחרת!)
@@ -319,31 +327,35 @@ export default function App() {
         if (result && result.user) adminUser = result.user;
       } catch (e) {
         console.error("Redirect login error:", e);
-        sessionStorage.removeItem("pendingGoogleLogin");
         setGoogleLoginError(e.code || e.message || "שגיאה לא ידועה");
         await loadTeamData();
         setScreen("admin-login");
         return;
       }
 
-      // גיבוי: יש דפדפנים שבהם getRedirectResult חוזר ריק למרות התחברות מוצלחת.
-      // אם סימנו שיש כניסת מנהל ממתינה ויש משתמש לא-אנונימי — זו הכניסה שלו.
-      if (!adminUser && pending && auth.currentUser && !auth.currentUser.isAnonymous) {
+      // גיבוי: אם getRedirectResult ריק אבל הסשן נשמר — נשתמש במשתמש המחובר.
+      if (!adminUser && auth.currentUser && !auth.currentUser.isAnonymous) {
         adminUser = auth.currentUser;
       }
-      if (pending) sessionStorage.removeItem("pendingGoogleLogin");
 
-      // 2) אם אין משתמש מחובר כלל — התחברות אנונימית (טוקן בסיס לשחקניות)
+      // 2) אם אין משתמש כלל — התחברות אנונימית (טוקן בסיס לשחקניות)
       if (!auth.currentUser) {
         try { await signInAnonymously(auth); } catch (e) { console.error("Anon auth error:", e); }
       }
 
-      // 3) אם חזרנו מהתחברות מנהל — לזהות/לאמץ קבוצה ולעבור לפאנל
+      // 3) אם זוהה מנהל — לזהות/לאמץ קבוצה ולעבור לפאנל
       if (adminUser) {
         const teamId = await resolveAdminTeam(adminUser);
         setCurrentTeam(teamId);
         await loadTeamData();
         setScreen("admin");
+        return;
+      }
+
+      // אם ניסה להתחבר ולא הצליח — נחזיר אותו למסך הכניסה (לראות סטטוס ולנסות "המשך")
+      if (wasPending) {
+        await loadTeamData();
+        setScreen("admin-login");
         return;
       }
 
@@ -372,6 +384,16 @@ export default function App() {
       sessionStorage.removeItem("pendingGoogleLogin");
       return { ok: false, error: e.code || e.message };
     }
+  }
+
+  // מסלול חלופי: אם כבר מחובר עם Google (הסשן נשמר) — להיכנס בלי redirect נוסף.
+  async function continueAsAdmin() {
+    if (!auth.currentUser || auth.currentUser.isAnonymous) return { ok: false, error: "אין משתמש Google מחובר" };
+    const teamId = await resolveAdminTeam(auth.currentUser);
+    setCurrentTeam(teamId);
+    await loadTeamData();
+    setScreen("admin");
+    return { ok: true };
   }
 
 
@@ -421,7 +443,7 @@ export default function App() {
       {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} />}
       {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
       {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
-      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onGoogle={handleGoogleLogin} initialError={googleLoginError} onSuccess={() => setScreen("admin")} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
+      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onSuccess={() => setScreen("admin")} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
       {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
       {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
     </div>
@@ -1578,9 +1600,10 @@ ${question ? `שאלה: ${question}` : `נושא: ${topicLabel}`}
 }
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
-function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack, initialError }) {
+function AdminLogin({ settings, pc, sc, onGoogle, onContinue, authUser, onSuccess, onBack, initialError }) {
   const [pass, setPass] = useState(""); const [error, setError] = useState(false);
   const [gLoading, setGLoading] = useState(false); const [gError, setGError] = useState(initialError || "");
+  const isGoogleUser = authUser && !authUser.isAnonymous;
   function tryLogin() {
     if (pass === (settings.captainPassword || "1234")) onSuccess();
     else { setError(true); setTimeout(() => setError(false), 1500); }
@@ -1590,6 +1613,12 @@ function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack, initialErro
     const res = await onGoogle();
     if (!res.ok) { setGLoading(false); setGError("ההתחברות נכשלה: " + (res.error || "")); }
   }
+  async function continueAdmin() {
+    setGError(""); setGLoading(true);
+    const res = await onContinue();
+    if (!res.ok) { setGLoading(false); setGError(res.error || "שגיאה"); }
+  }
+  const statusText = !authUser ? "לא מחובר" : (authUser.isAnonymous ? "אנונימי" : (authUser.email || "Google"));
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, padding: "40px 20px 50px", textAlign: "center", position: "relative" }}>
@@ -1598,12 +1627,23 @@ function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack, initialErro
         <h2 style={{ color: "white", fontSize: 20, fontWeight: 700, margin: "10px 0 0" }}>כניסת מנהל</h2>
       </div>
       <div style={{ padding: 32, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <button onClick={googleLogin} disabled={gLoading}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", maxWidth: 300, padding: "13px 16px", background: "white", color: "#3c4043", border: "1px solid #dadce0", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-          <span style={{ fontSize: 18 }}>🔵</span>
-          {gLoading ? "מתחבר..." : "התחבר עם Google"}
-        </button>
-        {gError && <p style={{ color: "#ef4444", margin: "10px 0 0", fontSize: 13 }}>{gError}</p>}
+        {isGoogleUser ? (
+          <>
+            <p style={{ color: "#16a34a", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>✓ מחובר כ-{authUser.email}</p>
+            <button onClick={continueAdmin} disabled={gLoading}
+              style={{ width: "100%", maxWidth: 300, padding: "14px 16px", background: pc, color: "white", border: "none", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 700 }}>
+              {gLoading ? "טוען..." : "המשך לניהול →"}
+            </button>
+          </>
+        ) : (
+          <button onClick={googleLogin} disabled={gLoading}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", maxWidth: 300, padding: "13px 16px", background: "white", color: "#3c4043", border: "1px solid #dadce0", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+            <span style={{ fontSize: 18 }}>🔵</span>
+            {gLoading ? "מתחבר..." : "התחבר עם Google"}
+          </button>
+        )}
+        {gError && <p style={{ color: "#ef4444", margin: "10px 0 0", fontSize: 13, textAlign: "center", maxWidth: 300, wordBreak: "break-word" }}>{gError}</p>}
+        <p style={{ color: "#cbd5e1", fontSize: 11, marginTop: 8 }}>סטטוס Firebase: {statusText}</p>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", maxWidth: 300, margin: "22px 0 18px", color: "#94a3b8", fontSize: 13 }}>
           <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
