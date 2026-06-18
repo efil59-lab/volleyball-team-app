@@ -8,6 +8,7 @@ import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPo
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
 const DEFAULT_TEAM = "bibleumi";
 const BIBLEUMI_ADMIN_EMAILS = ["efil59@gmail.com", "miri.levi1962@gmail.com"]; // מנהלי קבוצת הבינלאומי
+const SUPER_ADMIN_EMAIL = "efil59@gmail.com"; // בעל המוצר — גישה לסופר אדמין (רק הוא)
 
 function resolveInitialTeam() {
   try {
@@ -280,7 +281,6 @@ export default function App() {
   const [personalNotifs, setPersonalNotifs] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
-  const [ballClicks, setBallClicks] = useState(0);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [googleLoginError, setGoogleLoginError] = useState("");
   const [authUser, setAuthUser] = useState(null);
@@ -417,6 +417,17 @@ export default function App() {
     return { ok: true };
   }
 
+  // כניסה לסופר אדמין (לחיצה ארוכה על הלוגו). רק בעל המוצר. אם מחובר כבר — נכנס; אחרת Google.
+  async function enterSuperAdmin() {
+    const cur = (auth.currentUser?.email || "").toLowerCase();
+    if (cur === SUPER_ADMIN_EMAIL) { setScreen("superAdmin"); return; }
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if ((result.user.email || "").toLowerCase() === SUPER_ADMIN_EMAIL) setScreen("superAdmin");
+      else setScreen("superAdmin"); // נכנס למסך — שם יוצג "אין הרשאה" אם לא הבעלים
+    } catch (e) { console.error("super admin login:", e); }
+  }
+
 
   const upd = {
     players: async v => { setPlayers(v); await save(KEYS.players, v); },
@@ -440,12 +451,8 @@ export default function App() {
   const sc = settings.secondaryColor || "#f5c842";
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, upd, pc, sc, askConfirm };
 
-  if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} onBallClick={() => {
-    const newCount = ballClicks + 1;
-    setBallClicks(newCount);
-    if (newCount >= 5) { setBallClicks(0); setScreen("superAdmin"); }
-  }} />;
-  if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} onBack={() => setScreen("splash")} />;
+  if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
+  if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
     localStorage.setItem("installSeenVer", String(ver));
     setShowInstall(false);
@@ -461,7 +468,7 @@ export default function App() {
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
       {confirm && <Confirm msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
 
-      {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} />}
+      {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
       {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
       {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
       {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
@@ -531,78 +538,40 @@ function WhatsNewScreen({ pc, sc, onDone }) {
 }
 
 // ── SPLASH ────────────────────────────────────────────────────────────────────
-function Splash({ pc, sc, onBallClick }) {
+function Splash({ pc, sc }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: pc }}>
-      <div onClick={onBallClick} style={{ fontSize: 80, animation: "bounce 0.6s ease", cursor: "pointer", userSelect: "none" }}>🏐</div>
+      <div style={{ fontSize: 80, animation: "bounce 0.6s ease", userSelect: "none" }}>🏐</div>
       <div style={{ width: 60, height: 4, background: sc, borderRadius: 2, marginTop: 28 }} />
     </div>
   );
 }
 
 // ── SUPER ADMIN ──────────────────────────────────────────────────────────────
-// Simple hash function for password (not cryptographic but deters casual viewing)
-async function hashPassword(pw) {
-  const buf = new TextEncoder().encode(pw);
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
+// כניסה דרך לחיצה ארוכה על הלוגו במסך הבית. הרשאה: רק בעל המוצר (Google), לעתיד הרב-קבוצתי.
+function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
+  const [gErr, setGErr] = useState("");
+  const isOwner = authUser && (authUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
 
-function SuperAdminScreen({ pc, sc, onBack }) {
-  const [authed, setAuthed] = useState(false);
-  const [pw, setPw] = useState("");
-  const [error, setError] = useState("");
-  const [section, setSection] = useState("menu");
-  const [newPw, setNewPw] = useState("");
-  const [newPw2, setNewPw2] = useState("");
-  const [msg, setMsg] = useState("");
-
-  async function tryLogin() {
-    setError("");
-    try {
-      const stored = await load(KEYS.superAdminPassword, null);
-      const inputHash = await hashPassword(pw);
-      // Default password efil1959 hash
-      const defaultHash = await hashPassword("efil1959");
-      const validHash = stored || defaultHash;
-      if (inputHash === validHash) {
-        setAuthed(true);
-        if (!stored) await save(KEYS.superAdminPassword, defaultHash);
-      } else {
-        setError("סיסמה שגויה");
-      }
-    } catch (e) {
-      setError("שגיאה: " + e.message);
-    }
+  async function login() {
+    setGErr("");
+    const res = await onGoogle();
+    if (!res.ok && res.error) setGErr("ההתחברות נכשלה: " + res.error);
   }
 
-  async function changePassword() {
-    setMsg("");
-    if (newPw.length < 6) { setMsg("הסיסמה חייבת להיות לפחות 6 תווים"); return; }
-    if (newPw !== newPw2) { setMsg("הסיסמאות לא תואמות"); return; }
-    const hash = await hashPassword(newPw);
-    await save(KEYS.superAdminPassword, hash);
-    setMsg("✅ הסיסמה עודכנה בהצלחה");
-    setNewPw(""); setNewPw2("");
-    setTimeout(() => { setMsg(""); setSection("menu"); }, 1500);
-  }
-
-  if (!authed) {
+  if (!isOwner) {
     return (
-      <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <div style={{ fontSize: 60, marginBottom: 12 }}>🔐</div>
-        <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 24px" }}>סופר אדמין</h2>
+      <div style={{ direction: "rtl", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ fontSize: 60, marginBottom: 12 }}>👑</div>
+        <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>סופר אדמין</h2>
+        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, margin: "0 0 24px", textAlign: "center" }}>אזור זה מיועד לבעל המוצר בלבד.</p>
         <div style={{ background: "white", borderRadius: 16, padding: 22, width: "100%", maxWidth: 340 }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: pc, marginBottom: 6 }}>סיסמה</label>
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && tryLogin()}
-            style={{ width: "100%", padding: "11px", border: "2px solid #e2e8f0", borderRadius: 10, fontSize: 14, marginBottom: 12, boxSizing: "border-box", textAlign: "center" }} />
-          {error && <div style={{ color: "#dc2626", fontSize: 12, marginBottom: 10, textAlign: "center", fontWeight: 600 }}>{error}</div>}
-          <button onClick={tryLogin} style={{ width: "100%", padding: "12px", background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-            כניסה
+          <button onClick={login} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "13px 16px", background: "white", color: "#3c4043", border: "1px solid #dadce0", borderRadius: 12, cursor: "pointer", fontSize: 15, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+            <span style={{ fontSize: 18 }}>🔵</span> התחבר עם Google
           </button>
-          <button onClick={onBack} style={{ width: "100%", padding: "10px", background: "transparent", color: "#64748b", border: "none", cursor: "pointer", fontSize: 13 }}>
-            ביטול
-          </button>
+          {gErr && <p style={{ color: "#ef4444", fontSize: 12, margin: "10px 0 0", textAlign: "center", wordBreak: "break-word" }}>{gErr}</p>}
+          {authUser && !authUser.isAnonymous && <p style={{ color: "#94a3b8", fontSize: 12, margin: "10px 0 0", textAlign: "center" }}>מחובר כ-{authUser.email} — אין הרשאת סופר אדמין.</p>}
+          <button onClick={onBack} style={{ width: "100%", padding: "10px", background: "transparent", color: "#64748b", border: "none", cursor: "pointer", fontSize: 13, marginTop: 8 }}>ביטול</button>
         </div>
       </div>
     );
@@ -615,44 +584,21 @@ function SuperAdminScreen({ pc, sc, onBack }) {
         <div style={{ fontSize: 32 }}>👑</div>
         <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0" }}>סופר אדמין</h2>
       </div>
-
-      <div style={{ padding: 16 }}>
-        {section === "menu" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <a href="https://github.com/efil59-lab/volleyball-team-app/blob/main/ROADMAP.md" target="_blank" rel="noopener noreferrer"
-              style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
-            </a>
-            <button onClick={() => setSection("changePw")} style={{ background: "white", borderRadius: 14, padding: "16px 18px", border: "none", color: pc, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>🔑</span> שינוי סיסמה
-            </button>
-            <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", color: "#94a3b8", fontWeight: 600, fontSize: 13, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>👥</span> ניהול מנהלי קבוצות
-              <span style={{ marginRight: "auto", fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "3px 8px", borderRadius: 8 }}>בקרוב</span>
-            </div>
-          </div>
-        )}
-
-        {section === "changePw" && (
-          <div style={{ background: "white", borderRadius: 16, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-            <button onClick={() => setSection("menu")} style={{ background: "transparent", border: "none", color: pc, fontSize: 13, cursor: "pointer", marginBottom: 14, fontWeight: 600 }}>← חזור</button>
-            <h3 style={{ color: pc, fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 14 }}>🔑 שינוי סיסמה</h3>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>סיסמה חדשה</label>
-            <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
-              style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: 8, fontSize: 13, marginBottom: 10, boxSizing: "border-box" }} />
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>אישור סיסמה</label>
-            <input type="password" value={newPw2} onChange={e => setNewPw2(e.target.value)}
-              style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: 8, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }} />
-            {msg && <div style={{ fontSize: 13, marginBottom: 10, textAlign: "center", fontWeight: 600, color: msg.startsWith("✅") ? "#16a34a" : "#dc2626" }}>{msg}</div>}
-            <button onClick={changePassword} style={{ width: "100%", padding: "11px", background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-              שמור סיסמה חדשה
-            </button>
-          </div>
-        )}
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ background: "#fff", borderRadius: 14, padding: "12px 16px", color: "#64748b", fontSize: 12 }}>מחובר כבעל המוצר: {authUser.email}</div>
+        <a href="https://github.com/efil59-lab/volleyball-team-app/blob/main/ROADMAP.md" target="_blank" rel="noopener noreferrer"
+          style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
+        </a>
+        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", color: "#94a3b8", fontWeight: 600, fontSize: 13, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>👥</span> תצוגת שימוש לכל הקבוצות
+          <span style={{ marginRight: "auto", fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "3px 8px", borderRadius: 8 }}>בקרוב</span>
+        </div>
       </div>
     </div>
   );
 }
+
 
 // ── NOTIFICATIONS TICKER ──────────────────────────────────────────────────────
 function NotifTicker({ notifs, pc, sc }) {
@@ -706,7 +652,8 @@ function NotifTicker({ notifs, pc, sc }) {
 }
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp }) {
+function HomeScreen({ players, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onSuperAdmin }) {
+  const lpRef = useRef();
   const activeNotifs = notifications.filter(n => n.active);
   const welcomeText = settings.welcomeText || "ברוכות הבאות לקבוצת הכדורשת שלנו!";
 
@@ -717,7 +664,12 @@ function HomeScreen({ players, settings, notifications, playerProfiles, pc, sc, 
         <button onClick={onHelp} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ color: "#ef4444", fontWeight: 800 }}>?</span> עזרה
         </button>
-        <div style={{ fontSize: 70, marginBottom: 10 }}>🏐</div>
+        <div
+          onPointerDown={() => { lpRef.current = setTimeout(() => { onSuperAdmin && onSuperAdmin(); }, 1000); }}
+          onPointerUp={() => clearTimeout(lpRef.current)}
+          onPointerLeave={() => clearTimeout(lpRef.current)}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ fontSize: 70, marginBottom: 10, userSelect: "none", WebkitUserSelect: "none" }}>🏐</div>
         <h1 style={{ color: "white", fontSize: 19, fontWeight: 800, margin: "0 0 16px", lineHeight: 1.4 }}>{settings.teamName}</h1>
         {/* Welcome badge - editable */}
         <div style={{ display: "inline-block", background: "#f5c200", borderRadius: 30, padding: "10px 24px", boxShadow: "0 4px 12px rgba(0,0,0,0.25)", maxWidth: "90%" }}>
