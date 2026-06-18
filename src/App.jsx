@@ -57,12 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 4,
-  versionName: "גרסה 4.0",
+  version: 5,
+  versionName: "גרסה 5.0",
   date: "יוני 2026",
   features: [
-    { icon: "🏆", title: "האירוע הקרוב בולט במסך", text: "האירוע הקרוב מופיע עכשיו בכרטיס גדול וברור — תאריך, שעה, מיקום, וספירה לאחור (מחר / עוד 3 ימים / היום!)." },
-    { icon: "🔔", title: "תזכורת מהירה במסך הבית", text: "באנר חדש במסך הבית מזכיר מתי האירוע הקרוב — לחיצה עליו מקפיצה ישר לרשימת השחקניות לאישור הגעה." },
+    { icon: "🧹", title: "מסך נקי יותר", text: "הרשימות הארוכות ('מגיעות' ו'כל הכבוד') מקופלות עכשיו — לחיצה על הכותרת פותחת וסוגרת אותן, ואישור ההגעה קרוב יותר לראש המסך." },
   ],
 };
 
@@ -1148,14 +1147,13 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   ))}
                 </div>
 
-                {/* Who's coming */}
+                {/* Who's coming - collapsible */}
                 {getList("coming").length > 0 && (
-                  <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 12, marginBottom: 12, border: "1px solid #bbf7d0" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>✅ מגיעות:</div>
+                  <Collapsible title="✅ מגיעות" count={getList("coming").length} accent="#16a34a">
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {getList("coming").map(p => <span key={p.id} style={{ background: "#22c55e", color: "white", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600 }}>{p.name}</span>)}
                     </div>
-                  </div>
+                  </Collapsible>
                 )}
 
                 {/* RSVP */}
@@ -1209,10 +1207,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   </div>
                 )}
 
-                {/* 👏 Applause — to players who attended the last event */}
+                {/* 👏 Applause — collapsible */}
                 {lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
-                  <div style={{ ...S.card, marginTop: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 3 }}>👏 כל הכבוד לחברות!</div>
+                  <Collapsible title="👏 כל הכבוד לחברות" count={lastEventAttendees.filter(p => p.id !== player.id).length} accent={pc}>
                     <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>שלחי מחיאות כפיים למי שהגיעה ל{lastEventLabel} (פעם ביום לכל אחת)</div>
                     {lastEventAttendees.filter(p => p.id !== player.id).map(p => {
                       const prof2 = playerProfiles[p.id] || {};
@@ -1234,7 +1231,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                         </div>
                       );
                     })}
-                  </div>
+                  </Collapsible>
                 )}
               </>
             )}
@@ -2446,6 +2443,20 @@ function Empty({ icon, text }) {
 }
 function Label({ children }) {
   return <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 4 }}>{children}</div>;
+}
+// כרטיס מתקפל לשימוש חוזר — כותרת לחיצה + מונה אופציונלי + חץ מסתובב
+function Collapsible({ title, count, defaultOpen = false, accent = "#1e293b", children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "transparent", border: "none", cursor: "pointer", padding: 14, textAlign: "right" }}>
+        <span style={{ fontSize: 14, fontWeight: 800, color: accent }}>{title}{typeof count === "number" ? ` (${count})` : ""}</span>
+        <span style={{ fontSize: 12, color: "#94a3b8", display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+      </button>
+      {open && <div style={{ padding: "0 14px 14px" }}>{children}</div>}
+    </div>
+  );
 }
 
 const S = {
