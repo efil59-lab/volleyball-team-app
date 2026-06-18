@@ -68,13 +68,18 @@ const WHATS_NEW = {
 
 const DEFAULT_PLAYERS = [
   { id: 1, name: "מירי", phone: "", email: "", address: "", whatsapp: "" },
-  { id: 2, name: "נטלי", phone: "", email: "", address: "", whatsapp: "" },
-  { id: 3, name: "שרונה", phone: "", email: "", address: "", whatsapp: "" },
-  { id: 4, name: "ויקי", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 2, name: "ויקי", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 3, name: "איילה", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 4, name: "דנה", phone: "", email: "", address: "", whatsapp: "" },
   { id: 5, name: "מיכל", phone: "", email: "", address: "", whatsapp: "" },
-  { id: 6, name: "ספיר", phone: "", email: "", address: "", whatsapp: "" },
-  { id: 7, name: "דנה", phone: "", email: "", address: "", whatsapp: "" },
-  { id: 8, name: "רותם", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 6, name: "נטלי", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 7, name: "נטע", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 8, name: "סיגי", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 9, name: "רונית", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 10, name: "ציפי", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 11, name: "שרונה", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 12, name: "קרן", phone: "", email: "", address: "", whatsapp: "" },
+  { id: 13, name: "עדית", phone: "", email: "", address: "", whatsapp: "" },
 ];
 
 const DEFAULT_EVENTS = [
