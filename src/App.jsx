@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
@@ -278,6 +278,7 @@ export default function App() {
   const [showInstall, setShowInstall] = useState(false);
   const [ballClicks, setBallClicks] = useState(0);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [googleLoginError, setGoogleLoginError] = useState("");
 
   // ── שלב מעבר לאבטחה: התחברות אנונימית בשקט ──────────────────────────────────
   // כל מכשיר מקבל טוקן אנונימי ברקע. לא חוסם טעינת נתונים ולא משנה כלום לשחקניות.
@@ -317,6 +318,24 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      // אם חזרנו מהתחברות Google (redirect) — טפל בה ועבור לפאנל מנהל.
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          const teamId = await resolveAdminTeam(result.user);
+          setCurrentTeam(teamId);
+          await loadTeamData();
+          setScreen("admin");
+          return;
+        }
+      } catch (e) {
+        console.error("Redirect login error:", e);
+        setGoogleLoginError(e.code || e.message || "שגיאה לא ידועה");
+        await loadTeamData();
+        setScreen("admin-login"); // נחזיר אותו למסך הכניסה עם השגיאה המדויקת
+        return;
+      }
+      // זרימה רגילה
       await loadTeamData();
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
@@ -329,15 +348,12 @@ export default function App() {
     })();
   }, []);
 
-  // התחברות מנהל עם Google: מזהה/מאמץ את הקבוצה, מחליף אליה ומרענן נתונים.
+  // התחברות מנהל עם Google (redirect — אמין במובייל/PWA). מטופלת בחזרה ע"י getRedirectResult.
   async function handleGoogleLogin() {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const teamId = await resolveAdminTeam(result.user);
-      setCurrentTeam(teamId);
-      await loadTeamData();
-      setScreen("admin");
-      return { ok: true };
+      setGoogleLoginError("");
+      await signInWithRedirect(auth, googleProvider);
+      return { ok: true }; // הדף עובר לגוגל; שורה זו כמעט לא רצה בפועל
     } catch (e) {
       console.error("Google login error:", e);
       return { ok: false, error: e.code || e.message };
@@ -391,7 +407,7 @@ export default function App() {
       {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} />}
       {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
       {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
-      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onGoogle={handleGoogleLogin} onSuccess={() => setScreen("admin")} onBack={() => setScreen("home")} />}
+      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onGoogle={handleGoogleLogin} initialError={googleLoginError} onSuccess={() => setScreen("admin")} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
       {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
       {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
     </div>
@@ -1548,9 +1564,9 @@ ${question ? `שאלה: ${question}` : `נושא: ${topicLabel}`}
 }
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
-function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack }) {
+function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack, initialError }) {
   const [pass, setPass] = useState(""); const [error, setError] = useState(false);
-  const [gLoading, setGLoading] = useState(false); const [gError, setGError] = useState("");
+  const [gLoading, setGLoading] = useState(false); const [gError, setGError] = useState(initialError || "");
   function tryLogin() {
     if (pass === (settings.captainPassword || "1234")) onSuccess();
     else { setError(true); setTimeout(() => setError(false), 1500); }
@@ -1558,8 +1574,7 @@ function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack }) {
   async function googleLogin() {
     setGError(""); setGLoading(true);
     const res = await onGoogle();
-    setGLoading(false);
-    if (!res.ok) setGError("ההתחברות נכשלה. נסי שוב.");
+    if (!res.ok) { setGLoading(false); setGError("ההתחברות נכשלה: " + (res.error || "")); }
   }
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
