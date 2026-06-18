@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { db, storage } from "./firebase";
+import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 
 const TEAM_ID = "bibleumi";
 
@@ -199,6 +200,18 @@ export default function App() {
   const [showInstall, setShowInstall] = useState(false);
   const [ballClicks, setBallClicks] = useState(0);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+
+  // ── שלב מעבר לאבטחה: התחברות אנונימית בשקט ──────────────────────────────────
+  // כל מכשיר מקבל טוקן אנונימי ברקע. לא חוסם טעינת נתונים ולא משנה כלום לשחקניות.
+  // הכללים עדיין פתוחים (if true) — זה רק מכין את הקרקע לכשנהדק אותם בהמשך.
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        signInAnonymously(auth).catch((e) => console.error("Anon auth error:", e));
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     (async () => {
