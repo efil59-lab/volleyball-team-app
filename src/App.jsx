@@ -57,11 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 6,
-  versionName: "גרסה 6.0",
+  version: 7,
+  versionName: "גרסה 7.0",
   date: "יוני 2026",
   features: [
-    { icon: "✨", title: "תחושה חלקה יותר", text: "מעברים רכים בין מסכים, ופתיחה/סגירה חלקה של הכרטיסים המתקפלים — האפליקציה זורמת יותר ונעימה לשימוש." },
+    { icon: "🔓", title: "כניסה מהירה — בלי להקליד סיסמה כל פעם", text: "בכניסה יש עכשיו אפשרות 'זכרי אותי במכשיר הזה'. אם תסמני אותה, בפעם הבאה תיכנסי ישר בלחיצה על השם — בלי סיסמה. אפשר להתנתק בכל רגע מהכפתור 🔓 למעלה במסך האישי." },
   ],
 };
 
@@ -512,7 +512,12 @@ export default function App() {
       {confirm && <Confirm msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
 
       <div key={screen} className="screen-fade">
-        {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
+        {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => {
+          setCurrentPlayer(p);
+          const remembered = localStorage.getItem("rememberPlayer_" + p.id) === "1";
+          if (remembered && playerProfiles[p.id]?.setupDone) setScreen("player");
+          else setScreen("onboard");
+        }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
         {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
         {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
@@ -786,6 +791,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const [passError, setPassError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [loginError, setLoginError] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [photo, setPhoto] = useState(prof.photo || null);
   const [phone, setPhone] = useState(prof.phone || "");
   const [whatsapp, setWhatsapp] = useState(prof.whatsapp || "");
@@ -797,7 +803,11 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 
   function tryLogin() {
     if (!pass.trim()) { setLoginError(true); setTimeout(() => setLoginError(false), 1500); return; }
-    if (pass === PLAYER_PASS || pass === "1234") onDone();
+    if (pass === PLAYER_PASS || pass === "1234") {
+      if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
+      else localStorage.removeItem("rememberPlayer_" + player.id);
+      onDone();
+    }
     else { setLoginError(true); setTimeout(() => setLoginError(false), 1500); }
   }
 
@@ -847,7 +857,11 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
             placeholder="סיסמה אישית" autoFocus
             style={{ ...S.input, maxWidth: 260, textAlign: "center", fontSize: 20, letterSpacing: 6, border: `2px solid ${loginError ? "#ef4444" : "#e2e8f0"}` }} />
           {loginError && <p style={{ color: "#ef4444", margin: "0 0 12px", fontSize: 13 }}>{!pass.trim() ? "יש להזין סיסמה ❌" : "סיסמה שגויה ❌"}</p>}
-          <button onClick={tryLogin} style={{ padding: "13px 48px", background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 15, fontWeight: 700, marginTop: 8 }}>כניסה ✓</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#64748b", cursor: "pointer", marginTop: 10, maxWidth: 280 }}>
+            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 18, height: 18, accentColor: pc, cursor: "pointer", flexShrink: 0 }} />
+            זכרי אותי במכשיר הזה (כניסה מהירה בפעם הבאה)
+          </label>
+          <button onClick={tryLogin} style={{ padding: "13px 48px", background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 15, fontWeight: 700, marginTop: 14 }}>כניסה ✓</button>
           <p style={{ color: "#94a3b8", fontSize: 12, marginTop: 20, textAlign: "center" }}>שכחת סיסמה? פני למנהל הקבוצה</p>
         </div>
       </div>
@@ -1087,6 +1101,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       })()}
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
+        <button onClick={() => { localStorage.removeItem("rememberPlayer_" + player.id); onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
           {prof.photo
             ? <img src={prof.photo} style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
