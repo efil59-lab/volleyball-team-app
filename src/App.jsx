@@ -57,12 +57,12 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 3,
-  versionName: "גרסה 3.0",
+  version: 4,
+  versionName: "גרסה 4.0",
   date: "יוני 2026",
   features: [
-    { icon: "🗑️", title: "מחיקת תמונות בגלריה", text: "אפשר עכשיו למחוק תמונה שהעלית — לחצי עליה בגלריה ואז על 'מחקי תמונה'." },
-    { icon: "🔑", title: "שכחת סיסמה?", text: "פני למנהל/ת הקבוצה ויאפסו לך — ותבחרי סיסמה חדשה בכניסה הבאה." },
+    { icon: "🏆", title: "האירוע הקרוב בולט במסך", text: "האירוע הקרוב מופיע עכשיו בכרטיס גדול וברור — תאריך, שעה, מיקום, וספירה לאחור (מחר / עוד 3 ימים / היום!)." },
+    { icon: "🔔", title: "תזכורת מהירה במסך הבית", text: "באנר חדש במסך הבית מזכיר מתי האירוע הקרוב — לחיצה עליו מקפיצה ישר לרשימת השחקניות לאישור הגעה." },
   ],
 };
 
@@ -102,6 +102,22 @@ function formatShort(d) {
 function getNextEvent(events) {
   const today = new Date().toISOString().split("T")[0];
   return events.filter(e => e.date >= today && e.open).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+}
+// מספר הימים עד תאריך yyyy-mm-dd (0 = היום, 1 = מחר)
+function daysUntil(d) {
+  if (!d) return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const target = new Date(d + "T00:00:00");
+  return Math.round((target - t) / 86400000);
+}
+// תווית ספירה לאחור בעברית: "היום!" / "מחר" / "מחרתיים" / "עוד N ימים"
+function countdownLabel(d) {
+  const n = daysUntil(d);
+  if (n === null) return "";
+  if (n <= 0) return "היום!";
+  if (n === 1) return "מחר";
+  if (n === 2) return "מחרתיים";
+  return `עוד ${n} ימים`;
 }
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -652,10 +668,12 @@ function NotifTicker({ notifs, pc, sc }) {
 }
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onSuperAdmin }) {
+function HomeScreen({ players, events, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onSuperAdmin }) {
   const lpRef = useRef();
+  const gridRef = useRef();
   const activeNotifs = notifications.filter(n => n.active);
   const welcomeText = settings.welcomeText || "ברוכות הבאות לקבוצת הכדורשת שלנו!";
+  const nextEvent = getNextEvent(events || []);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
@@ -684,9 +702,26 @@ function HomeScreen({ players, settings, notifications, playerProfiles, pc, sc, 
         </div>
       )}
 
+      {/* Next-event banner - tappable, scrolls to players grid for RSVP */}
+      {nextEvent && (
+        <div style={{ padding: "8px 16px 0" }}>
+          <button onClick={() => gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: pc, border: "none", borderRadius: 16, padding: "12px 16px", cursor: "pointer", textAlign: "right", boxShadow: `0 4px 14px ${pc}33` }}>
+            <div style={{ fontSize: 26 }}>{nextEvent.type === "training" ? "🏋️" : "🏆"}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: "white", fontSize: 15, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {nextEvent.type === "training" ? "אימון" : "משחק"} · {formatShort(nextEvent.date)} · {nextEvent.time}
+              </div>
+              <div style={{ color: sc, fontSize: 12, fontWeight: 700, marginTop: 2 }}>בחרי את שמך לאישור הגעה ←</div>
+            </div>
+            <div style={{ background: sc, color: pc, borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>{countdownLabel(nextEvent.date)}</div>
+          </button>
+        </div>
+      )}
+
       <div style={{ padding: "6px 16px 28px" }}>
         {/* Players grid */}
-        <div style={{ background: "white", borderRadius: 18, padding: 16, boxShadow: "0 4px 18px rgba(26,35,126,0.10)", marginBottom: 14 }}>
+        <div ref={gridRef} style={{ background: "white", borderRadius: 18, padding: 16, boxShadow: "0 4px 18px rgba(26,35,126,0.10)", marginBottom: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             {players.map(p => {
               const prof = playerProfiles[p.id] || {};
@@ -1089,12 +1124,17 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           <>
             {!nextEvent ? <Empty icon="😴" text="אין אירועים קרובים" /> : (
               <>
-                <div style={S.card}>
-                  <div style={{ fontWeight: 700, color: pc, fontSize: 13, marginBottom: 4 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: "#1e293b", marginBottom: 3 }}>{formatDate(nextEvent.date)}</div>
-                  <div style={{ fontSize: 14, color: "#64748b", marginBottom: 2 }}>⏰ {nextEvent.time}</div>
-                  <div style={{ fontSize: 14, color: "#64748b" }}>📍 {nextEvent.location}</div>
-                  {nextEvent.note && <div style={{ fontSize: 13, color: sc, fontWeight: 600, marginTop: 6 }}>📝 {nextEvent.note}</div>}
+                <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+                    <div style={{ background: sc, color: pc, borderRadius: 20, padding: "6px 14px", fontSize: 14, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</div>
+                  </div>
+                  <div style={{ color: "white", fontSize: 21, fontWeight: 800, marginBottom: 8, lineHeight: 1.3 }}>{formatDate(nextEvent.date)}</div>
+                  <div style={{ display: "flex", gap: 16, color: "rgba(255,255,255,0.92)", fontSize: 15, flexWrap: "wrap" }}>
+                    <span>⏰ {nextEvent.time}</span>
+                    <span>📍 {nextEvent.location}</span>
+                  </div>
+                  {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
                 </div>
 
                 {/* Clickable counters */}
