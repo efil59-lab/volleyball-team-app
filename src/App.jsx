@@ -57,11 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 8,
-  versionName: "גרסה 8.0",
+  version: 9,
+  versionName: "גרסה 9.0",
   date: "יוני 2026",
   features: [
-    { icon: "📊", title: "הסטטיסטיקה האישית שלך", text: "במסך האישי יש עכשיו כרטיס 'הסטטיסטיקה שלי' — לכמה אימונים ומשחקים הגעת, באחוזים ועם פסי התקדמות. הנתונים מתעדכנים אחרי שהמנהלת מארכבת אירוע ומאמתת את ההגעה." },
+    { icon: "🏆", title: "תוצאות משחקים — ניצחנו/הפסדנו", text: "בלשונית המשחקים מופיע עכשיו תג צבעוני לכל משחק שהסתיים: ירוק לניצחון, אדום להפסד, אפור לתיקו — יחד עם הציון." },
   ],
 };
 
@@ -1279,8 +1279,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     })}
                   </Collapsible>
                 )}
+              </>
+            )}
 
-                {/* 📊 Personal stats — based on archived (verified) events only */}
+            {/* 📊 Personal stats — based on archived (verified) events only */}
                 {(() => {
                   const arch = archive || [];
                   const calc = type => {
@@ -1318,8 +1320,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     </Collapsible>
                   );
                 })()}
-              </>
-            )}
           </>
         )}
 
@@ -1335,7 +1335,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   <div style={{ fontSize: 15, fontWeight: 700 }}>נגד: {g.opponent}</div>
                   <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
                 </div>
-                {g.result
+                {g.outcome
+                  ? <div style={{ textAlign: "center" }}><OutcomeBadge outcome={g.outcome} result={g.result} size="lg" /></div>
+                  : g.result
                   ? <div style={{ background: `${pc}15`, borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
                       <div style={{ fontSize: 11, color: "#94a3b8" }}>תוצאה</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: pc }}>{g.result}</div>
@@ -1852,6 +1854,7 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
   const [adding, setAdding] = useState(false);
   const [newG, setNewG] = useState({ date: "", time: "18:00", opponent: "", location: "", result: null });
   const [editResult, setEditResult] = useState({});
+  const [editOutcome, setEditOutcome] = useState({});
 
   return (
     <div>
@@ -1886,15 +1889,24 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
               <div style={{ fontSize: 12, color: "#94a3b8" }}>{formatDate(g.date)} • {g.time}</div>
               <div style={{ fontWeight: 700, fontSize: 15 }}>נגד: {g.opponent}</div>
               <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
-              {g.result && <div style={{ color: pc, fontWeight: 700, marginTop: 3 }}>✅ תוצאה: {g.result}</div>}
+              {g.outcome
+                ? <div style={{ marginTop: 4 }}><OutcomeBadge outcome={g.outcome} result={g.result} /></div>
+                : g.result && <div style={{ color: pc, fontWeight: 700, marginTop: 3 }}>✅ תוצאה: {g.result}</div>}
             </div>
             <button onClick={() => askConfirm("למחוק משחק זה?", () => upd.games(games.filter(x => x.id !== g.id)))}
               style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, height: "fit-content" }}>🗑</button>
           </div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            {[["win", "🟢 ניצחנו", "#16a34a"], ["loss", "🔴 הפסדנו", "#ef4444"], ["draw", "⚪ תיקו", "#64748b"]].map(([val, lbl, c]) => {
+              const sel = (editOutcome[g.id] ?? g.outcome) === val;
+              return <button key={val} onClick={() => setEditOutcome({ ...editOutcome, [g.id]: val })}
+                style={{ flex: 1, padding: "7px 4px", borderRadius: 8, border: sel ? `2px solid ${c}` : "2px solid #e2e8f0", background: sel ? `${c}15` : "white", color: sel ? c : "#94a3b8", cursor: "pointer", fontSize: 12, fontWeight: sel ? 800 : 600 }}>{lbl}</button>;
+            })}
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={editResult[g.id] ?? (g.result || "")} onChange={e => setEditResult({ ...editResult, [g.id]: e.target.value })}
-              placeholder="עדכן תוצאה (3-1)" style={{ ...S.input, margin: 0, flex: 1 }} />
-            <button onClick={async () => { await upd.games(games.map(x => x.id === g.id ? { ...x, result: editResult[g.id] } : x)); setEditResult(e => { const n={...e}; delete n[g.id]; return n; }); }}
+              placeholder="ציון (3-1)" style={{ ...S.input, margin: 0, flex: 1 }} />
+            <button onClick={async () => { await upd.games(games.map(x => x.id === g.id ? { ...x, result: editResult[g.id] ?? x.result, outcome: editOutcome[g.id] ?? x.outcome } : x)); setEditResult(e => { const n = { ...e }; delete n[g.id]; return n; }); setEditOutcome(e => { const n = { ...e }; delete n[g.id]; return n; }); }}
               style={{ background: pc, color: "white", border: "none", borderRadius: 8, padding: "0 14px", cursor: "pointer", fontWeight: 700 }}>שמור</button>
           </div>
         </div>
@@ -2581,6 +2593,14 @@ function HelpScreen({ pc, sc, settings, onBack }) {
 }
 
 // ── SHARED ────────────────────────────────────────────────────────────────────
+// תג תוצאה צבעוני — ניצחון/הפסד/תיקו + ציון אופציונלי
+function OutcomeBadge({ outcome, result, size }) {
+  const map = { win: { lbl: "ניצחון", c: "#16a34a", bg: "#dcfce7" }, loss: { lbl: "הפסד", c: "#ef4444", bg: "#fee2e2" }, draw: { lbl: "תיקו", c: "#64748b", bg: "#f1f5f9" } };
+  const o = map[outcome];
+  if (!o) return null;
+  return <span style={{ display: "inline-block", background: o.bg, color: o.c, borderRadius: 8, padding: size === "lg" ? "6px 14px" : "3px 10px", fontSize: size === "lg" ? 15 : 13, fontWeight: 800, whiteSpace: "nowrap" }}>{o.lbl}{result ? ` ${result}` : ""}</span>;
+}
+
 function Empty({ icon, text }) {
   return <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}><div style={{ fontSize: 48 }}>{icon}</div><p style={{ marginTop: 8 }}>{text}</p></div>;
 }
