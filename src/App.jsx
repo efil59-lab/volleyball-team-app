@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
@@ -372,16 +372,33 @@ export default function App() {
     })();
   }, []);
 
-  // התחברות מנהל עם Google (redirect — אמין במובייל/PWA). מטופלת בחזרה ע"י getRedirectResult.
+  // התחברות מנהל עם Google: popup (אמין בכרום, לא תלוי אחסון בין-דומייני),
+  // עם נפילה אוטומטית ל-redirect אם ה-popup נחסם/לא נתמך (PWA מותקן).
   async function handleGoogleLogin() {
+    setGoogleLoginError("");
     try {
-      setGoogleLoginError("");
-      sessionStorage.setItem("pendingGoogleLogin", "1");
-      await signInWithRedirect(auth, googleProvider);
-      return { ok: true }; // הדף עובר לגוגל; שורה זו כמעט לא רצה בפועל
+      const result = await signInWithPopup(auth, googleProvider);
+      const teamId = await resolveAdminTeam(result.user);
+      setCurrentTeam(teamId);
+      await loadTeamData();
+      setScreen("admin");
+      return { ok: true };
     } catch (e) {
-      console.error("Google login error:", e);
-      sessionStorage.removeItem("pendingGoogleLogin");
+      console.error("Google popup error:", e);
+      if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") {
+        return { ok: false, error: "" }; // המשתמש סגר — לא שגיאה אמיתית
+      }
+      // popup נחסם או לא נתמך → ננסה redirect
+      if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
+        try {
+          sessionStorage.setItem("pendingGoogleLogin", "1");
+          await signInWithRedirect(auth, googleProvider);
+          return { ok: true };
+        } catch (e2) {
+          console.error("Google redirect error:", e2);
+          return { ok: false, error: e2.code || e2.message };
+        }
+      }
       return { ok: false, error: e.code || e.message };
     }
   }
