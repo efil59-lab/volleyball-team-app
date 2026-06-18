@@ -1125,7 +1125,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
       <div style={{ display: "flex", background: "white", borderBottom: "2px solid #e2e8f0", overflowX: "auto" }}>
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
+          <button key={t.key} onClick={(e) => { setTab(t.key); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
             style={{ flex: 1, padding: "12px 4px", border: "none", background: "transparent", color: tab === t.key ? pc : "#64748b", cursor: "pointer", fontSize: 13, fontWeight: tab === t.key ? 700 : 500, borderBottom: tab === t.key ? `3px solid ${sc}` : "3px solid transparent", whiteSpace: "nowrap" }}>
             {t.label}
           </button>
@@ -1503,7 +1503,7 @@ function AdminPanel(props) {
       </div>
       <div style={{ display: "flex", overflowX: "auto", background: "white", borderBottom: "2px solid #e2e8f0" }}>
         {tabs.map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)}
+          <button key={key} onClick={(e) => { setTab(key); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
             style={{ padding: "10px 11px", border: "none", background: "transparent", color: tab === key ? pc : "#64748b", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap", fontWeight: tab === key ? 700 : 500, borderBottom: tab === key ? `3px solid ${sc}` : "3px solid transparent" }}>
             {label}
           </button>
