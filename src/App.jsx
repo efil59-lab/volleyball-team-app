@@ -57,11 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 5,
-  versionName: "גרסה 5.0",
+  version: 6,
+  versionName: "גרסה 6.0",
   date: "יוני 2026",
   features: [
-    { icon: "🧹", title: "מסך נקי יותר", text: "הרשימות הארוכות ('מגיעות' ו'כל הכבוד') מקופלות עכשיו — לחיצה על הכותרת פותחת וסוגרת אותן, ואישור ההגעה קרוב יותר לראש המסך." },
+    { icon: "✨", title: "תחושה חלקה יותר", text: "מעברים רכים בין מסכים, ופתיחה/סגירה חלקה של הכרטיסים המתקפלים — האפליקציה זורמת יותר ונעימה לשימוש." },
   ],
 };
 
@@ -481,14 +481,24 @@ export default function App() {
 
   return (
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
+      <style>{`
+        @keyframes screenFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .screen-fade { animation: screenFade 0.28s ease both; }
+        @media (prefers-reduced-motion: reduce) {
+          .screen-fade { animation: none !important; }
+          .collapse-grid { transition: none !important; }
+        }
+      `}</style>
       {confirm && <Confirm msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
 
-      {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
-      {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
-      {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
-      {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
-      {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
-      {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
+      <div key={screen} className="screen-fade">
+        {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
+        {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
+        {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
+        {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
+        {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
+        {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
+      </div>
     </div>
   );
 }
@@ -2452,9 +2462,13 @@ function Collapsible({ title, count, defaultOpen = false, accent = "#1e293b", ch
       <button onClick={() => setOpen(o => !o)}
         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "transparent", border: "none", cursor: "pointer", padding: 14, textAlign: "right" }}>
         <span style={{ fontSize: 14, fontWeight: 800, color: accent }}>{title}{typeof count === "number" ? ` (${count})` : ""}</span>
-        <span style={{ fontSize: 12, color: "#94a3b8", display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+        <span style={{ fontSize: 12, color: "#94a3b8", display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.25s ease" }}>▾</span>
       </button>
-      {open && <div style={{ padding: "0 14px 14px" }}>{children}</div>}
+      <div className="collapse-grid" style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows 0.28s ease" }}>
+        <div style={{ overflow: "hidden" }}>
+          <div style={{ padding: "0 14px 14px" }}>{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
