@@ -57,11 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 7,
-  versionName: "גרסה 7.0",
+  version: 8,
+  versionName: "גרסה 8.0",
   date: "יוני 2026",
   features: [
-    { icon: "🔓", title: "כניסה מהירה — בלי להקליד סיסמה כל פעם", text: "בכניסה יש עכשיו אפשרות 'זכרי אותי במכשיר הזה'. אם תסמני אותה, בפעם הבאה תיכנסי ישר בלחיצה על השם — בלי סיסמה. אפשר להתנתק בכל רגע מהכפתור 🔓 למעלה במסך האישי." },
+    { icon: "📊", title: "הסטטיסטיקה האישית שלך", text: "במסך האישי יש עכשיו כרטיס 'הסטטיסטיקה שלי' — לכמה אימונים ומשחקים הגעת, באחוזים ועם פסי התקדמות. הנתונים מתעדכנים אחרי שהמנהלת מארכבת אירוע ומאמתת את ההגעה." },
   ],
 };
 
@@ -1279,6 +1279,45 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     })}
                   </Collapsible>
                 )}
+
+                {/* 📊 Personal stats — based on archived (verified) events only */}
+                {(() => {
+                  const arch = archive || [];
+                  const calc = type => {
+                    const evs = arch.filter(a => a.type === type);
+                    const came = evs.filter(a => (a.attendanceData || []).some(d => d.playerId === player.id && d.status === "coming")).length;
+                    return { total: evs.length, came };
+                  };
+                  const tr = calc("training"), gm = calc("game");
+                  const totT = tr.total + gm.total, totC = tr.came + gm.came;
+                  const col = p => p >= 75 ? "#16a34a" : p >= 50 ? "#f59e0b" : "#ef4444";
+                  const pct = (c, t) => t ? Math.round(c / t * 100) : 0;
+                  const bar = (icon, label, c, t, big) => {
+                    const p = pct(c, t);
+                    return (
+                      <div style={{ marginBottom: big ? 0 : 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: big ? 14 : 13, marginBottom: 5 }}>
+                          <span style={{ color: big ? "#1e293b" : "#475569", fontWeight: big ? 800 : 500 }}>{icon} {label}</span>
+                          <span style={{ fontWeight: 800, color: col(p) }}>{c} / {t} · {p}%</span>
+                        </div>
+                        <div style={{ height: big ? 10 : 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ width: `${p}%`, height: "100%", background: big ? pc : col(p), borderRadius: 99 }} />
+                        </div>
+                      </div>
+                    );
+                  };
+                  return (
+                    <Collapsible title="📊 הסטטיסטיקה שלי" count={totT} accent={pc}>
+                      {totT === 0
+                        ? <div style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: "8px 0" }}>עדיין אין נתונים — הסטטיסטיקה תופיע אחרי שהמנהלת תארכב אירועים.</div>
+                        : <>
+                            {bar("🏋️", "אימונים", tr.came, tr.total, false)}
+                            {bar("🏆", "משחקים", gm.came, gm.total, false)}
+                            <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>{bar("✅", 'סה"כ נוכחות', totC, totT, true)}</div>
+                          </>}
+                    </Collapsible>
+                  );
+                })()}
               </>
             )}
           </>
@@ -1691,10 +1730,20 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
     setNewEv({ type: "training", date: "", time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true });
   }
 
+  const [archiveDialog, setArchiveDialog] = useState(null); // האירוע שממתין לאישור ארכוב
+  const [verified, setVerified] = useState(false);
+
   async function lockToArchive(ev) {
     const attData = Object.entries(attendance).filter(([k]) => k.startsWith(`${ev.id}_`)).map(([k, v]) => ({ playerId: parseInt(k.split("_")[1]), ...v }));
-    await upd.archive([...archive, { ...ev, archivedAt: new Date().toISOString(), attendanceData: attData }]);
+    await upd.archive([...archive, { ...ev, archivedAt: new Date().toISOString(), verified: true, verifiedBy: auth.currentUser?.email || "מנהל/ת", attendanceData: attData }]);
     await upd.events(events.filter(e => e.id !== ev.id));
+  }
+
+  function openArchiveDialog(ev) { setVerified(false); setArchiveDialog(ev); }
+  async function confirmArchiveDialog() {
+    const ev = archiveDialog;
+    setArchiveDialog(null);
+    if (ev) await lockToArchive(ev);
   }
 
   // אירועים שתאריכם עבר (מהיום שאחרי האירוע) וטרם אורכבו
@@ -1705,9 +1754,10 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
     const today = todayStr();
     const past = events.filter(e => e.date < today);
     if (past.length === 0) return;
+    const by = auth.currentUser?.email || "מנהל/ת";
     const newEntries = past.map(ev => {
       const attData = Object.entries(attendance).filter(([k]) => k.startsWith(`${ev.id}_`)).map(([k, v]) => ({ playerId: parseInt(k.split("_")[1]), ...v }));
-      return { ...ev, archivedAt: new Date().toISOString(), attendanceData: attData };
+      return { ...ev, archivedAt: new Date().toISOString(), verified: true, verifiedBy: by, attendanceData: attData };
     });
     await upd.archive([...archive, ...newEntries]);
     await upd.events(events.filter(e => e.date >= today));
@@ -1715,6 +1765,25 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
 
   return (
     <div>
+      {archiveDialog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 18, maxWidth: 340, width: "100%", boxSizing: "border-box", boxShadow: "0 8px 30px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>ארכוב אירוע</div>
+            <div style={{ fontSize: 14, color: "#64748b", marginBottom: 16 }}>{archiveDialog.type === "training" ? "🏋️ אימון" : "🏆 משחק"} · {formatDate(archiveDialog.date)} · {archiveDialog.time}</div>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, cursor: "pointer", marginBottom: 8 }}>
+              <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} style={{ width: 20, height: 20, accentColor: "#16a34a", cursor: "pointer", flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 13, color: "#92400e", fontWeight: 600, lineHeight: 1.4 }}>אימתתי את נתוני ההגעה של השחקניות לאירוע זה</span>
+            </label>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>חובה לסמן — הנתונים נכנסים לסטטיסטיקה האישית של השחקניות.</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button disabled={!verified} onClick={confirmArchiveDialog}
+                style={{ flex: 1, padding: 12, background: verified ? pc : "#cbd5e1", color: "white", border: "none", borderRadius: 10, cursor: verified ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 800 }}>🔒 ארכב</button>
+              <button onClick={() => setArchiveDialog(null)}
+                style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14 }}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
       {pastEvents.length > 0 && (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: "#92400e", marginBottom: 4 }}>⚠️ {pastEvents.length === 1 ? "אירוע שעבר וטרם אורכב" : `${pastEvents.length} אירועים שעברו וטרם אורכבו`}</div>
@@ -1765,7 +1834,7 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
               {ev.note && <div style={{ color: sc, fontSize: 12, fontWeight: 600 }}>📝 {ev.note}</div>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-              <button onClick={() => askConfirm("לנעול אירוע ולהעבירו לארכיון?", () => lockToArchive(ev))}
+              <button onClick={() => openArchiveDialog(ev)}
                 style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>🔒 ארכיון</button>
               <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
                 style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
