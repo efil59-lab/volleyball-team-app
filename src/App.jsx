@@ -118,6 +118,14 @@ function countdownLabel(d) {
   if (n === 2) return "מחרתיים";
   return `עוד ${n} ימים`;
 }
+// זיהוי iOS/iPadOS — שם signInWithPopup לא אמין (ITP מאבד את תוצאת ה-popup)
+function isIOS() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const iOSDevice = /iPad|iPhone|iPod/.test(ua);
+  const iPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1; // iPadOS 13+ מתחזה ל-Mac
+  return iOSDevice || iPadOS;
+}
 function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
@@ -391,10 +399,22 @@ export default function App() {
     })();
   }, []);
 
-  // התחברות מנהל עם Google: popup (אמין בכרום, לא תלוי אחסון בין-דומייני),
-  // עם נפילה אוטומטית ל-redirect אם ה-popup נחסם/לא נתמך (PWA מותקן).
+  // התחברות מנהל עם Google.
+  // אנדרואיד/מחשב: popup (אמין, לא תלוי אחסון בין-דומייני), עם נפילה ל-redirect אם נחסם.
+  // אייפון/iPadOS: redirect ישיר — שם ה-popup לא אמין (ITP מאבד את התוצאה בדרך חזרה).
   async function handleGoogleLogin() {
     setGoogleLoginError("");
+    if (isIOS()) {
+      try {
+        sessionStorage.setItem("pendingGoogleLogin", "1");
+        await signInWithRedirect(auth, googleProvider);
+        return { ok: true };
+      } catch (e) {
+        console.error("iOS Google redirect error:", e);
+        sessionStorage.removeItem("pendingGoogleLogin");
+        return { ok: false, error: e.code || e.message };
+      }
+    }
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const teamId = await resolveAdminTeam(result.user);
@@ -663,7 +683,7 @@ function NotifTicker({ notifs, pc, sc }) {
         transition: "all 0.4s ease",
         textAlign: "center",
       }}>
-        <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4 }}>{displayText}</div>
+        <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4, overflowWrap: "break-word", wordBreak: "break-word" }}>{displayText}</div>
         {notifs.length > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>
             {notifs.map((_, i) => (
@@ -685,7 +705,7 @@ function HomeScreen({ players, events, settings, notifications, playerProfiles, 
   const nextEvent = getNextEvent(events || []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
       {/* Header */}
       <div style={{ background: pc, padding: "28px 20px 24px", textAlign: "center", position: "relative", borderRadius: "0 0 28px 28px" }}>
         <button onClick={onHelp} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
