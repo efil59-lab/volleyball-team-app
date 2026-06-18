@@ -57,11 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 9,
-  versionName: "גרסה 9.0",
+  version: 10,
+  versionName: "גרסה 10.0",
   date: "יוני 2026",
   features: [
-    { icon: "🏆", title: "תוצאות משחקים — ניצחנו/הפסדנו", text: "בלשונית המשחקים מופיע עכשיו תג צבעוני לכל משחק שהסתיים: ירוק לניצחון, אדום להפסד, אפור לתיקו — יחד עם הציון." },
+    { icon: "🎂", title: "ברכות יום הולדת לכל הקבוצה", text: "כשחברת קבוצה חוגגת יום הולדת, כולן יראו זאת בכניסה ויוכלו לשלוח לה ברכה בלחיצה אחת — והחוגגת תקבל את כל הברכות ישר אצלה. 🎉" },
   ],
 };
 
@@ -947,7 +947,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   // ── Build entry popups (birthday greeting + unseen applause) — runs once on mount ──
   useEffect(() => {
     const popups = [];
-    // Birthday greeting (once per day)
+    // Birthday greeting for self (once per day)
     if (isBirthdayToday(prof.birthday)) {
       const seenKey = `bdaySeen_${player.id}_${todayStr()}`;
       if (!localStorage.getItem(seenKey)) {
@@ -955,16 +955,34 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
         localStorage.setItem(seenKey, "1");
       }
     }
-    // Unseen applause notifications for this player
-    const myNotifs = (personalNotifs[player.id] || []).filter(n => !n.seen && n.type === "applause");
-    myNotifs.forEach(n => popups.push({ kind: "applause", id: n.id, fromName: n.fromName }));
+    // Other players' birthdays today → offer to send a greeting (once per viewer per celebrant per day)
+    players.forEach(other => {
+      if (other.id === player.id) return;
+      const oprof = playerProfiles[other.id] || {};
+      if (isBirthdayToday(oprof.birthday)) {
+        const seenKey = `othersBdaySeen_${player.id}_${other.id}_${todayStr()}`;
+        if (!localStorage.getItem(seenKey)) {
+          popups.push({ kind: "otherBirthday", id: "obday_" + other.id, celebrantId: other.id, celebrantName: other.name });
+          localStorage.setItem(seenKey, "1");
+        }
+      }
+    });
+    // Unseen personal notifications: applause (one each) + birthday greetings (aggregated)
+    const myNotifs = (personalNotifs[player.id] || []).filter(n => !n.seen && (n.type === "applause" || n.type === "birthday"));
+    myNotifs.filter(n => n.type === "applause").forEach(n => popups.push({ kind: "applause", id: n.id, fromName: n.fromName }));
+    const bdayGreets = myNotifs.filter(n => n.type === "birthday");
+    if (bdayGreets.length > 0) {
+      const names = [...new Set(bdayGreets.map(n => n.fromName))];
+      const namesStr = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " ו" + names[names.length - 1];
+      popups.push({ kind: "birthdayReceived", id: "bdayrecv", fromNames: namesStr, multi: names.length > 1 });
+    }
     if (popups.length > 0) {
       setEntryPopups(popups);
-      // Mark applause notifs as seen
+      // Mark applause + birthday notifs as seen
       if (myNotifs.length > 0) {
         const updated = {
           ...personalNotifs,
-          [player.id]: (personalNotifs[player.id] || []).map(n => n.type === "applause" ? { ...n, seen: true } : n),
+          [player.id]: (personalNotifs[player.id] || []).map(n => (n.type === "applause" || n.type === "birthday") ? { ...n, seen: true } : n),
         };
         upd.personalNotifs(updated);
       }
@@ -974,6 +992,18 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   function dismissTopPopup() {
     setEntryPopups(p => p.slice(1));
+  }
+
+  // שליחת ברכת יום הולדת לחוגגת (התראה אישית, פעם אחת לכל צופה לכל חוגגת ביום)
+  async function sendBirthdayGreeting(celebrantId, celebrantName) {
+    const key = `bdayGreetSent_${player.id}_${celebrantId}_${todayStr()}`;
+    if (!localStorage.getItem(key)) {
+      const notif = { id: `bday_${player.id}_${Date.now()}`, type: "birthday", fromName: player.name, seen: false, date: todayStr() };
+      const updated = { ...personalNotifs, [celebrantId]: [...(personalNotifs[celebrantId] || []), notif] };
+      await upd.personalNotifs(updated);
+      localStorage.setItem(key, "1");
+    }
+    dismissTopPopup();
   }
 
   function countAtt(status) {
@@ -1073,29 +1103,46 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      {/* Entry popups: birthday greeting + applause received */}
+      {/* Entry popups: self birthday, others' birthday (send greeting), applause, received greetings */}
       {entryPopups.length > 0 && (() => {
         const top = entryPopups[0];
-        const isBday = top.kind === "birthday";
+        const icon = top.kind === "applause" ? "👏" : top.kind === "otherBirthday" ? "🎂" : top.kind === "birthdayReceived" ? "🎉" : "🎂";
         return (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={dismissTopPopup}>
             <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 22, padding: "32px 26px", maxWidth: 320, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.35)", animation: "bounce 0.5s ease" }}>
-              <div style={{ fontSize: 64, marginBottom: 10 }}>{isBday ? "🎂" : "👏"}</div>
-              {isBday ? (
+              <div style={{ fontSize: 64, marginBottom: 10 }}>{icon}</div>
+              {top.kind === "birthday" ? (
                 <>
                   <div style={{ fontSize: 22, fontWeight: 900, color: pc, marginBottom: 8 }}>יום הולדת שמח, {player.name}! 🎉</div>
                   <p style={{ fontSize: 15, color: "#475569", lineHeight: 1.6, margin: "0 0 6px" }}>כל הקבוצה מאחלת לך יום מדהים ומלא שמחה!</p>
                   <p style={{ fontSize: 14, color: pc, fontWeight: 700, margin: 0 }}>🏐 שתמשיכי לכבוש את המגרש! 🏐</p>
                 </>
-              ) : (
+              ) : top.kind === "applause" ? (
                 <>
                   <div style={{ fontSize: 20, fontWeight: 900, color: pc, marginBottom: 8 }}>{top.fromName} שלחה לך כל הכבוד!</div>
                   <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: 0 }}>על ההגעה לאימון/משחק. כל הכבוד! 💪</p>
                 </>
+              ) : top.kind === "otherBirthday" ? (
+                <>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: pc, marginBottom: 8 }}>היום יום ההולדת של {top.celebrantName}!</div>
+                  <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: 0 }}>רוצה לשלוח לה ברכה חמה? היא תקבל אותה ישר אצלה 🎉</p>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: pc, marginBottom: 8 }}>קיבלת ברכה ליום ההולדת!</div>
+                  <p style={{ fontSize: 15, color: "#475569", lineHeight: 1.6, margin: 0 }}><b style={{ color: pc }}>{top.fromNames}</b> {top.multi ? "בירכו" : "בירכה"} אותך ליום הולדת שמח 🎂</p>
+                </>
               )}
-              <button onClick={dismissTopPopup} style={{ marginTop: 22, width: "100%", padding: 13, background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 800, fontSize: 15 }}>
-                {entryPopups.length > 1 ? "תודה! הבא ←" : "תודה! 🥰"}
-              </button>
+              {top.kind === "otherBirthday" ? (
+                <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button onClick={() => sendBirthdayGreeting(top.celebrantId, top.celebrantName)} style={{ width: "100%", padding: 13, background: sc, color: pc, border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 800, fontSize: 15 }}>🎂 שלחי ברכה</button>
+                  <button onClick={dismissTopPopup} style={{ width: "100%", padding: 10, background: "transparent", color: "#94a3b8", border: "none", cursor: "pointer", fontSize: 14 }}>אולי אחר כך</button>
+                </div>
+              ) : (
+                <button onClick={dismissTopPopup} style={{ marginTop: 22, width: "100%", padding: 13, background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 800, fontSize: 15 }}>
+                  {entryPopups.length > 1 ? "תודה! הבא ←" : "תודה! 🥰"}
+                </button>
+              )}
             </div>
           </div>
         );
@@ -1855,6 +1902,7 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
   const [newG, setNewG] = useState({ date: "", time: "18:00", opponent: "", location: "", result: null });
   const [editResult, setEditResult] = useState({});
   const [editOutcome, setEditOutcome] = useState({});
+  const [savedId, setSavedId] = useState(null);
 
   return (
     <div>
@@ -1905,10 +1953,11 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={editResult[g.id] ?? (g.result || "")} onChange={e => setEditResult({ ...editResult, [g.id]: e.target.value })}
-              placeholder="ציון (3-1)" style={{ ...S.input, margin: 0, flex: 1 }} />
-            <button onClick={async () => { await upd.games(games.map(x => x.id === g.id ? { ...x, result: editResult[g.id] ?? x.result, outcome: editOutcome[g.id] ?? x.outcome } : x)); setEditResult(e => { const n = { ...e }; delete n[g.id]; return n; }); setEditOutcome(e => { const n = { ...e }; delete n[g.id]; return n; }); }}
+              placeholder="תוצאה (3-1)" style={{ ...S.input, margin: 0, flex: 1 }} />
+            <button onClick={async () => { await upd.games(games.map(x => x.id === g.id ? { ...x, result: editResult[g.id] ?? x.result, outcome: editOutcome[g.id] ?? x.outcome } : x)); setEditResult(e => { const n = { ...e }; delete n[g.id]; return n; }); setEditOutcome(e => { const n = { ...e }; delete n[g.id]; return n; }); setSavedId(g.id); setTimeout(() => setSavedId(s => s === g.id ? null : s), 2000); }}
               style={{ background: pc, color: "white", border: "none", borderRadius: 8, padding: "0 14px", cursor: "pointer", fontWeight: 700 }}>שמור</button>
           </div>
+          {savedId === g.id && <div style={{ color: "#16a34a", fontSize: 13, fontWeight: 700, marginTop: 8, textAlign: "center" }}>✓ נשמר</div>}
         </div>
       ))}
     </div>
