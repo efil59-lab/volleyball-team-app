@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
@@ -893,7 +893,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 }
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, upd, pc, sc, onBack }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, upd, pc, sc, askConfirm, onBack }) {
   const [tab, setTab] = useState("event");
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
@@ -1004,17 +1004,25 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   async function uploadGallery(e) {
     const file = e.target.files[0]; if (!file) return;
     try {
-      const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+      const path = `gallery/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, path);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       await upd.gallery([...gallery, {
         id: Date.now(), playerId: player.id, playerName: player.name,
-        photo: url, date: new Date().toISOString(),
+        photo: url, storagePath: path, date: new Date().toISOString(),
         eventTitle: nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "כללי"
       }]);
     } catch (err) {
       console.error("שגיאה בהעלאת תמונה:", err);
     }
+  }
+
+  async function deleteGalleryPhoto(item) {
+    try { if (item.storagePath) await deleteObject(ref(storage, item.storagePath)); }
+    catch (err) { console.error("שגיאה במחיקת קובץ מ-Storage:", err); }
+    await upd.gallery(gallery.filter(g => g.id !== item.id));
+    setSelectedPhoto(null);
   }
 
   const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ הצבעות" }, { key: "gallery", label: "📸 גלריה" }];
@@ -1302,6 +1310,12 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 <img src={selectedPhoto.photo} style={{ maxWidth: "100%", maxHeight: "80vh", borderRadius: 12, objectFit: "contain" }} />
                 <div style={{ color: "white", fontSize: 13, fontWeight: 600, marginTop: 12 }}>{selectedPhoto.playerName}</div>
                 <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginTop: 4 }}>{selectedPhoto.eventTitle || new Date(selectedPhoto.date).toLocaleDateString("he-IL")}</div>
+                {selectedPhoto.playerId === player.id && (
+                  <button onClick={(e) => { e.stopPropagation(); askConfirm("למחוק את התמונה?", () => deleteGalleryPhoto(selectedPhoto)); }}
+                    style={{ marginTop: 16, background: "#ef4444", color: "white", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    🗑️ מחקי תמונה
+                  </button>
+                )}
                 <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 16 }}>לחץ לסגירה</div>
               </div>
             )}
@@ -1431,11 +1445,54 @@ function AdminLogin({ pc, sc, onGoogle, onContinue, authUser, onBack, initialErr
   );
 }
 
+// ── ADMIN GALLERY (מחיקה גורפת למנהל) ─────────────────────────────────────────
+function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
+  const [selected, setSelected] = useState(null);
+  async function deletePhoto(item) {
+    try { if (item.storagePath) await deleteObject(ref(storage, item.storagePath)); }
+    catch (err) { console.error("שגיאה במחיקת קובץ מ-Storage:", err); }
+    await upd.gallery(gallery.filter(g => g.id !== item.id));
+    setSelected(null);
+  }
+  if (!gallery || gallery.length === 0) return <Empty icon="📸" text="אין תמונות בגלריה" />;
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>כמנהל ניתן למחוק כל תמונה בגלריה.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        {[...gallery].reverse().map(item => (
+          <div key={item.id} style={{ borderRadius: 12, overflow: "hidden", position: "relative" }}>
+            <img src={item.photo} onClick={() => setSelected(item)} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", cursor: "pointer" }} />
+            <button onClick={() => askConfirm(`למחוק את התמונה של ${item.playerName}?`, () => deletePhoto(item))}
+              style={{ position: "absolute", top: 6, left: 6, background: "rgba(239,68,68,0.92)", color: "white", border: "none", borderRadius: 8, width: 30, height: 30, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              🗑️
+            </button>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.65))", padding: "16px 8px 6px" }}>
+              <div style={{ color: "white", fontSize: 11, fontWeight: 600 }}>{item.playerName}</div>
+              <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 10 }}>{item.eventTitle || new Date(item.date).toLocaleDateString("he-IL")}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {selected && (
+        <div onClick={() => setSelected(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <img src={selected.photo} style={{ maxWidth: "100%", maxHeight: "75vh", borderRadius: 12, objectFit: "contain" }} />
+          <div style={{ color: "white", fontSize: 13, fontWeight: 600, marginTop: 12 }}>{selected.playerName}</div>
+          <button onClick={(e) => { e.stopPropagation(); askConfirm(`למחוק את התמונה של ${selected.playerName}?`, () => deletePhoto(selected)); }}
+            style={{ marginTop: 16, background: "#ef4444", color: "white", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            🗑️ מחק תמונה
+          </button>
+          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 16 }}>לחץ לסגירה</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
   const { pc, sc, onBack } = props;
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ הצבעות"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
+  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ הצבעות"],["gallery","📸 גלריה"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -1459,6 +1516,7 @@ function AdminPanel(props) {
         {tab === "players" && <AdminPlayers {...props} />}
         {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
         {tab === "polls" && <AdminPolls {...props} />}
+        {tab === "gallery" && <AdminGallery {...props} />}
         {tab === "archive" && <ArchiveStats {...props} />}
         {tab === "settings" && <AdminSettings {...props} />}
       </div>
