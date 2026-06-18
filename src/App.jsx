@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInAnonymously, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
@@ -280,17 +280,9 @@ export default function App() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [googleLoginError, setGoogleLoginError] = useState("");
 
-  // ── שלב מעבר לאבטחה: התחברות אנונימית בשקט ──────────────────────────────────
-  // כל מכשיר מקבל טוקן אנונימי ברקע. לא חוסם טעינת נתונים ולא משנה כלום לשחקניות.
-  // הכללים עדיין פתוחים (if true) — זה רק מכין את הקרקע לכשנהדק אותם בהמשך.
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        signInAnonymously(auth).catch((e) => console.error("Anon auth error:", e));
-      }
-    });
-    return () => unsub();
-  }, []);
+  // ── שלב מעבר לאבטחה: bootstrap של Auth מתבצע באפקט המאוחד למטה ────────────────
+  // קודם פותרים redirect של Google, ורק אם אין משתמש כלל — מתחברים אנונימית.
+  // איחוד הרצף מונע מצב שבו ההתחברות האנונימית "דורסת" את תוצאת ה-redirect.
 
   // טוען את כל נתוני הקבוצה הנוכחית (CURRENT_TEAM). ניתן לקריאה חוזרת אחרי החלפת קבוצה.
   async function loadTeamData() {
@@ -318,24 +310,44 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      // אם חזרנו מהתחברות Google (redirect) — טפל בה ועבור לפאנל מנהל.
+      const pending = sessionStorage.getItem("pendingGoogleLogin");
+      let adminUser = null;
+
+      // 1) קודם כל — לפתור redirect של Google אם יש (לפני כל פעולת auth אחרת!)
       try {
         const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          const teamId = await resolveAdminTeam(result.user);
-          setCurrentTeam(teamId);
-          await loadTeamData();
-          setScreen("admin");
-          return;
-        }
+        if (result && result.user) adminUser = result.user;
       } catch (e) {
         console.error("Redirect login error:", e);
+        sessionStorage.removeItem("pendingGoogleLogin");
         setGoogleLoginError(e.code || e.message || "שגיאה לא ידועה");
         await loadTeamData();
-        setScreen("admin-login"); // נחזיר אותו למסך הכניסה עם השגיאה המדויקת
+        setScreen("admin-login");
         return;
       }
-      // זרימה רגילה
+
+      // גיבוי: יש דפדפנים שבהם getRedirectResult חוזר ריק למרות התחברות מוצלחת.
+      // אם סימנו שיש כניסת מנהל ממתינה ויש משתמש לא-אנונימי — זו הכניסה שלו.
+      if (!adminUser && pending && auth.currentUser && !auth.currentUser.isAnonymous) {
+        adminUser = auth.currentUser;
+      }
+      if (pending) sessionStorage.removeItem("pendingGoogleLogin");
+
+      // 2) אם אין משתמש מחובר כלל — התחברות אנונימית (טוקן בסיס לשחקניות)
+      if (!auth.currentUser) {
+        try { await signInAnonymously(auth); } catch (e) { console.error("Anon auth error:", e); }
+      }
+
+      // 3) אם חזרנו מהתחברות מנהל — לזהות/לאמץ קבוצה ולעבור לפאנל
+      if (adminUser) {
+        const teamId = await resolveAdminTeam(adminUser);
+        setCurrentTeam(teamId);
+        await loadTeamData();
+        setScreen("admin");
+        return;
+      }
+
+      // 4) זרימה רגילה
       await loadTeamData();
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
@@ -352,10 +364,12 @@ export default function App() {
   async function handleGoogleLogin() {
     try {
       setGoogleLoginError("");
+      sessionStorage.setItem("pendingGoogleLogin", "1");
       await signInWithRedirect(auth, googleProvider);
       return { ok: true }; // הדף עובר לגוגל; שורה זו כמעט לא רצה בפועל
     } catch (e) {
       console.error("Google login error:", e);
+      sessionStorage.removeItem("pendingGoogleLogin");
       return { ok: false, error: e.code || e.message };
     }
   }
