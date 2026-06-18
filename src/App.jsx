@@ -2041,61 +2041,84 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
     ev.attendanceData?.filter(a => a.status === "coming").length || 0
   );
 
-  // ייצוא לאקסל — שני גיליונות (נוכחות + סיכום) עם נוסחאות אמיתיות. SheetJS נטען רק בלחיצה.
+  // ייצוא לאקסל — שני גיליונות (נוכחות + סיכום) מעוצבים, RTL, עם נוסחאות אמיתיות. ExcelJS נטען רק בלחיצה.
   async function exportToExcel() {
     if (archive.length === 0) return;
     setExporting(true);
     try {
-      const XLSX = await import("xlsx");
-      const enc = XLSX.utils.encode_cell, col = XLSX.utils.encode_col;
+      const mod = await import("exceljs");
+      const ExcelJS = mod.default || mod;
       const evs = [...archive].sort((a, b) => a.date.localeCompare(b.date));
-      const N = evs.length;
-      const P = players.length;
+      const N = evs.length, P = players.length;
       const dm = d => { const x = new Date(d + "T12:00:00"); return x.getDate() + "/" + (x.getMonth() + 1); };
       const cameSet = evs.map(e => new Set((e.attendanceData || []).filter(a => a.status === "coming").map(a => a.playerId)));
+      const colLetter = n => { let s = ""; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+
+      const TH = { style: "thin", color: { argb: "FFBFBFBF" } };
+      const BORDER = { top: TH, left: TH, right: TH, bottom: TH };
+      const pfill = argb => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+      const HEAD = { font: { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } }, fill: pfill("FF2F5496"), alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+      const TYPE = { font: { name: "Arial", size: 9, bold: true, color: { argb: "FF1F4E78" } }, fill: pfill("FFDDEBF7"), alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+      const NAME = { font: { name: "Arial", size: 11, bold: true }, fill: pfill("FFF2F2F2"), alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
+      const CHECK = { font: { name: "Arial", size: 11, bold: true, color: { argb: "FF006100" } }, fill: pfill("FFC6EFCE"), alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+      const EMPTY = { font: { name: "Arial", size: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+      const TOTAL = { font: { name: "Arial", size: 11, bold: true }, fill: pfill("FFE2EFDA"), alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+      const apply = (cell, st) => Object.assign(cell, st);
+
+      const wb = new ExcelJS.Workbook();
 
       // גיליון 1 — נוכחות
-      const typeRow = ["סוג", ...evs.map(e => e.type === "training" ? "אימון" : "משחק")];
-      const dateRow = ["שחקנית \\ תאריך", ...evs.map(e => dm(e.date)), 'סה"כ', "אחוז"];
-      const playerRows = players.map(p => {
-        const r = [p.name];
-        evs.forEach((e, i) => r.push(cameSet[i].has(p.id) ? "✓" : ""));
-        r.push(null, null);
-        return r;
-      });
-      const totalRow = ['סה"כ נוכחות', ...new Array(N + 2).fill(null)];
-      const ws1 = XLSX.utils.aoa_to_sheet([typeRow, dateRow, ...playerRows, totalRow]);
-      const firstEv = 1, lastEv = N, totalCol = N + 1, pctCol = N + 2, firstPR = 2, lastPR = 1 + P;
+      const ws = wb.addWorksheet("נוכחות", { views: [{ rightToLeft: true, state: "frozen", xSplit: 1, ySplit: 2 }] });
+      const totalCol = N + 2, pctCol = N + 3;
+      const r1 = ws.getRow(1); r1.height = 18;
+      apply(r1.getCell(1), HEAD); r1.getCell(1).value = "סוג";
+      evs.forEach((e, i) => { const c = r1.getCell(2 + i); c.value = e.type === "training" ? "אימון" : "משחק"; apply(c, TYPE); });
+      const r2 = ws.getRow(2); r2.height = 19.5;
+      apply(r2.getCell(1), HEAD); r2.getCell(1).value = "שחקנית \\ תאריך";
+      evs.forEach((e, i) => { const c = r2.getCell(2 + i); c.value = dm(e.date); apply(c, HEAD); });
+      apply(r2.getCell(totalCol), HEAD); r2.getCell(totalCol).value = 'סה"כ';
+      apply(r2.getCell(pctCol), HEAD); r2.getCell(pctCol).value = "אחוז";
       players.forEach((p, pi) => {
-        const r = firstPR + pi, r1 = r + 1;
-        ws1[enc({ r, c: totalCol })] = { t: "n", f: `COUNTIF(${col(firstEv)}${r1}:${col(lastEv)}${r1},"✓")` };
-        ws1[enc({ r, c: pctCol })] = { t: "n", f: `${col(totalCol)}${r1}/${N}`, z: "0%" };
+        const rr = 3 + pi, row = ws.getRow(rr);
+        apply(row.getCell(1), NAME); row.getCell(1).value = p.name;
+        evs.forEach((e, i) => { const c = row.getCell(2 + i); if (cameSet[i].has(p.id)) { c.value = "✓"; apply(c, CHECK); } else apply(c, EMPTY); });
+        const tc = row.getCell(totalCol); tc.value = { formula: `COUNTIF(${colLetter(1)}${rr}:${colLetter(N)}${rr},"✓")` }; apply(tc, TOTAL);
+        const pc2 = row.getCell(pctCol); pc2.value = { formula: `${colLetter(totalCol - 1)}${rr}/${N}` }; apply(pc2, TOTAL); pc2.numFmt = "0%";
       });
-      const tr = firstPR + P;
-      for (let c = firstEv; c <= lastEv; c++) {
-        const cl = col(c);
-        ws1[enc({ r: tr, c })] = { t: "n", f: `COUNTIF(${cl}${firstPR + 1}:${cl}${lastPR + 1},"✓")` };
-      }
-      ws1[enc({ r: tr, c: totalCol })] = { t: "n", f: `SUM(${col(totalCol)}${firstPR + 1}:${col(totalCol)}${lastPR + 1})` };
+      const trr = 3 + P, trow = ws.getRow(trr);
+      apply(trow.getCell(1), HEAD); trow.getCell(1).value = 'סה"כ נוכחות';
+      for (let i = 0; i < N; i++) { const c = trow.getCell(2 + i), cl = colLetter(1 + i); c.value = { formula: `COUNTIF(${cl}3:${cl}${2 + P},"✓")` }; apply(c, TOTAL); }
+      const gc = trow.getCell(totalCol); gc.value = { formula: `SUM(${colLetter(totalCol - 1)}3:${colLetter(totalCol - 1)}${2 + P})` }; apply(gc, TOTAL);
+      ws.getColumn(1).width = 16;
+      for (let i = 0; i < N; i++) ws.getColumn(2 + i).width = 6.6;
+      ws.getColumn(totalCol).width = 7; ws.getColumn(pctCol).width = 7;
 
       // גיליון 2 — סיכום
-      const summary = players.map(p => {
-        let trn = 0, gm = 0;
-        evs.forEach((e, i) => { if (cameSet[i].has(p.id)) { if (e.type === "training") trn++; else gm++; } });
-        return { name: p.name, total: trn + gm, training: trn, game: gm };
-      }).sort((a, b) => b.total - a.total);
-      const trainCount = evs.filter(e => e.type === "training").length;
-      const gameCount = N - trainCount;
-      const sAoa = [["שחקנית", 'סה"כ מפגשים', "אחוז כללי", "מתוכם אימונים", "מתוכם משחקים"],
-        ...summary.map(s => [s.name, s.total, null, s.training, s.game]), [],
-        [`סה"כ מפגשים: ${N}  |  אימונים: ${trainCount}  |  משחקים: ${gameCount}`]];
-      const ws2 = XLSX.utils.aoa_to_sheet(sAoa);
-      summary.forEach((s, i) => { ws2[enc({ r: i + 1, c: 2 })] = { t: "n", f: `B${i + 2}/${N}`, z: "0%" }; });
+      const ws2 = wb.addWorksheet("סיכום", { views: [{ rightToLeft: true }] });
+      const summary = players.map(p => { let t = 0, g = 0; evs.forEach((e, i) => { if (cameSet[i].has(p.id)) { e.type === "training" ? t++ : g++; } }); return { name: p.name, total: t + g, training: t, game: g }; }).sort((a, b) => b.total - a.total);
+      const trainCount = evs.filter(e => e.type === "training").length, gameCount = N - trainCount;
+      const h = ws2.getRow(1);
+      ["שחקנית", 'סה"כ מפגשים', "אחוז כללי", "מתוכם אימונים", "מתוכם משחקים"].forEach((t, i) => { const c = h.getCell(1 + i); c.value = t; apply(c, HEAD); });
+      summary.forEach((s, i) => {
+        const rr = 2 + i, row = ws2.getRow(rr);
+        apply(row.getCell(1), NAME); row.getCell(1).value = s.name;
+        const b = row.getCell(2); b.value = s.total; apply(b, TOTAL);
+        const c = row.getCell(3); c.value = { formula: `B${rr}/${N}` }; apply(c, TOTAL); c.numFmt = "0%";
+        const d = row.getCell(4); d.value = s.training; apply(d, TOTAL);
+        const e = row.getCell(5); e.value = s.game; apply(e, TOTAL);
+      });
+      const fc = ws2.getRow(2 + summary.length + 1).getCell(1);
+      fc.value = `סה"כ מפגשים: ${N}  |  אימונים: ${trainCount}  |  משחקים: ${gameCount}`;
+      fc.font = { name: "Arial", size: 11, bold: true };
+      ws2.getColumn(1).width = 14; ws2.getColumn(2).width = 12; ws2.getColumn(3).width = 12; ws2.getColumn(4).width = 16; ws2.getColumn(5).width = 16;
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws1, "נוכחות");
-      XLSX.utils.book_append_sheet(wb, ws2, "סיכום");
-      XLSX.writeFile(wb, `נוכחות_שחקניות_${todayStr()}.xlsx`);
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `נוכחות_שחקניות_${todayStr()}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Excel export error:", e);
       alert("שגיאה בייצוא הקובץ. נסה שוב.");
