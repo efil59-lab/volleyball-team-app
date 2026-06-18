@@ -1012,7 +1012,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     }
   }
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ הצבעות" }, { key: "gallery", label: "📸 גלריה" }, { key: "ai", label: "🤖 מאמן AI" }];
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ הצבעות" }, { key: "gallery", label: "📸 גלריה" }];
 
   // Attendees of the most recent event (last archived event, else current event's "coming" list)
   const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1317,11 +1317,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             ))}
           </div>
         )}
-
-        {/* ── AI COACH TAB ── */}
-        {tab === "ai" && (
-          <AICoach player={player} playerProfiles={playerProfiles} upd={upd} pc={pc} sc={sc} />
-        )}
       </div>
 
       {attModal && nextEvent && (
@@ -1383,237 +1378,6 @@ function PlayerPolls({ polls, player, upd, pc, sc }) {
       })}
     </div>
   );
-}
-
-// ── AI COACH ──────────────────────────────────────────────────────────────────
-const AI_TOPICS = [
-  { key: "weekly", icon: "📋", label: "תוכנית אימון שבועית" },
-  { key: "jump", icon: "🦵", label: "שיפור קפיצה וכוח רגליים" },
-  { key: "cardio", icon: "🏃", label: "סיבולת וכושר אירובי" },
-  { key: "stretch", icon: "🧘", label: "מתיחות ומניעת פציעות" },
-  { key: "nutrition", icon: "🍎", label: "תזונה לספורטאית" },
-  { key: "recovery", icon: "😴", label: "התאוששות ושינה" },
-  { key: "free", icon: "❓", label: "שאלה חופשית למאמן" },
-];
-
-const POSITIONS = ["קבלנית", "פוגעת", "חוסמת", "ליברו", "סטר", "אחר"];
-const FITNESS_LEVELS = ["מתחילה", "בינונית", "מתקדמת"];
-const GOALS = ["שיפור קפיצה", "מהירות", "סיבולת", "כוח", "מניעת פציעות", "ירידה במשקל"];
-const HOURS = ["1-2 שעות", "3-4 שעות", "5+ שעות"];
-
-function AICoach({ player, playerProfiles, upd, pc, sc }) {
-  const prof = playerProfiles[player.id] || {};
-  const aiProfile = prof.aiProfile || null;
-  const [step, setStep] = useState(aiProfile ? "topics" : "profile");
-  const [profile, setProfile] = useState(aiProfile || { age: "", position: "", level: "", goal: "", hours: "" });
-  const [topic, setTopic] = useState(null);
-  const [freeQ, setFreeQ] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState(null);
-  const [error, setError] = useState(null);
-
-  async function saveProfile() {
-    if (!profile.age || !profile.position || !profile.level || !profile.goal || !profile.hours) {
-      setError("יש למלא את כל השדות"); return;
-    }
-    const updated = { ...playerProfiles, [player.id]: { ...prof, aiProfile: profile } };
-    await upd.playerProfiles(updated);
-    setStep("topics");
-    setError(null);
-  }
-
-  async function getAdvice(selectedTopic) {
-    setTopic(selectedTopic);
-    if (selectedTopic.key === "free") { setStep("free"); return; }
-    setStep("loading");
-    await callAI(selectedTopic.label, null);
-  }
-
-  async function askFree() {
-    if (!freeQ.trim()) return;
-    setStep("loading");
-    await callAI("שאלה חופשית", freeQ);
-  }
-
-  async function callAI(topicLabel, question) {
-    setLoading(true); setResponse(null); setError(null);
-    const systemPrompt = `אתה מאמן כושר מקצועי המתמחה בכדורשת. ענה תמיד בעברית. תן המלצות מעשיות, ספציפיות וברורות. השתמש בפורמט נקי עם כותרות קצרות, נקודות ותרגילים ספציפיים. סיים תמיד עם טיפ בונוס 🌟`;
-    const userMsg = `פרופיל השחקנית:
-- שם: ${player.name}
-- גיל: ${profile.age}
-- עמדה: ${profile.position}
-- רמת כושר: ${profile.level}
-- מטרה: ${profile.goal}
-- זמן פנוי לאימון עצמי: ${profile.hours} בשבוע
-
-${question ? `שאלה: ${question}` : `נושא: ${topicLabel}`}
-
-תן המלצה מותאמת אישית מפורטת ומעשית.`;
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system: systemPrompt,
-          max_tokens: 1000,
-          messages: [{ role: "user", content: userMsg }]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.map(c => c.text || "").join("") || "לא התקבלה תשובה";
-      setResponse(text);
-      setStep("result");
-    } catch (e) {
-      setError("שגיאה בחיבור למאמן AI. נסי שוב.");
-      setStep("topics");
-    }
-    setLoading(false);
-  }
-
-  // Profile setup
-  if (step === "profile") return (
-    <div>
-      <div style={{ ...S.card, background: `linear-gradient(135deg, ${pc}15, ${sc}20)`, border: `2px solid ${pc}30`, textAlign: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: pc, marginBottom: 4 }}>המאמן האישי שלך</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>מלאי את הפרופיל לקבלת המלצות אישיות</div>
-      </div>
-
-      <div style={S.card}>
-        <Label>גיל</Label>
-        <input type="number" value={profile.age} onChange={e => setProfile({...profile, age: e.target.value})}
-          placeholder="לדוגמה: 25" style={S.input} />
-
-        <Label>עמדה במגרש</Label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          {POSITIONS.map(p => (
-            <button key={p} onClick={() => setProfile({...profile, position: p})}
-              style={{ padding: "7px 14px", borderRadius: 20, border: `2px solid ${profile.position === p ? pc : "#e2e8f0"}`, background: profile.position === p ? pc : "white", color: profile.position === p ? "white" : "#374151", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-              {p}
-            </button>
-          ))}
-        </div>
-
-        <Label>רמת כושר</Label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          {FITNESS_LEVELS.map(l => (
-            <button key={l} onClick={() => setProfile({...profile, level: l})}
-              style={{ flex: 1, padding: "8px 4px", borderRadius: 20, border: `2px solid ${profile.level === l ? pc : "#e2e8f0"}`, background: profile.level === l ? pc : "white", color: profile.level === l ? "white" : "#374151", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-              {l}
-            </button>
-          ))}
-        </div>
-
-        <Label>מטרה עיקרית</Label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          {GOALS.map(g => (
-            <button key={g} onClick={() => setProfile({...profile, goal: g})}
-              style={{ padding: "7px 12px", borderRadius: 20, border: `2px solid ${profile.goal === g ? sc : "#e2e8f0"}`, background: profile.goal === g ? sc : "white", color: profile.goal === g ? pc : "#374151", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-              {g}
-            </button>
-          ))}
-        </div>
-
-        <Label>זמן פנוי לאימון עצמי בשבוע</Label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          {HOURS.map(h => (
-            <button key={h} onClick={() => setProfile({...profile, hours: h})}
-              style={{ flex: 1, padding: "8px 4px", borderRadius: 20, border: `2px solid ${profile.hours === h ? pc : "#e2e8f0"}`, background: profile.hours === h ? pc : "white", color: profile.hours === h ? "white" : "#374151", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-              {h}
-            </button>
-          ))}
-        </div>
-
-        {error && <p style={{ color: "#ef4444", fontSize: 13, marginBottom: 8 }}>⚠️ {error}</p>}
-        <button onClick={saveProfile}
-          style={{ width: "100%", padding: 13, background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 800, fontSize: 15 }}>
-          🚀 שמור והתחל
-        </button>
-      </div>
-    </div>
-  );
-
-  // Topic selection
-  if (step === "topics") return (
-    <div>
-      <div style={{ ...S.card, background: `linear-gradient(135deg, ${pc}15, ${sc}20)`, border: `2px solid ${pc}30`, marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: pc }}>🤖 המאמן האישי שלך</div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{profile.position} • {profile.level} • מטרה: {profile.goal}</div>
-          </div>
-          <button onClick={() => setStep("profile")} style={{ background: "transparent", border: `1px solid ${pc}`, color: pc, borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontSize: 11 }}>✏️ עדכן</button>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 14, fontWeight: 700, color: pc, marginBottom: 10 }}>בחרי נושא לייעוץ:</div>
-      {AI_TOPICS.map(t => (
-        <button key={t.key} onClick={() => getAdvice(t)}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: "white", border: `2px solid ${pc}20`, borderRadius: 12, cursor: "pointer", marginBottom: 8, textAlign: "right", transition: "all 0.15s" }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = pc; e.currentTarget.style.background = `${pc}08`; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = `${pc}20`; e.currentTarget.style.background = "white"; }}>
-          <span style={{ fontSize: 24 }}>{t.icon}</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{t.label}</span>
-          <span style={{ marginRight: "auto", color: "#94a3b8", fontSize: 18 }}>←</span>
-        </button>
-      ))}
-    </div>
-  );
-
-  // Free question
-  if (step === "free") return (
-    <div>
-      <button onClick={() => setStep("topics")} style={{ background: "transparent", border: "none", color: pc, cursor: "pointer", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>← חזור</button>
-      <div style={S.card}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: pc, marginBottom: 10 }}>❓ שאלה חופשית למאמן</div>
-        <textarea value={freeQ} onChange={e => setFreeQ(e.target.value)} rows={4}
-          placeholder="לדוגמה: &quot;איך משפרים קפיצה תוך חודש?&quot; או &quot;מה לאכול לפני אימון?&quot;"
-          style={{ ...S.input, resize: "none" }} />
-        <button onClick={askFree}
-          style={{ width: "100%", padding: 12, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700 }}>
-          🤖 שאל את המאמן
-        </button>
-      </div>
-    </div>
-  );
-
-  // Loading
-  if (step === "loading") return (
-    <div style={{ textAlign: "center", padding: "50px 20px" }}>
-      <div style={{ fontSize: 56, marginBottom: 16 }}>🤖</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 8 }}>המאמן חושב...</div>
-      <div style={{ fontSize: 13, color: "#64748b" }}>מכין המלצה אישית עבורך</div>
-      <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 20 }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: pc, animation: `pulse ${0.6 + i * 0.2}s infinite alternate` }} />
-        ))}
-      </div>
-    </div>
-  );
-
-  // Result
-  if (step === "result") return (
-    <div>
-      <button onClick={() => setStep("topics")} style={{ background: "transparent", border: "none", color: pc, cursor: "pointer", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>← נושאים נוספים</button>
-      <div style={{ ...S.card, border: `2px solid ${pc}30` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 10, borderBottom: `1px solid ${pc}15` }}>
-          <span style={{ fontSize: 28 }}>🤖</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: pc }}>המאמן האישי שלך</div>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>{topic?.label}</div>
-          </div>
-        </div>
-        <div style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{response}</div>
-      </div>
-      <button onClick={() => { setStep("topics"); setResponse(null); }}
-        style={{ width: "100%", padding: 12, background: `${pc}15`, color: pc, border: `2px solid ${pc}30`, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-        🔄 שאל שאלה נוספת
-      </button>
-    </div>
-  );
-
-  return null;
 }
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
@@ -2498,7 +2262,6 @@ function HelpScreen({ pc, sc, settings, onBack }) {
     { icon: "👏", title: "מחיאות כפיים", text: "בלשונית 'אירוע' תוכלי לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או המשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
     { icon: "🗳️", title: "הצבעות", text: "בלשונית 'הצבעות' תוכלי להצביע על נושאים שהמנהל פותח (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
     { icon: "🎂", title: "יום הולדת", text: "הוסיפי תאריך לידה בפרופיל, ותקבלי ברכה חמה מהקבוצה ביום ההולדת שלך! 🎉" },
-    { icon: "🤖", title: "מאמן AI", text: "בלשונית 'מאמן AI' תמצאי מאמן אישי חכם. מלאי פרופיל ספורטיבי (עמדה, רמת כושר, מטרה) וקבלי המלצות אימון מותאמות אישית — תוכנית שבועית, שיפור קפיצה, תזונה, התאוששות ועוד." },
   ];
 
   return (
