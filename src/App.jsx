@@ -2,9 +2,30 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
-const TEAM_ID = "bibleumi";
+// ── זהות קבוצה ────────────────────────────────────────────────────────────────
+// בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
+const DEFAULT_TEAM = "bibleumi";
+const BIBLEUMI_ADMIN_EMAILS = ["efil59@gmail.com", "miri.levi1962@gmail.com"]; // מנהלי קבוצת הבינלאומי
+
+function resolveInitialTeam() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("team");
+    if (fromUrl) { localStorage.setItem("currentTeamId", fromUrl); return fromUrl; }
+    const stored = localStorage.getItem("currentTeamId");
+    if (stored) return stored;
+  } catch {}
+  return DEFAULT_TEAM;
+}
+let CURRENT_TEAM = resolveInitialTeam();
+function setCurrentTeam(id) {
+  CURRENT_TEAM = id;
+  try { localStorage.setItem("currentTeamId", id); } catch {}
+}
+
+const googleProvider = new GoogleAuthProvider();
 
 const KEYS = {
   players: "players",
@@ -21,6 +42,7 @@ const KEYS = {
   polls: "polls",
   personalNotifs: "personalNotifs",
   whatsNewVersion: "whatsNewVersion",
+  meta: "meta",
 };
 
 const DEFAULT_SETTINGS = {
@@ -123,16 +145,72 @@ function alreadyApplaudedToday(applause, fromId, toId) {
 }
 async function load(key, fallback) {
   try {
-    const ref = doc(db, "teams", TEAM_ID, "data", key);
+    const ref = doc(db, "teams", CURRENT_TEAM, "data", key);
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data().value : fallback;
   } catch { return fallback; }
 }
 async function save(key, val) {
   try {
-    const ref = doc(db, "teams", TEAM_ID, "data", key);
+    const ref = doc(db, "teams", CURRENT_TEAM, "data", key);
     await setDoc(ref, { value: val });
   } catch (e) { console.error("Save error:", e); }
+}
+
+// ── עזרי הזדהות ובעלות (לא תלויים ב-CURRENT_TEAM — נתיב מפורש) ────────────────
+// מיפוי משתמש→קבוצה, מחוץ למרחב הקבוצה.
+async function loadUserTeam(uid) {
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    return snap.exists() ? snap.data() : null; // { teamId, email }
+  } catch { return null; }
+}
+async function saveUserTeam(uid, data) {
+  try { await setDoc(doc(db, "users", uid), data); } catch (e) { console.error("saveUserTeam:", e); }
+}
+async function loadTeamKey(teamId, key, fallback) {
+  try {
+    const snap = await getDoc(doc(db, "teams", teamId, "data", key));
+    return snap.exists() ? snap.data().value : fallback;
+  } catch { return fallback; }
+}
+async function saveTeamKey(teamId, key, val) {
+  try { await setDoc(doc(db, "teams", teamId, "data", key), { value: val }); } catch (e) { console.error("saveTeamKey:", e); }
+}
+// מוסיף מנהל לקבוצה. אם אין עדיין בעלים — המתחבר הופך לבעלים (אימוץ).
+// אם כבר יש בעלים — מוסיף את ה-uid ל-adminUids (מנהל נוסף לאותה קבוצה).
+async function addTeamAdmin(teamId, uid, email) {
+  const existing = await loadTeamKey(teamId, KEYS.meta, null);
+  if (!existing || !existing.ownerUid) {
+    await saveTeamKey(teamId, KEYS.meta, { ownerUid: uid, ownerEmail: email, adminUids: [uid] });
+  } else if (!(existing.adminUids || []).includes(uid)) {
+    await saveTeamKey(teamId, KEYS.meta, { ...existing, adminUids: [...(existing.adminUids || []), uid] });
+  }
+}
+// קבוצה חדשה לגמרי (גוגל לא מוכר) — מאתחלים ריקה כדי לא להציג שחקניות לדוגמה.
+async function seedNewTeam(teamId) {
+  const existing = await loadTeamKey(teamId, KEYS.players, null);
+  if (existing === null) {
+    await saveTeamKey(teamId, KEYS.players, []);
+    await saveTeamKey(teamId, KEYS.settings, { ...DEFAULT_SETTINGS, teamName: "הקבוצה שלי" });
+  }
+}
+// מזהה את הקבוצה של המנהל המחובר, ואם צריך — יוצר/מאמץ. מחזיר teamId.
+async function resolveAdminTeam(user) {
+  const uid = user.uid;
+  const email = (user.email || "").toLowerCase();
+  const mapping = await loadUserTeam(uid);
+  if (mapping && mapping.teamId) return mapping.teamId;
+  if (BIBLEUMI_ADMIN_EMAILS.includes(email)) {
+    await saveUserTeam(uid, { teamId: DEFAULT_TEAM, email });
+    await addTeamAdmin(DEFAULT_TEAM, uid, email);
+    return DEFAULT_TEAM;
+  }
+  const teamId = "team_" + uid;
+  await saveUserTeam(uid, { teamId, email });
+  await addTeamAdmin(teamId, uid, email);
+  await seedNewTeam(teamId);
+  return teamId;
 }
 
 // ── CONFIRM DIALOG ────────────────────────────────────────────────────────────
@@ -213,28 +291,33 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // טוען את כל נתוני הקבוצה הנוכחית (CURRENT_TEAM). ניתן לקריאה חוזרת אחרי החלפת קבוצה.
+  async function loadTeamData() {
+    const [p, e, a, n, s, ar, g, gal, pp] = await Promise.all([
+      load(KEYS.players, DEFAULT_PLAYERS),
+      load(KEYS.events, DEFAULT_EVENTS),
+      load(KEYS.attendance, {}),
+      load(KEYS.notifications, []),
+      load(KEYS.settings, DEFAULT_SETTINGS),
+      load(KEYS.archive, []),
+      load(KEYS.games, DEFAULT_GAMES),
+      load(KEYS.gallery, []),
+      load(KEYS.playerProfiles, {}),
+    ]);
+    setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
+    setSettings({ ...DEFAULT_SETTINGS, ...s });
+    setArchive(ar); setGames(g); setGallery(gal); setPlayerProfiles(pp);
+    const [ap, pl, pn] = await Promise.all([
+      load(KEYS.applause, []),
+      load(KEYS.polls, []),
+      load(KEYS.personalNotifs, {}),
+    ]);
+    setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
+  }
+
   useEffect(() => {
     (async () => {
-      const [p, e, a, n, s, ar, g, gal, pp] = await Promise.all([
-        load(KEYS.players, DEFAULT_PLAYERS),
-        load(KEYS.events, DEFAULT_EVENTS),
-        load(KEYS.attendance, {}),
-        load(KEYS.notifications, []),
-        load(KEYS.settings, DEFAULT_SETTINGS),
-        load(KEYS.archive, []),
-        load(KEYS.games, DEFAULT_GAMES),
-        load(KEYS.gallery, []),
-        load(KEYS.playerProfiles, {}),
-      ]);
-      setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
-      setSettings({ ...DEFAULT_SETTINGS, ...s });
-      setArchive(ar); setGames(g); setGallery(gal); setPlayerProfiles(pp);
-      const [ap, pl, pn] = await Promise.all([
-        load(KEYS.applause, []),
-        load(KEYS.polls, []),
-        load(KEYS.personalNotifs, {}),
-      ]);
-      setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
+      await loadTeamData();
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
@@ -245,6 +328,22 @@ export default function App() {
       }, 2500);
     })();
   }, []);
+
+  // התחברות מנהל עם Google: מזהה/מאמץ את הקבוצה, מחליף אליה ומרענן נתונים.
+  async function handleGoogleLogin() {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const teamId = await resolveAdminTeam(result.user);
+      setCurrentTeam(teamId);
+      await loadTeamData();
+      setScreen("admin");
+      return { ok: true };
+    } catch (e) {
+      console.error("Google login error:", e);
+      return { ok: false, error: e.code || e.message };
+    }
+  }
+
 
   const upd = {
     players: async v => { setPlayers(v); await save(KEYS.players, v); },
@@ -292,7 +391,7 @@ export default function App() {
       {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} />}
       {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
       {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
-      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onSuccess={() => setScreen("admin")} onBack={() => setScreen("home")} />}
+      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onGoogle={handleGoogleLogin} onSuccess={() => setScreen("admin")} onBack={() => setScreen("home")} />}
       {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
       {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
     </div>
@@ -1449,11 +1548,18 @@ ${question ? `שאלה: ${question}` : `נושא: ${topicLabel}`}
 }
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
-function AdminLogin({ settings, pc, sc, onSuccess, onBack }) {
+function AdminLogin({ settings, pc, sc, onGoogle, onSuccess, onBack }) {
   const [pass, setPass] = useState(""); const [error, setError] = useState(false);
+  const [gLoading, setGLoading] = useState(false); const [gError, setGError] = useState("");
   function tryLogin() {
     if (pass === (settings.captainPassword || "1234")) onSuccess();
     else { setError(true); setTimeout(() => setError(false), 1500); }
+  }
+  async function googleLogin() {
+    setGError(""); setGLoading(true);
+    const res = await onGoogle();
+    setGLoading(false);
+    if (!res.ok) setGError("ההתחברות נכשלה. נסי שוב.");
   }
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
@@ -1463,8 +1569,21 @@ function AdminLogin({ settings, pc, sc, onSuccess, onBack }) {
         <h2 style={{ color: "white", fontSize: 20, fontWeight: 700, margin: "10px 0 0" }}>כניסת מנהל</h2>
       </div>
       <div style={{ padding: 32, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <button onClick={googleLogin} disabled={gLoading}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", maxWidth: 300, padding: "13px 16px", background: "white", color: "#3c4043", border: "1px solid #dadce0", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+          <span style={{ fontSize: 18 }}>🔵</span>
+          {gLoading ? "מתחבר..." : "התחבר עם Google"}
+        </button>
+        {gError && <p style={{ color: "#ef4444", margin: "10px 0 0", fontSize: 13 }}>{gError}</p>}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", maxWidth: 300, margin: "22px 0 18px", color: "#94a3b8", fontSize: 13 }}>
+          <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+          <span>או סיסמת מנהל</span>
+          <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+        </div>
+
         <input type="password" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && tryLogin()}
-          placeholder="סיסמה" autoFocus
+          placeholder="סיסמה"
           style={{ ...S.input, maxWidth: 260, textAlign: "center", fontSize: 22, letterSpacing: 8, border: `2px solid ${error ? "#ef4444" : "#e2e8f0"}` }} />
         {error && <p style={{ color: "#ef4444", margin: "0 0 12px" }}>סיסמה שגויה ❌</p>}
         <button onClick={tryLogin} style={{ marginTop: 12, padding: "13px 48px", background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 15, fontWeight: 700 }}>כניסה</button>
