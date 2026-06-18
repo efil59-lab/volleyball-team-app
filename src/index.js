@@ -12,7 +12,8 @@ root.render(
   </React.StrictMode>
 );
 
-// PWA - רישום Service Worker
-serviceWorkerRegistration.register();
+// PWA - ביטול Service Worker: מבטיח שכל משתמשת מקבלת תמיד את הקוד העדכני.
+// ההתקנה למסך הבית עדיין עובדת (תלויה ב-manifest, לא ב-SW).
+serviceWorkerRegistration.unregister();
 
 reportWebVitals();
