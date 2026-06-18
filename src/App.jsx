@@ -56,13 +56,12 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 2,
-  versionName: "גרסה 2.0",
+  version: 3,
+  versionName: "גרסה 3.0",
   date: "יוני 2026",
   features: [
-    { icon: "🎂", title: "ימי הולדת", text: "הוסיפי תאריך לידה בפרופיל ותקבלי ברכה חמה ביום שלך!" },
-    { icon: "👏", title: "מחיאות כפיים", text: "שלחי 'כל הכבוד' לחברות שהגיעו לאימון — ותראי כמה קיבלת החודש." },
-    { icon: "🗳️", title: "סקר", text: "לשונית חדשה לסקרים קבוצתיים — מה חוגגים, איפה ומתי." },
+    { icon: "🗑️", title: "מחיקת תמונות בגלריה", text: "אפשר עכשיו למחוק תמונה שהעלית — לחצי עליה בגלריה ואז על 'מחקי תמונה'." },
+    { icon: "🔑", title: "שכחת סיסמה?", text: "פני למנהל/ת הקבוצה ויאפסו לך — ותבחרי סיסמה חדשה בכניסה הבאה." },
   ],
 };
 
@@ -1674,7 +1673,7 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
             <option value="game">🏆 משחק</option>
           </select>
           <Label>תאריך</Label>
-          <input type="date" value={newEv.date} onChange={e => setNewEv({ ...newEv, date: e.target.value })} style={S.input} />
+          <input type="date" value={newEv.date} min={todayStr()} onChange={e => setNewEv({ ...newEv, date: e.target.value })} style={S.input} />
           <Label>שעה</Label>
           <input type="time" value={newEv.time} onChange={e => setNewEv({ ...newEv, time: e.target.value })} style={S.input} />
           <Label>מיקום</Label>
@@ -1728,7 +1727,7 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
       {adding && (
         <div style={{ ...S.card, marginBottom: 14 }}>
           <Label>תאריך</Label>
-          <input type="date" value={newG.date} onChange={e => setNewG({ ...newG, date: e.target.value })} style={S.input} />
+          <input type="date" value={newG.date} min={todayStr()} onChange={e => setNewG({ ...newG, date: e.target.value })} style={S.input} />
           <Label>שעה</Label>
           <input type="time" value={newG.time} onChange={e => setNewG({ ...newG, time: e.target.value })} style={S.input} />
           <Label>שם היריב</Label>
@@ -2414,11 +2413,12 @@ function HelpScreen({ pc, sc, settings, onBack }) {
     { icon: "👋", title: "כניסה ראשונה", text: "בכניסה הראשונה לחצי על שמך ברשימה. תתבקשי לבחור סיסמה אישית ולהוסיף תמונת פרופיל ופרטי קשר. מהפעם הבאה — רק סיסמה." },
     { icon: "✅", title: "אישור הגעה לאימון", text: "לחצי על שמך במסך הבית, ואז על הכפתור 'מגיעה' או 'לא מגיעה'. ניתן גם להוסיף הערה קצרה. ניתן לשנות תשובה בכל עת לפני האימון." },
     { icon: "👀", title: "מי מגיעה?", text: "לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
-    { icon: "📸", title: "גלריה", text: "בלשונית 'גלריה' ניתן להעלות תמונות מהאימון או המשחק. התמונה תסומן עם שמך ותאריך ההעלאה." },
+    { icon: "📸", title: "גלריה", text: "בלשונית 'גלריה' ניתן להעלות תמונות מהאימון או המשחק — לחצי על '+ העלי תמונה'. כדי למחוק תמונה שהעלית: לחצי עליה ואז על 'מחקי תמונה'." },
     { icon: "🏆", title: "לוח משחקים", text: "בלשונית 'משחקים' תמצאי את לוח המשחקים העתידיים. לאחר המשחק יוצג גם התוצאה." },
     { icon: "👏", title: "מחיאות כפיים", text: "בלשונית 'אירוע' תוכלי לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או המשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
     { icon: "🗳️", title: "סקר", text: "בלשונית 'סקר' תוכלי להצביע על נושאים שהמנהל פותח (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
     { icon: "🎂", title: "יום הולדת", text: "הוסיפי תאריך לידה בפרופיל, ותקבלי ברכה חמה מהקבוצה ביום ההולדת שלך! 🎉" },
+    { icon: "🔑", title: "שכחת סיסמה?", text: "אין בעיה — פני למנהל/ת הקבוצה ויאפסו לך אותה. בכניסה הבאה תתבקשי לבחור סיסמה חדשה." },
   ];
 
   return (
