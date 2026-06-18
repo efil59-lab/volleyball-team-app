@@ -1149,7 +1149,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
                 {/* Who's coming - collapsible */}
                 {getList("coming").length > 0 && (
-                  <Collapsible title="✅ מגיעות" count={getList("coming").length} accent="#16a34a">
+                  <Collapsible title="✅ מגיעות" count={getList("coming").length} accent="#16a34a" defaultOpen>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {getList("coming").map(p => <span key={p.id} style={{ background: "#22c55e", color: "white", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600 }}>{p.name}</span>)}
                     </div>
