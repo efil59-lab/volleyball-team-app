@@ -1697,8 +1697,32 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
     await upd.events(events.filter(e => e.id !== ev.id));
   }
 
+  // אירועים שתאריכם עבר (מהיום שאחרי האירוע) וטרם אורכבו
+  const pastEvents = [...events].filter(e => e.date < todayStr()).sort((a, b) => a.date.localeCompare(b.date));
+
+  // ארכוב כל האירועים שעברו בלחיצה אחת — כתיבה אחת לכל מערך (ללא מצבי מרוץ)
+  async function archiveAllPast() {
+    const today = todayStr();
+    const past = events.filter(e => e.date < today);
+    if (past.length === 0) return;
+    const newEntries = past.map(ev => {
+      const attData = Object.entries(attendance).filter(([k]) => k.startsWith(`${ev.id}_`)).map(([k, v]) => ({ playerId: parseInt(k.split("_")[1]), ...v }));
+      return { ...ev, archivedAt: new Date().toISOString(), attendanceData: attData };
+    });
+    await upd.archive([...archive, ...newEntries]);
+    await upd.events(events.filter(e => e.date >= today));
+  }
+
   return (
     <div>
+      {pastEvents.length > 0 && (
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#92400e", marginBottom: 4 }}>⚠️ {pastEvents.length === 1 ? "אירוע שעבר וטרם אורכב" : `${pastEvents.length} אירועים שעברו וטרם אורכבו`}</div>
+          <div style={{ fontSize: 12, color: "#b45309", marginBottom: 10 }}>נוכחות נכנסת לסטטיסטיקה רק אחרי ארכוב. אפשר לארכב כל אחד בנפרד, או הכל בלחיצה אחת:</div>
+          <button onClick={() => askConfirm(`לארכב ${pastEvents.length} אירועים שעברו? הנוכחות שלהם תיכנס לסטטיסטיקה.`, archiveAllPast)}
+            style={{ background: "#f59e0b", color: "white", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>🔒 ארכב הכל ({pastEvents.length})</button>
+        </div>
+      )}
       <button onClick={() => setAdding(!adding)} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "10px 16px", cursor: "pointer", fontWeight: 700, marginBottom: 14, fontSize: 13 }}>+ אירוע חדש</button>
       {adding && (
         <div style={{ ...S.card, marginBottom: 14 }}>
@@ -1728,11 +1752,14 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
           <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", width: 80, textAlign: "center" }}>פעולות</div>
         </div>
       )}
-      {[...events].sort((a, b) => a.date.localeCompare(b.date)).map(ev => (
-        <div key={ev.id} style={{ ...S.card, marginBottom: 10 }}>
+      {[...events].sort((a, b) => a.date.localeCompare(b.date)).map(ev => {
+        const isPast = ev.date < todayStr();
+        return (
+        <div key={ev.id} style={{ ...S.card, marginBottom: 10, ...(isPast ? { borderColor: "#fdba74", background: "#fffbeb" } : {}) }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{ev.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+              {isPast && <div style={{ fontSize: 11, fontWeight: 800, color: "#b45309", marginTop: 2 }}>⚠️ עבר — ממתין לארכוב</div>}
               <div style={{ fontWeight: 700, fontSize: 14 }}>{formatDate(ev.date)} • {ev.time}</div>
               <div style={{ color: "#64748b", fontSize: 13 }}>📍 {ev.location}</div>
               {ev.note && <div style={{ color: sc, fontSize: 12, fontWeight: 600 }}>📝 {ev.note}</div>}
@@ -1745,7 +1772,8 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
