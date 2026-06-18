@@ -756,7 +756,7 @@ function HomeScreen({ players, events, settings, notifications, playerProfiles, 
       <div style={{ padding: "6px 16px 28px" }}>
         {/* Players grid */}
         <div ref={gridRef} style={{ background: "white", borderRadius: 18, padding: 16, boxShadow: "0 4px 18px rgba(26,35,126,0.10)", marginBottom: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
             {players.map(p => {
               const prof = playerProfiles[p.id] || {};
               return (
@@ -768,7 +768,7 @@ function HomeScreen({ players, events, settings, notifications, playerProfiles, 
                     ? <img src={prof.photo} style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: `2px solid ${sc}` }} />
                     : <div style={{ width: 50, height: 50, borderRadius: "50%", background: `linear-gradient(135deg, ${pc}, ${pc}99)`, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, border: `2px solid ${sc}` }}>{p.name[0]}</div>
                   }
-                  <span style={{ fontSize: 12, fontWeight: 700, color: pc, textAlign: "center" }}>{p.name}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: pc, textAlign: "center", overflowWrap: "anywhere", maxWidth: "100%" }}>{p.name}</span>
                 </button>
               );
             })}
