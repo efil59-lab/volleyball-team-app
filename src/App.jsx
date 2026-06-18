@@ -460,7 +460,7 @@ export default function App() {
       {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => { setCurrentPlayer(p); setScreen("onboard"); }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} />}
       {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
       {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
-      {screen === "admin-login" && <AdminLogin settings={settings} pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onSuccess={() => setScreen("admin")} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
+      {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
       {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
       {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
     </div>
@@ -1617,25 +1617,19 @@ ${question ? `שאלה: ${question}` : `נושא: ${topicLabel}`}
 }
 
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
-function AdminLogin({ settings, pc, sc, onGoogle, onContinue, authUser, onSuccess, onBack, initialError }) {
-  const [pass, setPass] = useState(""); const [error, setError] = useState(false);
+function AdminLogin({ pc, sc, onGoogle, onContinue, authUser, onBack, initialError }) {
   const [gLoading, setGLoading] = useState(false); const [gError, setGError] = useState(initialError || "");
   const isGoogleUser = authUser && !authUser.isAnonymous;
-  function tryLogin() {
-    if (pass === (settings.captainPassword || "1234")) onSuccess();
-    else { setError(true); setTimeout(() => setError(false), 1500); }
-  }
   async function googleLogin() {
     setGError(""); setGLoading(true);
     const res = await onGoogle();
-    if (!res.ok) { setGLoading(false); setGError("ההתחברות נכשלה: " + (res.error || "")); }
+    if (!res.ok) { setGLoading(false); setGError(res.error ? "ההתחברות נכשלה: " + res.error : ""); }
   }
   async function continueAdmin() {
     setGError(""); setGLoading(true);
     const res = await onContinue();
     if (!res.ok) { setGLoading(false); setGError(res.error || "שגיאה"); }
   }
-  const statusText = !authUser ? "לא מחובר" : (authUser.isAnonymous ? "אנונימי" : (authUser.email || "Google"));
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, padding: "40px 20px 50px", textAlign: "center", position: "relative" }}>
@@ -1646,34 +1640,23 @@ function AdminLogin({ settings, pc, sc, onGoogle, onContinue, authUser, onSucces
       <div style={{ padding: 32, display: "flex", flexDirection: "column", alignItems: "center" }}>
         {isGoogleUser ? (
           <>
-            <p style={{ color: "#16a34a", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>✓ מחובר כ-{authUser.email}</p>
+            <p style={{ color: "#16a34a", fontSize: 14, margin: "0 0 14px", fontWeight: 600 }}>✓ מחובר כ-{authUser.email}</p>
             <button onClick={continueAdmin} disabled={gLoading}
               style={{ width: "100%", maxWidth: 300, padding: "14px 16px", background: pc, color: "white", border: "none", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 700 }}>
               {gLoading ? "טוען..." : "המשך לניהול →"}
             </button>
           </>
         ) : (
-          <button onClick={googleLogin} disabled={gLoading}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", maxWidth: 300, padding: "13px 16px", background: "white", color: "#3c4043", border: "1px solid #dadce0", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <span style={{ fontSize: 18 }}>🔵</span>
-            {gLoading ? "מתחבר..." : "התחבר עם Google"}
-          </button>
+          <>
+            <p style={{ color: "#64748b", fontSize: 14, margin: "0 0 18px", textAlign: "center" }}>התחברי עם חשבון Google כדי לנהל את הקבוצה</p>
+            <button onClick={googleLogin} disabled={gLoading}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", maxWidth: 300, padding: "14px 16px", background: "white", color: "#3c4043", border: "1px solid #dadce0", borderRadius: 12, cursor: gLoading ? "default" : "pointer", fontSize: 15, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+              <span style={{ fontSize: 18 }}>🔵</span>
+              {gLoading ? "מתחבר..." : "התחבר עם Google"}
+            </button>
+          </>
         )}
-        {gError && <p style={{ color: "#ef4444", margin: "10px 0 0", fontSize: 13, textAlign: "center", maxWidth: 300, wordBreak: "break-word" }}>{gError}</p>}
-        <p style={{ color: "#cbd5e1", fontSize: 11, marginTop: 8 }}>סטטוס Firebase: {statusText}</p>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", maxWidth: 300, margin: "22px 0 18px", color: "#94a3b8", fontSize: 13 }}>
-          <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-          <span>או סיסמת מנהל</span>
-          <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-        </div>
-
-        <input type="password" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && tryLogin()}
-          placeholder="סיסמה"
-          style={{ ...S.input, maxWidth: 260, textAlign: "center", fontSize: 22, letterSpacing: 8, border: `2px solid ${error ? "#ef4444" : "#e2e8f0"}` }} />
-        {error && <p style={{ color: "#ef4444", margin: "0 0 12px" }}>סיסמה שגויה ❌</p>}
-        <button onClick={tryLogin} style={{ marginTop: 12, padding: "13px 48px", background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 15, fontWeight: 700 }}>כניסה</button>
-        <p style={{ color: "#94a3b8", fontSize: 12, marginTop: 20 }}>סיסמה ברירת מחדל: 1234</p>
+        {gError && <p style={{ color: "#ef4444", margin: "12px 0 0", fontSize: 13, textAlign: "center", maxWidth: 300, wordBreak: "break-word" }}>{gError}</p>}
       </div>
     </div>
   );
