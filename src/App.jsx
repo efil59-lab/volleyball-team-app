@@ -1955,9 +1955,12 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 }
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
-function AdminEvents({ events, settings, attendance, archive, notifications, upd, pc, sc, askConfirm }) {
+function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm }) {
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true });
+  const [calView, setCalView] = useState("list"); // "list" | "calendar"
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [calSelected, setCalSelected] = useState(null);
 
   async function addEvent() {
     if (!newEv.date) return;
@@ -2122,6 +2125,104 @@ function AdminEvents({ events, settings, attendance, archive, notifications, upd
           </div>
         </div>
       )}
+
+      {/* מתג רשימה / לוח */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {[["list", "📋 רשימה"], ["calendar", "🗓️ לוח"]].map(([v, lbl]) => (
+          <button key={v} onClick={() => { setCalView(v); setCalSelected(null); }}
+            style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: calView === v ? `2px solid ${pc}` : "2px solid #e2e8f0", background: calView === v ? `${pc}12` : "white", color: calView === v ? pc : "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: calView === v ? 800 : 600 }}>{lbl}</button>
+        ))}
+      </div>
+
+      {calView === "calendar" && (() => {
+        const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+        const dayHeaders = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+        const { y, m } = calMonth;
+        const firstDay = new Date(y, m, 1).getDay();
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        const today = todayStr();
+        const pad = n => String(n).padStart(2, "0");
+        const dateStr = d => `${y}-${pad(m + 1)}-${pad(d)}`;
+        const cells = [];
+        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+        const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
+        const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
+        const dayEvents = ds => (events || []).filter(e => e.date === ds);
+        const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
+        const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
+
+        return (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
+              <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+              <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+              {dayHeaders.map((h, i) => <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{h}</div>)}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+              {cells.map((d, i) => {
+                if (!d) return <div key={i} />;
+                const ds = dateStr(d);
+                const evs = dayEvents(ds);
+                const isToday = ds === today;
+                const isSel = ds === calSelected;
+                const marks = [];
+                if (evs.some(e => e.type === "training" && !e.cancelled)) marks.push("🏋️");
+                if (evs.some(e => e.type === "game" && !e.cancelled)) marks.push("🏆");
+                if (dayBdays(ds).length > 0) marks.push("🎂");
+                if (evs.some(e => e.cancelled) && marks.length === 0) marks.push("❌");
+                return (
+                  <button key={i} onClick={() => setCalSelected(isSel ? null : ds)}
+                    style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
+                    {marks.length > 0 && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {calSelected && (() => {
+              const evs = dayEvents(calSelected);
+              const bdays = dayBdays(calSelected);
+              return (
+                <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 10 }}>{formatDate(calSelected)}</div>
+                  {evs.map(ev => (
+                    <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
+                      <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : "משחק"} · {ev.time}</div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
+                      </div>
+                      {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
+                    </div>
+                  ))}
+                  {bdays.map(p => (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                      <span style={{ fontSize: 22 }}>🎂</span>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e" }}>יום ההולדת של {p.name}</div>
+                    </div>
+                  ))}
+                  <button onClick={() => startAdd(calSelected)} style={{ width: "100%", padding: 11, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, marginTop: 4 }}>➕ אירוע חדש ביום זה</button>
+                </div>
+              );
+            })()}
+
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#64748b" }}>🏋️ אימון</span>
+              <span style={{ fontSize: 12, color: "#64748b" }}>🏆 משחק</span>
+              <span style={{ fontSize: 12, color: "#64748b" }}>🎂 יום הולדת</span>
+              <span style={{ fontSize: 12, color: "#64748b" }}>❌ בוטל</span>
+            </div>
+            <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: 10 }}>טיפ: לחצי על יום כדי לראות פרטים או להוסיף אירוע.</p>
+          </div>
+        );
+      })()}
+
+      {calView === "list" && <>
       {events.length === 0 && <Empty icon="📅" text="אין אירועים פתוחים" />}
       {events.length > 0 && (
         <div style={{ display: "flex", padding: "0 4px", marginBottom: 6 }}>
@@ -2157,6 +2258,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, upd
         </div>
         );
       })}
+      </>}
     </div>
   );
 }
