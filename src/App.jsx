@@ -780,7 +780,14 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
         )}
 
         <div style={{ padding: "12px 16px 0" }}>
-          <button onClick={() => onSelectPlayer(me)} style={{ width: "100%", background: "white", border: "none", borderRadius: 12, padding: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontSize: 14, fontWeight: 700, color: pc }}>המסך האישי שלי — גלריה, סטטיסטיקה ועוד ←</button>
+          <button onClick={() => onSelectPlayer(me)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: "white", border: `2px solid ${pc}20`, borderRadius: 14, padding: "14px 16px", cursor: "pointer", textAlign: "right", boxShadow: "0 3px 12px rgba(26,35,126,0.10)" }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: sc, color: pc, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: pc }}>המסך האישי שלי</div>
+              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>גלריה · סטטיסטיקה · סקרים ועוד</div>
+            </div>
+            <div style={{ fontSize: 22, color: pc, flexShrink: 0 }}>←</div>
+          </button>
         </div>
 
         {adminLink}
