@@ -1845,7 +1845,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 }
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
-function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askConfirm }) {
+function AdminEvents({ events, settings, attendance, archive, notifications, upd, pc, sc, askConfirm }) {
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true });
 
@@ -1870,6 +1870,43 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
     const ev = archiveDialog;
     setArchiveDialog(null);
     if (ev) await lockToArchive(ev);
+  }
+
+  // ── ביטול אימון/משחק ──
+  const [cancelDialog, setCancelDialog] = useState(null); // האירוע שממתין לאישור ביטול
+  const [cancelNote, setCancelNote] = useState("");
+  const [waShare, setWaShare] = useState(null); // טקסט הביטול לשיתוף בוואטסאפ
+  const [waCopied, setWaCopied] = useState(false);
+
+  const cancelText = (ev, note) => `❌ בוטל: ${ev.type === "training" ? "אימון" : "משחק"} · ${formatDate(ev.date)} · ${ev.time}${note && note.trim() ? `\n${note.trim()}` : ""}`;
+
+  function openCancelDialog(ev) { setCancelNote(""); setCancelDialog(ev); }
+
+  async function confirmCancel() {
+    const ev = cancelDialog;
+    setCancelDialog(null);
+    if (!ev) return;
+    const txt = cancelText(ev, cancelNote);
+    // 1) סימון האירוע כבוטל (יורד מהבאנר בדף הבית כי open:false)
+    await upd.events(events.map(e => e.id === ev.id ? { ...e, cancelled: true, open: false } : e));
+    // 2) הודעת ביטול בדף הבית (קדימות אדומה, תוקף עד סוף יום האירוע)
+    const notif = { id: Date.now(), type: "cancel", text: txt, active: true, createdAt: new Date().toISOString(), expiresOn: ev.date, eventId: ev.id };
+    await upd.notifications([...(notifications || []), notif]);
+    // 3) שיתוף ידני לוואטסאפ
+    setWaCopied(false);
+    setWaShare(txt);
+  }
+
+  async function undoCancel(ev) {
+    await upd.events(events.map(e => e.id === ev.id ? { ...e, cancelled: false, open: true } : e));
+    await upd.notifications((notifications || []).filter(n => !(n.type === "cancel" && n.eventId === ev.id)));
+  }
+
+  async function shareCancelWA(txt) {
+    try { await navigator.clipboard.writeText(txt); setWaCopied(true); } catch (e) { setWaCopied(false); }
+    const link = settings && settings.whatsappGroup ? settings.whatsappGroup : "";
+    if (link) setTimeout(() => window.open(link, "_blank"), 300);
+    else alert("לא הוגדר קישור לקבוצת וואטסאפ. אפשר להוסיף בהגדרות.");
   }
 
   // אירועים שתאריכם עבר (מהיום שאחרי האירוע) וטרם אורכבו
@@ -1910,6 +1947,41 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
           </div>
         </div>
       )}
+
+      {/* דיאלוג אישור ביטול אימון/משחק */}
+      {cancelDialog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "white", borderRadius: 20, padding: 24, maxWidth: 340, width: "100%", boxSizing: "border-box", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 44, marginBottom: 8 }}>⚠️</div>
+            <p style={{ fontSize: 17, fontWeight: 800, color: "#1e293b", margin: "0 0 6px" }}>לבטל את ה{cancelDialog.type === "training" ? "אימון" : "משחק"}?</p>
+            <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 16px" }}>{formatDate(cancelDialog.date)} · {cancelDialog.time}</p>
+            <textarea value={cancelNote} onChange={e => setCancelNote(e.target.value)} rows={2} placeholder="סיבה / הערה (אופציונלי) — למשל: בגלל גשם"
+              style={{ ...S.input, resize: "none", textAlign: "right", marginBottom: 16 }} />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setCancelDialog(null)} style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>חזרה</button>
+              <button onClick={confirmCancel} style={{ flex: 1.3, padding: 12, background: "#ef4444", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>❌ כן, בטלי</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* שיתוף ידני לוואטסאפ אחרי ביטול */}
+      {waShare && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "white", borderRadius: 20, padding: 24, maxWidth: 340, width: "100%", boxSizing: "border-box", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>📲</div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 6px" }}>שליחת הביטול לקבוצת הוואטסאפ</p>
+            <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 8px" }}>הטקסט יועתק ותיפתח הקבוצה. הדביקי (הקשה ארוכה ← הדבק) ושלחי.</p>
+            <div style={{ background: "#f1f5f9", borderRadius: 10, padding: "8px 12px", margin: "0 0 14px", fontSize: 13, color: "#1e293b", fontWeight: 600, whiteSpace: "pre-wrap", textAlign: "right" }}>{waShare}</div>
+            {waCopied && <p style={{ fontSize: 12, color: "#16a34a", fontWeight: 700, margin: "0 0 12px" }}>✓ הטקסט הועתק</p>}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setWaShare(null)} style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>סגור</button>
+              <button onClick={() => shareCancelWA(waShare)} style={{ flex: 1.4, padding: 12, background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>📋 העתק ופתח קבוצה</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pastEvents.length > 0 && (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: "#92400e", marginBottom: 4 }}>⚠️ {pastEvents.length === 1 ? "אירוע שעבר וטרם אורכב" : `${pastEvents.length} אירועים שעברו וטרם אורכבו`}</div>
@@ -1958,8 +2030,14 @@ function AdminEvents({ events, settings, attendance, archive, upd, pc, sc, askCo
               <div style={{ fontWeight: 700, fontSize: 14 }}>{formatDate(ev.date)} • {ev.time}</div>
               <div style={{ color: "#64748b", fontSize: 13 }}>📍 {ev.location}</div>
               {ev.note && <div style={{ color: sc, fontSize: 12, fontWeight: 600 }}>📝 {ev.note}</div>}
+              {ev.cancelled && <div style={{ display: "inline-block", background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 800, marginTop: 4 }}>❌ בוטל</div>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+              {ev.cancelled
+                ? <button onClick={() => undoCancel(ev)}
+                    style={{ background: "#dcfce7", color: "#166534", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>↩️ ביטול הביטול</button>
+                : <button onClick={() => openCancelDialog(ev)}
+                    style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>❌ ביטול</button>}
               <button onClick={() => openArchiveDialog(ev)}
                 style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>🔒 ארכיון</button>
               <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
@@ -2217,7 +2295,6 @@ function AdminNotifications({ notifications, players, playerProfiles, events, se
         <select value={type} onChange={e => setType(e.target.value)} style={S.select}>
           <option value="general">💬 עדכון כללי</option>
           <option value="coach">📢 הודעת מאמן</option>
-          <option value="cancel">❌ ביטול אימון/משחק</option>
         </select>
         <Label>תוכן ההודעה</Label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={3} placeholder="כתבי את ההודעה כאן..."
