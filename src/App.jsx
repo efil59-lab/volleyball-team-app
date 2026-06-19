@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS = {
   teamName: "קבוצת הכדורשת של הבנק הבינלאומי",
   primaryColor: "#1a237e",
   secondaryColor: "#f5c842",
-  defaultTrainingLocation: "אולם ספורט הבנק הבינלאומי",
+  defaultTrainingLocation: "ביה\"ס מקיף עירוני ט' ת\"א",
   defaultGameLocation: "אולם ספורט עירוני",
   whatsappGroup: "https://chat.whatsapp.com/BQFmLoO8PU4A3kdXSkIJ6U?s=hd&p=i&mlu=3",
   captainPassword: "1234",
@@ -1957,7 +1957,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
 function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm }) {
   const [adding, setAdding] = useState(false);
-  const [newEv, setNewEv] = useState({ type: "training", date: "", time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true });
+  const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [calSelected, setCalSelected] = useState(null);
@@ -1966,7 +1966,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
     if (!newEv.date) return;
     await upd.events([...events, { ...newEv, id: Date.now() }]);
     setAdding(false);
-    setNewEv({ type: "training", date: "", time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true });
+    setNewEv({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   }
 
   const [archiveDialog, setArchiveDialog] = useState(null); // האירוע שממתין לאישור ארכוב
@@ -2103,7 +2103,6 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
             style={{ background: "#f59e0b", color: "white", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>🔒 ארכב הכל ({pastEvents.length})</button>
         </div>
       )}
-      <button onClick={() => setAdding(!adding)} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "10px 16px", cursor: "pointer", fontWeight: 700, marginBottom: 14, fontSize: 13 }}>+ אירוע חדש</button>
       {adding && (
         <div style={{ ...S.card, marginBottom: 14 }}>
           <Label>סוג אירוע</Label>
@@ -2126,6 +2125,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         </div>
       )}
 
+      {!adding && <>
       {/* מתג רשימה / לוח */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         {[["list", "📋 רשימה"], ["calendar", "🗓️ לוח"]].map(([v, lbl]) => (
@@ -2150,7 +2150,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
         const dayEvents = ds => (events || []).filter(e => e.date === ds);
         const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
-        const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "19:00", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
+        const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
         return (
           <div>
@@ -2258,6 +2258,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         </div>
         );
       })}
+      </>}
       </>}
     </div>
   );
