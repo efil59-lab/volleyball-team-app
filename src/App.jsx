@@ -689,7 +689,9 @@ function NotifTicker({ notifs, pc, sc }) {
         transition: "all 0.4s ease",
         textAlign: "center",
       }}>
-        <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4, overflowWrap: "break-word", wordBreak: "break-word" }}>{displayText}</div>
+        <div style={{ height: notifs.length > 1 ? 58 : "auto", display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto", overflowX: "hidden" }}>
+          <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4, overflowWrap: "break-word", wordBreak: "break-word", width: "100%" }}>{displayText}</div>
+        </div>
         {notifs.length > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>
             {notifs.map((_, i) => (
