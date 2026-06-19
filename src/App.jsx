@@ -101,7 +101,7 @@ function formatShort(d) {
 }
 function getNextEvent(events) {
   const today = new Date().toISOString().split("T")[0];
-  return events.filter(e => e.date >= today && e.open).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+  return events.filter(e => e.date >= today && e.open && !e.cancelled).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
 }
 // מספר הימים עד תאריך yyyy-mm-dd (0 = היום, 1 = מחר)
 function daysUntil(d) {
@@ -1888,7 +1888,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, upd
     if (!ev) return;
     const txt = cancelText(ev, cancelNote);
     // 1) סימון האירוע כבוטל (יורד מהבאנר בדף הבית כי open:false)
-    await upd.events(events.map(e => e.id === ev.id ? { ...e, cancelled: true, open: false } : e));
+    await upd.events(events.map(e => e.id === ev.id ? { ...e, cancelled: true } : e));
     // 2) הודעת ביטול בדף הבית (קדימות אדומה, תוקף עד סוף יום האירוע)
     const notif = { id: Date.now(), type: "cancel", text: txt, active: true, createdAt: new Date().toISOString(), expiresOn: ev.date, eventId: ev.id };
     await upd.notifications([...(notifications || []), notif]);
@@ -1898,7 +1898,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, upd
   }
 
   async function undoCancel(ev) {
-    await upd.events(events.map(e => e.id === ev.id ? { ...e, cancelled: false, open: true } : e));
+    await upd.events(events.map(e => e.id === ev.id ? { ...e, cancelled: false } : e));
     await upd.notifications((notifications || []).filter(n => !(n.type === "cancel" && n.eventId === ev.id)));
   }
 
