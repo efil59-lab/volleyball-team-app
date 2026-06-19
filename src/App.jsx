@@ -784,7 +784,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             <div style={{ width: 44, height: 44, borderRadius: "50%", background: sc, color: pc, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👤</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: pc }}>המסך האישי שלי</div>
-              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>גלריה · סטטיסטיקה · סקרים ועוד</div>
+              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>תמונות מהמשחק · סטטיסטיקה · סקרים ועוד</div>
             </div>
             <div style={{ fontSize: 22, color: pc, flexShrink: 0 }}>←</div>
           </button>
@@ -1153,7 +1153,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     setSelectedPhoto(null);
   }
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 גלריה" }];
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
 
   // Attendees of the most recent event (last archived event, else current event's "coming" list)
   const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1474,13 +1474,14 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
         {/* ── GALLERY TAB ── */}
         {tab === "gallery" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 גלריה</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>
               <label style={{ background: pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                 + העלי תמונה
                 <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} style={{ display: "none" }} />
               </label>
             </div>
+            <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>
             {gallery.length === 0 && <Empty icon="📸" text="אין תמונות עדיין - היי הראשונה!" />}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
               {[...gallery].reverse().map(item => (
@@ -1644,10 +1645,10 @@ function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
     await upd.gallery(gallery.filter(g => g.id !== item.id));
     setSelected(null);
   }
-  if (!gallery || gallery.length === 0) return <Empty icon="📸" text="אין תמונות בגלריה" />;
+  if (!gallery || gallery.length === 0) return <Empty icon="📸" text="אין תמונות מהמשחק" />;
   return (
     <div>
-      <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>כמנהל ניתן למחוק כל תמונה בגלריה.</p>
+      <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>כמנהל ניתן למחוק כל תמונה.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
         {[...gallery].reverse().map(item => (
           <div key={item.id} style={{ borderRadius: 12, overflow: "hidden", position: "relative" }}>
@@ -1682,7 +1683,7 @@ function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
   const { pc, sc, onBack } = props;
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 גלריה"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
+  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -2674,7 +2675,7 @@ function HelpScreen({ pc, sc, settings, onBack }) {
     { icon: "👋", title: "כניסה ראשונה", text: "בכניסה הראשונה לחצי על שמך ברשימה. תתבקשי לבחור סיסמה אישית ולהוסיף תמונת פרופיל ופרטי קשר. מהפעם הבאה — רק סיסמה." },
     { icon: "✅", title: "אישור הגעה לאימון", text: "לחצי על שמך במסך הבית, ואז על הכפתור 'מגיעה' או 'לא מגיעה'. ניתן גם להוסיף הערה קצרה. ניתן לשנות תשובה בכל עת לפני האימון." },
     { icon: "👀", title: "מי מגיעה?", text: "לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
-    { icon: "📸", title: "גלריה", text: "בלשונית 'גלריה' ניתן להעלות תמונות מהאימון או המשחק — לחצי על '+ העלי תמונה'. כדי למחוק תמונה שהעלית: לחצי עליה ואז על 'מחקי תמונה'." },
+    { icon: "📸", title: "תמונות מהמשחק", text: "בלשונית 'תמונות מהמשחק' ניתן להעלות תמונות מהאימון או המשחק — לחצי על '+ העלי תמונה'. כדי למחוק תמונה שהעלית: לחצי עליה ואז על 'מחקי תמונה'." },
     { icon: "🏆", title: "לוח משחקים", text: "בלשונית 'משחקים' תמצאי את לוח המשחקים העתידיים. לאחר המשחק יוצג גם התוצאה." },
     { icon: "👏", title: "מחיאות כפיים", text: "בלשונית 'אירוע' תוכלי לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או המשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
     { icon: "🗳️", title: "סקר", text: "בלשונית 'סקר' תוכלי להצביע על נושאים שהמנהל פותח (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
