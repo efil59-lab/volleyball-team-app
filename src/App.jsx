@@ -58,11 +58,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 12,
-  versionName: "גרסה 12.0",
+  version: 13,
+  versionName: "גרסה 13.0",
   date: "יוני 2026",
   features: [
-    { icon: "❌", title: "הודעת ביטול בולטת", text: "כשאימון או משחק מבוטל, ההודעה תופיע באדום בראש המסך וקודמת לכל ההודעות האחרות — שלא תפספסי. היא נעלמת אוטומטית בסוף יום האירוע." },
+    { icon: "🗓️", title: "לוח שנה חודשי", text: "לשונית '🗓️ לוח' חדשה — מבט-על של כל החודש במקום אחד: אימונים 🏋️, משחקים 🏆 וימי הולדת 🎂. לחיצה על יום מציגה את הפרטים, ואפשר לדפדף בין חודשים." },
   ],
 };
 
@@ -1161,7 +1161,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     setSelectedPhoto(null);
   }
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [calSelected, setCalSelected] = useState(null); // יום נבחר בלוח (yyyy-mm-dd)
+
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
 
   // Attendees of the most recent event (last archived event, else current event's "coming" list)
   const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1445,6 +1448,113 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 })()}
           </>
         )}
+
+        {/* ── CALENDAR TAB ── */}
+        {tab === "calendar" && (() => {
+          const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+          const dayHeaders = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+          const { y, m } = calMonth;
+          const firstDay = new Date(y, m, 1).getDay(); // 0=ראשון
+          const daysInMonth = new Date(y, m + 1, 0).getDate();
+          const today = todayStr();
+          const pad = n => String(n).padStart(2, "0");
+          const dateStr = d => `${y}-${pad(m + 1)}-${pad(d)}`;
+
+          // נתונים ליום: אירועים (לא מבוטלים / מבוטלים) + ימי הולדת
+          const dayInfo = d => {
+            const ds = dateStr(d);
+            const evs = (events || []).filter(e => e.date === ds);
+            const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === `${pad(m + 1)}-${pad(d)}`; });
+            return { ds, evs, bdays };
+          };
+
+          const cells = [];
+          for (let i = 0; i < firstDay; i++) cells.push(null);
+          for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+          const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
+          const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
+
+          const selInfo = calSelected ? (() => {
+            const evs = (events || []).filter(e => e.date === calSelected);
+            const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === calSelected.slice(5); });
+            return { evs, bdays };
+          })() : null;
+
+          return (
+            <div>
+              {/* כותרת + ניווט חודשים */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
+                <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+                <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
+              </div>
+
+              {/* כותרות ימים */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+                {dayHeaders.map((h, i) => <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{h}</div>)}
+              </div>
+
+              {/* רשת הימים */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+                {cells.map((d, i) => {
+                  if (!d) return <div key={i} />;
+                  const info = dayInfo(d);
+                  const isToday = info.ds === today;
+                  const isSel = info.ds === calSelected;
+                  const hasTraining = info.evs.some(e => e.type === "training" && !e.cancelled);
+                  const hasGame = info.evs.some(e => e.type === "game" && !e.cancelled);
+                  const hasCancelled = info.evs.some(e => e.cancelled);
+                  const hasBday = info.bdays.length > 0;
+                  const marks = [];
+                  if (hasTraining) marks.push("🏋️");
+                  if (hasGame) marks.push("🏆");
+                  if (hasBday) marks.push("🎂");
+                  if (hasCancelled && marks.length === 0) marks.push("❌");
+                  return (
+                    <button key={i} onClick={() => setCalSelected(isSel ? null : info.ds)}
+                      style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
+                      {marks.length > 0 && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* פרטי יום נבחר */}
+              {calSelected && selInfo && (
+                <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 8 }}>{formatDate(calSelected)}</div>
+                  {selInfo.evs.length === 0 && selInfo.bdays.length === 0 && <div style={{ fontSize: 13, color: "#94a3b8" }}>אין אירועים ביום זה.</div>}
+                  {selInfo.evs.map(ev => (
+                    <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
+                      <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : "משחק"} · {ev.time}</div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
+                      </div>
+                      {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
+                    </div>
+                  ))}
+                  {selInfo.bdays.map(p => (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                      <span style={{ fontSize: 22 }}>🎂</span>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e" }}>יום ההולדת של {p.name}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* מקרא */}
+              <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>🏋️ אימון</span>
+                <span style={{ fontSize: 12, color: "#64748b" }}>🏆 משחק</span>
+                <span style={{ fontSize: 12, color: "#64748b" }}>🎂 יום הולדת</span>
+                <span style={{ fontSize: 12, color: "#64748b" }}>❌ בוטל</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── GAMES TAB ── */}
         {tab === "games" && (
