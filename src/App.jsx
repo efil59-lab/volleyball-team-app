@@ -57,11 +57,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 10,
-  versionName: "גרסה 10.0",
+  version: 11,
+  versionName: "גרסה 11.0",
   date: "יוני 2026",
   features: [
-    { icon: "🎂", title: "ברכות יום הולדת לכל הקבוצה", text: "כשחברת קבוצה חוגגת יום הולדת, כולן יראו זאת בכניסה ויוכלו לשלוח לה ברכה בלחיצה אחת — והחוגגת תקבל את כל הברכות ישר אצלה. 🎉" },
+    { icon: "🏠", title: "מסך בית אישי", text: "אם סימנת 'זכרי אותי במכשיר הזה', מסך הבית מקבל אותך בשמך — עם האירוע הקרוב וסטטוס ההגעה שלך, בלי לחפש את עצמך ברשימה. לא את? לחיצה על 'החליפי' חוזרת לרשימת השחקניות." },
   ],
 };
 
@@ -703,43 +703,104 @@ function NotifTicker({ notifs, pc, sc }) {
 }
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onSuperAdmin }) {
+function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onSuperAdmin }) {
   const lpRef = useRef();
   const gridRef = useRef();
+  const [forceRoster, setForceRoster] = useState(false);
   const activeNotifs = notifications.filter(n => n.active);
-  const welcomeText = settings.welcomeText || "ברוכות הבאות לקבוצת הכדורשת שלנו!";
   const nextEvent = getNextEvent(events || []);
+  // שחקנית שהמכשיר "זוכר" — אם קיימת, מציגים דשבורד אישי (מצב א'); אחרת רשימת בחירה (מצב ב')
+  const me = !forceRoster ? players.find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1" && (playerProfiles[p.id] || {}).setupDone) : null;
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
-      {/* Header */}
-      <div style={{ background: pc, padding: "28px 20px 24px", textAlign: "center", position: "relative", borderRadius: "0 0 28px 28px" }}>
-        <button onClick={onHelp} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-          <span style={{ color: "#ef4444", fontWeight: 800 }}>?</span> עזרה
-        </button>
-        <div
+  // כותרת דקה משותפת לשני המצבים (כולל לחיצה ארוכה על הלוגו → סופר-אדמין)
+  const header = (
+    <div style={{ background: pc, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: "0 0 20px 20px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, flex: 1 }}>
+        <span
           onPointerDown={() => { lpRef.current = setTimeout(() => { onSuperAdmin && onSuperAdmin(); }, 1000); }}
           onPointerUp={() => clearTimeout(lpRef.current)}
           onPointerLeave={() => clearTimeout(lpRef.current)}
           onContextMenu={(e) => e.preventDefault()}
-          style={{ fontSize: 70, marginBottom: 10, userSelect: "none", WebkitUserSelect: "none" }}>🏐</div>
-        <h1 style={{ color: "white", fontSize: 19, fontWeight: 800, margin: "0 0 16px", lineHeight: 1.4 }}>{settings.teamName}</h1>
-        {/* Welcome badge - editable */}
-        <div style={{ display: "inline-block", background: "#f5c200", borderRadius: 30, padding: "10px 24px", boxShadow: "0 4px 12px rgba(0,0,0,0.25)", maxWidth: "90%" }}>
-          <span style={{ color: "#1a237e", fontSize: 14, fontWeight: 900, letterSpacing: 0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>{welcomeText}</span>
+          style={{ fontSize: 28, userSelect: "none", WebkitUserSelect: "none", flexShrink: 0 }}>🏐</span>
+        <span style={{ color: "white", fontSize: 15, fontWeight: 800, lineHeight: 1.25, minWidth: 0, overflowWrap: "break-word" }}>{settings.teamName}</span>
+      </div>
+      <button onClick={onHelp} style={{ flexShrink: 0, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+        <span style={{ color: sc, fontWeight: 800 }}>?</span> עזרה
+      </button>
+    </div>
+  );
+
+  const adminLink = (
+    <div style={{ textAlign: "center", padding: "8px 0 24px" }}>
+      <button onClick={onAdmin} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>🔐 כניסת מנהל</button>
+    </div>
+  );
+
+  // ── מצב א': דשבורד אישי (מכשיר זכור) ──
+  if (me) {
+    const myStatus = nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).status : null;
+    const bdayOthers = players.filter(p => p.id !== me.id && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
+    const rsvp = myStatus === "coming" ? { bg: "#16a34a", c: "white", t: "✓ אישרת הגעה — להחלפה הקישי" }
+      : myStatus === "notcoming" ? { bg: "#ef4444", c: "white", t: "✗ סימנת שלא תגיעי — להחלפה הקישי" }
+      : { bg: sc, c: pc, t: "טרם אישרת הגעה — אשרי עכשיו ←" };
+    return (
+      <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
+        {header}
+
+        <div style={{ padding: "14px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", minWidth: 0, overflowWrap: "break-word" }}>שלום {me.name} 👋</span>
+          <button onClick={() => setForceRoster(true)} style={{ flexShrink: 0, background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>לא את? החליפי</button>
         </div>
+
+        {activeNotifs.length > 0 && <div style={{ padding: "10px 16px 0" }}><NotifTicker notifs={activeNotifs} pc={pc} sc={sc} /></div>}
+
+        <div style={{ padding: "12px 16px 0" }}>
+          {nextEvent ? (
+            <button onClick={() => onSelectPlayer(me)} style={{ width: "100%", textAlign: "right", background: pc, border: "none", borderRadius: 18, padding: 16, cursor: "pointer", boxShadow: `0 6px 20px ${pc}40` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "4px 11px", fontSize: 12, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</span>
+                <span style={{ background: sc, color: pc, borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</span>
+              </div>
+              <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginBottom: 4, lineHeight: 1.3 }}>{formatDate(nextEvent.date)} · {nextEvent.time}</div>
+              <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, marginBottom: 12 }}>📍 {nextEvent.location}</div>
+              <div style={{ background: rsvp.bg, color: rsvp.c, borderRadius: 10, padding: 10, textAlign: "center", fontSize: 14, fontWeight: 800 }}>{rsvp.t}</div>
+            </button>
+          ) : (
+            <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
+          )}
+        </div>
+
+        {bdayOthers.length > 0 && (
+          <div style={{ padding: "12px 16px 0" }}>
+            <button onClick={() => onSelectPlayer(me)} style={{ width: "100%", textAlign: "right", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "11px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>🎂</span>
+              <span style={{ fontSize: 13, color: "#92400e", fontWeight: 700 }}>היום יום ההולדת של {bdayOthers.map(p => p.name).join(", ")} — שלחי ברכה!</span>
+            </button>
+          </div>
+        )}
+
+        <div style={{ padding: "12px 16px 0" }}>
+          <button onClick={() => onSelectPlayer(me)} style={{ width: "100%", background: "white", border: "none", borderRadius: 12, padding: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontSize: 14, fontWeight: 700, color: pc }}>המסך האישי שלי — גלריה, סטטיסטיקה ועוד ←</button>
+        </div>
+
+        {adminLink}
+      </div>
+    );
+  }
+
+  // ── מצב ב': רשימת בחירה (כניסה ראשונה / החלפת שחקנית) ──
+  return (
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
+      {header}
+
+      <div style={{ padding: "12px 16px 0", textAlign: "center" }}>
+        <span style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>בחרי את שמך כדי להיכנס</span>
       </div>
 
-      {/* Notifications ticker - right below header */}
-      {activeNotifs.length > 0 && (
-        <div style={{ padding: "4px 16px 0" }}>
-          <NotifTicker notifs={activeNotifs} pc={pc} sc={sc} />
-        </div>
-      )}
+      {activeNotifs.length > 0 && <div style={{ padding: "10px 16px 0" }}><NotifTicker notifs={activeNotifs} pc={pc} sc={sc} /></div>}
 
-      {/* Next-event banner - tappable, scrolls to players grid for RSVP */}
       {nextEvent && (
-        <div style={{ padding: "8px 16px 0" }}>
+        <div style={{ padding: "10px 16px 0" }}>
           <button onClick={() => gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: pc, border: "none", borderRadius: 16, padding: "12px 16px", cursor: "pointer", textAlign: "right", boxShadow: `0 4px 14px ${pc}33` }}>
             <div style={{ fontSize: 26 }}>{nextEvent.type === "training" ? "🏋️" : "🏆"}</div>
@@ -754,9 +815,8 @@ function HomeScreen({ players, events, settings, notifications, playerProfiles, 
         </div>
       )}
 
-      <div style={{ padding: "6px 16px 28px" }}>
-        {/* Players grid */}
-        <div ref={gridRef} style={{ background: "white", borderRadius: 18, padding: 16, boxShadow: "0 4px 18px rgba(26,35,126,0.10)", marginBottom: 14 }}>
+      <div style={{ padding: "12px 16px 0" }}>
+        <div ref={gridRef} style={{ background: "white", borderRadius: 18, padding: 16, boxShadow: "0 4px 18px rgba(26,35,126,0.10)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
             {players.map(p => {
               const prof = playerProfiles[p.id] || {};
@@ -775,11 +835,9 @@ function HomeScreen({ players, events, settings, notifications, playerProfiles, 
             })}
           </div>
         </div>
-
-        <button onClick={onAdmin} style={{ width: "100%", padding: 14, background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>
-          🔐 כניסת מנהל
-        </button>
       </div>
+
+      {adminLink}
     </div>
   );
 }
