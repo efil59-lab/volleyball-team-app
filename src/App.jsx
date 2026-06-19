@@ -52,16 +52,17 @@ const DEFAULT_SETTINGS = {
   secondaryColor: "#f5c842",
   defaultTrainingLocation: "אולם ספורט הבנק הבינלאומי",
   defaultGameLocation: "אולם ספורט עירוני",
+  whatsappGroup: "https://chat.whatsapp.com/BQFmLoO8PU4A3kdXSkIJ6U?s=hd&p=i&mlu=3",
   captainPassword: "1234",
 };
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 11,
-  versionName: "גרסה 11.0",
+  version: 12,
+  versionName: "גרסה 12.0",
   date: "יוני 2026",
   features: [
-    { icon: "🏠", title: "מסך בית אישי", text: "אם סימנת 'זכרי אותי במכשיר הזה', מסך הבית מקבל אותך בשמך — עם האירוע הקרוב וסטטוס ההגעה שלך, בלי לחפש את עצמך ברשימה. לא את? לחיצה על 'החליפי' חוזרת לרשימת השחקניות." },
+    { icon: "❌", title: "הודעת ביטול בולטת", text: "כשאימון או משחק מבוטל, ההודעה תופיע באדום בראש המסך וקודמת לכל ההודעות האחרות — שלא תפספסי. היא נעלמת אוטומטית בסוף יום האירוע." },
   ],
 };
 
@@ -655,20 +656,25 @@ function NotifTicker({ notifs, pc, sc }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
 
+  // קדימות לביטול: אם יש הודעת ביטול פעילה — מציגים רק אותה/ן, בלי שאר ההודעות
+  const cancels = notifs.filter(x => x.type === "cancel");
+  const list = cancels.length > 0 ? cancels : notifs;
+
   useEffect(() => {
-    if (notifs.length <= 1) return;
+    setIdx(0);
+    if (list.length <= 1) return;
     const timer = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setIdx(i => (i + 1) % notifs.length);
+        setIdx(i => (i + 1) % list.length);
         setVisible(true);
       }, 400);
     }, 3500);
     return () => clearInterval(timer);
-  }, [notifs.length]);
+  }, [list.length]);
 
-  if (notifs.length === 0) return null;
-  const n = notifs[idx];
+  if (list.length === 0) return null;
+  const n = list[idx] || list[0];
   const isCancel = n.type === "cancel";
   const isCoach = n.type === "coach";
   const bgColor = isCancel ? "#ef4444" : pc;
@@ -689,12 +695,12 @@ function NotifTicker({ notifs, pc, sc }) {
         transition: "all 0.4s ease",
         textAlign: "center",
       }}>
-        <div style={{ height: notifs.length > 1 ? 58 : "auto", display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto", overflowX: "hidden" }}>
+        <div style={{ height: list.length > 1 ? 58 : "auto", display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto", overflowX: "hidden" }}>
           <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4, overflowWrap: "break-word", wordBreak: "break-word", width: "100%" }}>{displayText}</div>
         </div>
-        {notifs.length > 1 && (
+        {list.length > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>
-            {notifs.map((_, i) => (
+            {list.map((_, i) => (
               <div key={i} style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 3, background: i === idx ? (isCancel ? "white" : sc) : "rgba(255,255,255,0.4)", transition: "all 0.3s" }} />
             ))}
           </div>
@@ -709,7 +715,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
-  const activeNotifs = notifications.filter(n => n.active);
+  const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
   const nextEvent = getNextEvent(events || []);
   // שחקנית שהמכשיר "זוכר" — אם קיימת, מציגים דשבורד אישי (מצב א'); אחרת רשימת בחירה (מצב ב')
   const me = !forceRoster ? players.find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1" && (playerProfiles[p.id] || {}).setupDone) : null;
@@ -1012,7 +1018,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const nextEvent = getNextEvent(events);
   const myKey = nextEvent ? `${nextEvent.id}_${player.id}` : null;
   const myRecord = myKey ? attendance[myKey] : null;
-  const activeNotifs = notifications.filter(n => n.active);
+  const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
 
   // ── Build entry popups (birthday greeting + unseen applause) — runs once on mount ──
   useEffect(() => {
@@ -2148,30 +2154,32 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
 }
 
 // ── ADMIN NOTIFICATIONS ───────────────────────────────────────────────────────
-function AdminNotifications({ notifications, players, playerProfiles, upd, pc, sc, askConfirm }) {
+function AdminNotifications({ notifications, players, playerProfiles, events, settings, upd, pc, sc, askConfirm }) {
   const [type, setType] = useState("general");
   const [text, setText] = useState("");
   const [showWAConfirm, setShowWAConfirm] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   async function addNotif() {
     if (!text.trim()) return;
     const notif = { id: Date.now(), type, text: text.trim(), active: true, createdAt: new Date().toISOString() };
+    // ביטול: שומר את תאריך האירוע הקרוב כדי שההודעה תיעלם בסוף יום האירוע
+    if (type === "cancel") {
+      const ev = getNextEvent(events || []);
+      notif.expiresOn = ev ? ev.date : todayStr();
+    }
     await upd.notifications([...notifications, notif]);
     setText("");
-    // If cancel - ask about WhatsApp
-    if (type === "cancel") setShowWAConfirm(text.trim());
+    // ביטול → דיאלוג שיתוף לקבוצת הוואטסאפ
+    if (type === "cancel") { setCopied(false); setShowWAConfirm(notif.text); }
   }
 
-  function sendCancelWA(msgText) {
-    const msg = encodeURIComponent(`❌ הודעת ביטול 🏐\n${msgText}`);
-    let sent = 0;
-    players.forEach(p => {
-      const prof = playerProfiles[p.id] || {};
-      const wa = (prof.whatsapp || "").replace(/\D/g, "");
-      if (wa) { window.open(`https://wa.me/${wa}?text=${msg}`, "_blank"); sent++; }
-    });
-    if (sent === 0) alert("אין מספרי וואטסאפ לשחקניות. הוסיפי אותם בלשונית שחקניות.");
-    setShowWAConfirm(null);
+  async function shareCancelWA(msgText) {
+    const fullMsg = `❌ הודעת ביטול 🏐\n${msgText}`;
+    try { await navigator.clipboard.writeText(fullMsg); setCopied(true); } catch (e) { setCopied(false); }
+    const link = (settings && settings.whatsappGroup) ? settings.whatsappGroup : "";
+    if (link) setTimeout(() => window.open(link, "_blank"), 300);
+    else alert("לא הוגדר קישור לקבוצת וואטסאפ. אפשר להוסיף בהגדרות.");
   }
 
   async function toggleNotif(id) {
@@ -2187,16 +2195,18 @@ function AdminNotifications({ notifications, players, playerProfiles, upd, pc, s
 
   return (
     <div>
-      {/* WhatsApp confirm after cancel notification */}
+      {/* WhatsApp share after cancel notification — copy text + open group, manual send */}
       {showWAConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: "white", borderRadius: 20, padding: 28, maxWidth: 300, width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 8 }}>לשלוח הודעת ביטול בוואטסאפ לכל השחקניות?</p>
-            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>"{showWAConfirm}"</p>
+          <div style={{ background: "white", borderRadius: 20, padding: 24, maxWidth: 320, width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>📲</div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", marginBottom: 6 }}>שליחת הודעת הביטול לקבוצה</p>
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>הטקסט יועתק ותיפתח קבוצת הוואטסאפ. הדביקי (הקשה ארוכה ← הדבק) ושלחי.</p>
+            <div style={{ background: "#f1f5f9", borderRadius: 10, padding: "8px 12px", margin: "8px 0 16px", fontSize: 13, color: "#1e293b", fontWeight: 600 }}>❌ הודעת ביטול 🏐<br />{showWAConfirm}</div>
+            {copied && <p style={{ fontSize: 12, color: "#16a34a", fontWeight: 700, margin: "0 0 12px" }}>✓ הטקסט הועתק</p>}
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowWAConfirm(null)} style={{ flex: 1, padding: 12, background: "#f1f5f9", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600, color: "#64748b" }}>לא</button>
-              <button onClick={() => sendCancelWA(showWAConfirm)} style={{ flex: 1, padding: 12, background: "#25D366", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, color: "white" }}>💬 שלח</button>
+              <button onClick={() => setShowWAConfirm(null)} style={{ flex: 1, padding: 12, background: "#f1f5f9", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600, color: "#64748b" }}>סגור</button>
+              <button onClick={() => shareCancelWA(showWAConfirm)} style={{ flex: 1.4, padding: 12, background: "#25D366", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 800, color: "white" }}>📋 העתק ופתח קבוצה</button>
             </div>
           </div>
         </div>
@@ -2613,6 +2623,9 @@ function AdminSettings({ settings, upd, pc, sc }) {
         <input value={s.defaultTrainingLocation} onChange={e => handleChange("defaultTrainingLocation", e.target.value)} style={S.input} />
         <Label>מיקום ברירת מחדל — משחק</Label>
         <input value={s.defaultGameLocation} onChange={e => handleChange("defaultGameLocation", e.target.value)} style={S.input} />
+        <Label>קישור קבוצת וואטסאפ (לשליחת הודעות ביטול)</Label>
+        <input value={s.whatsappGroup || ""} onChange={e => handleChange("whatsappGroup", e.target.value)} placeholder="https://chat.whatsapp.com/..." style={S.input} />
+        <p style={{ fontSize: 11, color: "#94a3b8", margin: "-4px 0 10px" }}>כשתשלחי הודעת "ביטול", הטקסט יועתק ותיפתח הקבוצה — הדביקי ושלחי.</p>
         <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
           <div style={{ flex: 1 }}>
             <Label>צבע ראשי</Label>
