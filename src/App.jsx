@@ -862,7 +862,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 
   function tryLogin() {
     if (!pass.trim()) { setLoginError(true); setTimeout(() => setLoginError(false), 1500); return; }
-    if (pass === PLAYER_PASS || pass === "1234") {
+    if (pass === PLAYER_PASS) {
       if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
       else localStorage.removeItem("rememberPlayer_" + player.id);
       onDone();
@@ -887,12 +887,15 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 
   async function completeSetup() {
     let valid = true;
-    if (!pass.trim()) { setPassError("יש להזין סיסמה"); valid = false; } else setPassError("");
+    if (!pass.trim()) { setPassError("יש להזין סיסמה"); valid = false; }
+    else if (pass.trim().length < 4) { setPassError("הסיסמה חייבת להכיל לפחות 4 תווים"); valid = false; }
+    else if (pass.trim() === "1234") { setPassError("הסיסמה 1234 שמורה למערכת — בחרי סיסמה אחרת"); valid = false; }
+    else setPassError("");
     if (!phone.trim()) { setPhoneError("יש להזין מספר טלפון"); valid = false; } else setPhoneError("");
     if (!valid) return;
     const updated = {
       ...playerProfiles,
-      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true, password: pass }
+      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true, password: pass.trim() }
     };
     await upd.playerProfiles(updated);
     onDone();
