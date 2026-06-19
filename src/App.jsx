@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
@@ -42,6 +42,7 @@ const KEYS = {
   applause: "applause",
   polls: "polls",
   personalNotifs: "personalNotifs",
+  chat: "chat",
   whatsNewVersion: "whatsNewVersion",
   meta: "meta",
 };
@@ -58,11 +59,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 13,
-  versionName: "גרסה 13.0",
+  version: 14,
+  versionName: "גרסה 14.0",
   date: "יוני 2026",
   features: [
-    { icon: "🗓️", title: "לוח שנה חודשי", text: "לשונית '🗓️ לוח' חדשה — מבט-על של כל החודש במקום אחד: אימונים 🏋️, משחקים 🏆 וימי הולדת 🎂. לחיצה על יום מציגה את הפרטים, ואפשר לדפדף בין חודשים." },
+    { icon: "💬", title: "צ'אט קבוצתי", text: "לשונית '💬 צ'אט' חדשה — שיחה קבוצתית בזמן אמת! ההודעות מופיעות מיד אצל כולן. אפשר למחוק הודעה ששלחת בלחיצה על 🗑." },
   ],
 };
 
@@ -303,6 +304,8 @@ export default function App() {
   const [applause, setApplause] = useState([]);
   const [polls, setPolls] = useState([]);
   const [personalNotifs, setPersonalNotifs] = useState({});
+  const [chat, setChat] = useState([]);
+  const chatUnsubRef = useRef(null);
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -335,6 +338,11 @@ export default function App() {
       load(KEYS.personalNotifs, {}),
     ]);
     setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
+    // צ'אט בזמן אמת — האזנה חיה (onSnapshot) למסמך הצ'אט של הקבוצה הנוכחית
+    if (chatUnsubRef.current) chatUnsubRef.current();
+    chatUnsubRef.current = onSnapshot(doc(db, "teams", CURRENT_TEAM, "data", "chat"),
+      snap => setChat(snap.exists() ? (snap.data().value || []) : []),
+      err => console.error("chat onSnapshot:", err));
   }
 
   // משקיף בלבד על מצב ההזדהות (לא מתחבר — כך אין מרוץ עם ה-redirect). משמש לאבחון ולכפתור "המשך".
@@ -342,6 +350,9 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, (u) => setAuthUser(u));
     return () => unsub();
   }, []);
+
+  // ניקוי מנוי הצ'אט בעת יציאה
+  useEffect(() => () => { if (chatUnsubRef.current) chatUnsubRef.current(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -478,6 +489,7 @@ export default function App() {
     applause: async v => { setApplause(v); await save(KEYS.applause, v); },
     polls: async v => { setPolls(v); await save(KEYS.polls, v); },
     personalNotifs: async v => { setPersonalNotifs(v); await save(KEYS.personalNotifs, v); },
+    chat: async v => { setChat(v); await save(KEYS.chat, v); },
     installVersion: async v => { setSettings(s => ({ ...s, installVersion: v })); await save(KEYS.installVersion, v); },
   };
 
@@ -485,7 +497,7 @@ export default function App() {
 
   const pc = settings.primaryColor || "#1a237e";
   const sc = settings.secondaryColor || "#f5c842";
-  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, upd, pc, sc, askConfirm };
+  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm };
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
@@ -999,7 +1011,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 }
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, upd, pc, sc, askConfirm, onBack }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack }) {
   const [tab, setTab] = useState("event");
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
@@ -1164,7 +1176,24 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [calSelected, setCalSelected] = useState(null); // יום נבחר בלוח (yyyy-mm-dd)
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
+  const [chatText, setChatText] = useState("");
+  const chatEndRef = useRef(null);
+
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "chat", label: "💬 צ'אט" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
+
+  async function sendChat() {
+    const t = chatText.trim();
+    if (!t) return;
+    const msg = { id: `${player.id}_${Date.now()}`, playerId: player.id, name: player.name, text: t, ts: Date.now() };
+    setChatText("");
+    await upd.chat([...(chat || []), msg].slice(-200));
+  }
+  function deleteChatMsg(id) {
+    upd.chat((chat || []).filter(m => m.id !== id));
+  }
+  useEffect(() => {
+    if (tab === "chat" && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [chat, tab]);
 
   // Attendees of the most recent event (last archived event, else current event's "coming" list)
   const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1555,6 +1584,33 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             </div>
           );
         })()}
+
+        {/* ── CHAT TAB ── */}
+        {tab === "chat" && (
+          <div style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {(!chat || chat.length === 0) && <Empty icon="💬" text="אין הודעות עדיין — התחילי שיחה!" />}
+              {(chat || []).map(m => {
+                const mine = m.playerId === player.id;
+                return (
+                  <div key={m.id} style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
+                    {!mine && <div style={{ fontSize: 11, color: pc, fontWeight: 700, marginBottom: 2 }}>{m.name}</div>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexDirection: mine ? "row" : "row-reverse" }}>
+                      <div style={{ background: mine ? pc : "white", color: mine ? "white" : "#1e293b", borderRadius: 14, padding: "8px 12px", fontSize: 14, lineHeight: 1.4, overflowWrap: "anywhere", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>{m.text}</div>
+                      {mine && <button onClick={() => deleteChatMsg(m.id)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", fontSize: 13, padding: 2 }}>🗑</button>}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 2, textAlign: mine ? "left" : "right" }}>{new Date(m.ts).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+            <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #eef2f7" }}>
+              <input value={chatText} onChange={e => setChatText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="הקלידי הודעה..." style={{ ...S.input, margin: 0, flex: 1 }} />
+              <button onClick={sendChat} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "0 18px", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>שלחי</button>
+            </div>
+          </div>
+        )}
 
         {/* ── GAMES TAB ── */}
         {tab === "games" && (
