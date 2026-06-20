@@ -69,7 +69,9 @@
   - **✅ שלב 1 — שער כניסה (20.6):** `meta.status` (`pending`/`active`). קבוצה חדשה=`pending`; הבינלאומי/ותיקות (status חסר)=`active` תמיד. המנהלת נכנסת ומקימה גם ב-pending (באנר אזהרה); השחקניות רואות `LockedTeamScreen` עד הפעלה.
   - **✅ שלב 2 — חברות + סופר-אדמין (20.6):** מסמך `teams/{t}/members/{uid}` (`role`+`playerId`) — הכריכה שתאפשר אכיפה פר-שחקנית. נכתב למנהלת ב-`resolveAdminTeam`, ולשחקנית בהקמה/כניסה (`bindPlayerMembership`). אינדקס שטוח `teamIndex/{teamId}` (`syncTeamIndex`). **מסך הסופר-אדמין שודרג:** רשימת כל הקבוצות עם סטטוס, בעלים, מס' שחקניות, וכפתורי **✅ אשר והפעל / ⏸️ השהה** (`setTeamStatus`). הבינלאומי נעול מהשהיה. החליף את ההפעלה הידנית בקונסול.
   - **+ כפתור התנתקות מנהל (20.6):** "🔓 התנתק" בכותרת פאנל המנהל (`handleAdminLogout`) — יוצא מ-Google, חוזר לטוקן אנונימי וחוזר לבית. מאפשר בדיקת זרימות התחברות והחלפת חשבון. (האינדקס נכתב ב-`resolveAdminTeam` בכל כניסה; טאב ישן לפני deploy לא מריץ זאת — התנתקות+כניסה מחדש פותרת.)
-  - בלי WHATS_NEW (תשתית/אבטחה). **נותר:** שלבים 3–7 + Onboarding (#7).
+  - **+ כללי Firestore עודכנו (20.6):** נוספו בלוקים ל-`members` ו-`teamIndex` (קריאת האינדקס — סופר-אדמין בלבד). פתר `Missing or insufficient permissions`.
+  - **✅ שלבים 3+4 — פיצול attendance ו-profiles/secrets (20.6):** המבנה ב-Firestore עבר ממסמך-ענק-יחיד למסמך-לשחקנית: `teams/{t}/attendance/{playerId}` ו-`teams/{t}/profiles/{playerId}` + `teams/{t}/secrets/{playerId}` (סיסמה בלבד, מופרדת). **שיטת המעטפת:** ה-state בזיכרון נשאר מפה שטוחה זהה (כל עשרות הקוראים ממשיכים לעבוד ללא שינוי); רק שכבת ה-load/save מתרגמת (`loadAttendanceSplit`/`saveAttendanceSplit` עם diff פר-שחקנית, `loadProfilesSplit`/`saveProfilesSplit`). **סיסמה:** יצאה מהפרופיל הציבורי ל-`secrets`, ונקראת on-demand בכניסה (`loadPlayerSecret`) — מאפשר הידוק "עצמי בלבד" בשלב 5. **כללים:** נוספו בלוקים רכים ל-`attendance`/`profiles`/`secrets` (האכיפה הפר-שחקנית בשלב 5 דרך מסמכי החברות). בלי מיגרציה (לוח נקי). בלי WHATS_NEW.
+  - בלי WHATS_NEW (תשתית/אבטחה). **נותר:** שלב 5 (כללי Tier 2 מלאים) · שלב 6 (גלריה ממופה+דחיסה) · שלב 7 (צ'אט subcollection) · Onboarding (#7).
 
 ### 9. גיבוי ושחזור 🔄
 - **סטטוס:** ⏳

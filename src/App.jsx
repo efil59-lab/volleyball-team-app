@@ -187,6 +187,79 @@ async function save(key, val) {
   } catch (e) { console.error("Save error:", e); }
 }
 
+// ── שלב 3+4: פיצול attendance ו-profiles/secrets למסמך-לשחקנית ────────────────
+// העיקרון: ה-state בזיכרון נשאר מפה שטוחה זהה (כל הקוראים ממשיכים לעבוד);
+// רק שכבת ה-load/save מתרגמת בין המפה השטוחה למסמכים-לשחקנית ב-Firestore.
+
+// attendance: בזיכרון { "eventId_playerId": rec } ↔ Firestore teams/{t}/attendance/{playerId} = { eventId: rec }
+function groupAttendanceByPlayer(flat) {
+  const byP = {};
+  for (const k in (flat || {})) {
+    const i = k.lastIndexOf("_");
+    if (i < 0) continue;
+    const eventId = k.slice(0, i), playerId = k.slice(i + 1);
+    (byP[playerId] = byP[playerId] || {})[eventId] = flat[k];
+  }
+  return byP;
+}
+async function loadAttendanceSplit() {
+  try {
+    const snap = await getDocs(collection(db, "teams", CURRENT_TEAM, "attendance"));
+    const flat = {};
+    snap.forEach(d => {
+      const evs = d.data() || {};
+      for (const eventId in evs) flat[`${eventId}_${d.id}`] = evs[eventId];
+    });
+    return flat;
+  } catch (e) { console.error("loadAttendanceSplit:", e); return {}; }
+}
+async function saveAttendanceSplit(oldFlat, newFlat) {
+  try {
+    const oldB = groupAttendanceByPlayer(oldFlat), newB = groupAttendanceByPlayer(newFlat);
+    const ids = new Set([...Object.keys(oldB), ...Object.keys(newB)]);
+    const writes = [];
+    ids.forEach(pid => {
+      if (JSON.stringify(oldB[pid] || {}) !== JSON.stringify(newB[pid] || {}))
+        writes.push(setDoc(doc(db, "teams", CURRENT_TEAM, "attendance", pid), newB[pid] || {}));
+    });
+    await Promise.all(writes);
+  } catch (e) { console.error("saveAttendanceSplit:", e); }
+}
+
+// profiles: בזיכרון { playerId: {fields, password} } ↔ profiles/{id} (ללא סיסמה) + secrets/{id} = { password }
+async function loadProfilesSplit() {
+  try {
+    const snap = await getDocs(collection(db, "teams", CURRENT_TEAM, "profiles"));
+    const map = {};
+    snap.forEach(d => { map[d.id] = d.data() || {}; }); // ללא סיסמאות — נקראות on-demand מ-secrets בכניסה
+    return map;
+  } catch (e) { console.error("loadProfilesSplit:", e); return {}; }
+}
+async function saveProfilesSplit(oldMap, newMap) {
+  try {
+    const ids = new Set([...Object.keys(oldMap || {}), ...Object.keys(newMap || {})]);
+    const writes = [];
+    ids.forEach(id => {
+      const prev = (oldMap || {})[id], next = (newMap || {})[id];
+      if (!next) return;
+      const { password, ...pub } = next; // הפרדה: סיסמה ל-secrets, השאר ל-profiles הציבורי
+      const prevPub = prev ? (() => { const { password: _p, ...rest } = prev; return rest; })() : null;
+      if (JSON.stringify(prevPub) !== JSON.stringify(pub))
+        writes.push(setDoc(doc(db, "teams", CURRENT_TEAM, "profiles", id), pub));
+      if (password !== undefined && (!prev || prev.password !== password))
+        writes.push(setDoc(doc(db, "teams", CURRENT_TEAM, "secrets", id), { password }));
+    });
+    await Promise.all(writes);
+  } catch (e) { console.error("saveProfilesSplit:", e); }
+}
+// קריאת סיסמת שחקנית on-demand (לכניסה) — מאפשר להדק את secrets ל"עצמי בלבד" בשלב 5
+async function loadPlayerSecret(playerId) {
+  try {
+    const snap = await getDoc(doc(db, "teams", CURRENT_TEAM, "secrets", String(playerId)));
+    return snap.exists() ? (snap.data().password || "") : "";
+  } catch (e) { console.error("loadPlayerSecret:", e); return ""; }
+}
+
 // ── עזרי הזדהות ובעלות (לא תלויים ב-CURRENT_TEAM — נתיב מפורש) ────────────────
 // מיפוי משתמש→קבוצה, מחוץ למרחב הקבוצה.
 async function loadUserTeam(uid) {
@@ -384,13 +457,13 @@ export default function App() {
     const [p, e, a, n, s, ar, g, gal, pp] = await Promise.all([
       load(KEYS.players, DEFAULT_PLAYERS),
       load(KEYS.events, DEFAULT_EVENTS),
-      load(KEYS.attendance, {}),
+      loadAttendanceSplit(),
       load(KEYS.notifications, []),
       load(KEYS.settings, DEFAULT_SETTINGS),
       load(KEYS.archive, []),
       load(KEYS.games, DEFAULT_GAMES),
       load(KEYS.gallery, []),
-      load(KEYS.playerProfiles, {}),
+      loadProfilesSplit(),
     ]);
     setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
     setSettings({ ...DEFAULT_SETTINGS, ...s });
@@ -554,13 +627,13 @@ export default function App() {
   const upd = {
     players: async v => { setPlayers(v); await save(KEYS.players, v); },
     events: async v => { setEvents(v); await save(KEYS.events, v); },
-    attendance: async v => { setAttendance(v); await save(KEYS.attendance, v); },
+    attendance: async v => { setAttendance(v); await saveAttendanceSplit(attendance, v); },
     notifications: async v => { setNotifications(v); await save(KEYS.notifications, v); },
     settings: async v => { setSettings(v); await save(KEYS.settings, v); },
     archive: async v => { setArchive(v); await save(KEYS.archive, v); },
     games: async v => { setGames(v); await save(KEYS.games, v); },
     gallery: async v => { setGallery(v); await save(KEYS.gallery, v); },
-    playerProfiles: async v => { setPlayerProfiles(v); await save(KEYS.playerProfiles, v); },
+    playerProfiles: async v => { setPlayerProfiles(v); await saveProfilesSplit(playerProfiles, v); },
     applause: async v => { setApplause(v); await save(KEYS.applause, v); },
     polls: async v => { setPolls(v); await save(KEYS.polls, v); },
     personalNotifs: async v => { setPersonalNotifs(v); await save(KEYS.personalNotifs, v); },
@@ -1040,11 +1113,18 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const [birthday, setBirthday] = useState(prof.birthday || "");
   const photoRef = useRef();
 
-  const PLAYER_PASS = prof.password || "";
+  // סיסמת השחקנית נקראת on-demand מ-secrets/{playerId} (לא נטענת בכמות). מאפשר הידוק עצמי-בלבד בשלב 5.
+  const [storedPass, setStoredPass] = useState("");
+  useEffect(() => {
+    let alive = true;
+    loadPlayerSecret(player.id).then(p => { if (alive) setStoredPass(p || ""); });
+    return () => { alive = false; };
+  }, [player.id]);
 
-  function tryLogin() {
+  async function tryLogin() {
     if (!pass.trim()) { setLoginError(true); setTimeout(() => setLoginError(false), 1500); return; }
-    if (pass === PLAYER_PASS) {
+    const real = storedPass || await loadPlayerSecret(player.id); // קריאה רעננה אם עוד לא נטענה
+    if (pass === real) {
       if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
       else localStorage.removeItem("rememberPlayer_" + player.id);
       bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid↔playerId (Tier 2)
