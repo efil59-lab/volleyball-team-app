@@ -388,6 +388,8 @@ async function seedNewTeam(teamId) {
   const existing = await loadTeamKey(teamId, KEYS.players, null);
   if (existing === null) {
     await saveTeamKey(teamId, KEYS.players, []);
+    await saveTeamKey(teamId, KEYS.events, []);   // ריק — לא לרשת את אירועי-הדוגמה של בינלאומי
+    await saveTeamKey(teamId, KEYS.games, []);    // ריק — לא לרשת את משחקי-הדוגמה של בינלאומי
     await saveTeamKey(teamId, KEYS.settings, { ...DEFAULT_SETTINGS, teamName: "הקבוצה שלי" });
   }
 }
