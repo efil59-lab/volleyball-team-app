@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc, onSnapshot, getDocs, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
+import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
@@ -311,6 +311,31 @@ async function bindPlayerMembership(teamId, uid, player) {
   if (!uid || !player) return;
   await writeMember(teamId, uid, { role: "player", playerId: player.id, name: player.name, joinedAt: new Date().toISOString() });
 }
+
+// ── שלב 5′: אימות אמיתי לשחקנית (Firebase Email/Password עם אימייל פיקטיבי) ───
+// האימייל הפיקטיבי נגזר מ-teamId+playerId, נסתר מהשחקנית. חווייתה: "שם + סיסמה" כרגיל.
+function playerEmail(teamId, playerId) {
+  const t = String(teamId).toLowerCase().replace(/[^a-z0-9]/g, "");
+  return `${t}-p${playerId}@players.bibleumi.app`;
+}
+// אימות מאוחד: יוצר חשבון בכניסה ראשונה, מתחבר אם כבר קיים. דטרמיניסטי (לא תלוי בהגנת enumeration).
+async function emailAuth(email, pass) {
+  try {
+    await createUserWithEmailAndPassword(auth, email, pass);
+    return { ok: true, created: true };
+  } catch (e) {
+    if (e.code === "auth/email-already-in-use") {
+      try { await signInWithEmailAndPassword(auth, email, pass); return { ok: true, created: false }; }
+      catch (e2) { return { ok: false, error: e2.code || e2.message }; }
+    }
+    if (e.code === "auth/weak-password") return { ok: false, error: "weak" };
+    return { ok: false, error: e.code || e.message };
+  }
+}
+// הבחנה בין מנהל (Google) לשחקנית (password) — שניהם לא-אנונימיים, אז ההבחנה לפי הספק.
+function isGoogleUser(u) {
+  return !!(u && !u.isAnonymous && (u.providerData || []).some(p => p.providerId === "google.com"));
+}
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
 async function syncTeamIndex(teamId) {
   try {
@@ -511,8 +536,9 @@ export default function App() {
         return;
       }
 
-      // גיבוי: אם getRedirectResult ריק אבל הסשן נשמר — נשתמש במשתמש המחובר.
-      if (!adminUser && auth.currentUser && !auth.currentUser.isAnonymous) {
+      // גיבוי: אם getRedirectResult ריק אבל סשן Google נשמר — נשתמש במשתמש המחובר.
+      // חשוב: רק חשבון Google = מנהל. חשבון שחקנית (Email/Password) לא-אנונימי אך אינו מנהל.
+      if (!adminUser && isGoogleUser(auth.currentUser)) {
         adminUser = auth.currentUser;
       }
 
@@ -1113,21 +1139,14 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const [birthday, setBirthday] = useState(prof.birthday || "");
   const photoRef = useRef();
 
-  // סיסמת השחקנית נקראת on-demand מ-secrets/{playerId} (לא נטענת בכמות). מאפשר הידוק עצמי-בלבד בשלב 5.
-  const [storedPass, setStoredPass] = useState("");
-  useEffect(() => {
-    let alive = true;
-    loadPlayerSecret(player.id).then(p => { if (alive) setStoredPass(p || ""); });
-    return () => { alive = false; };
-  }, [player.id]);
-
+  // כניסה: אימות מול Firebase (חשבון אמיתי). אין יותר השוואת סיסמה בצד-לקוח.
   async function tryLogin() {
     if (!pass.trim()) { setLoginError(true); setTimeout(() => setLoginError(false), 1500); return; }
-    const real = storedPass || await loadPlayerSecret(player.id); // קריאה רעננה אם עוד לא נטענה
-    if (pass === real) {
+    const res = await emailAuth(playerEmail(CURRENT_TEAM, player.id), pass);
+    if (res.ok) {
       if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
       else localStorage.removeItem("rememberPlayer_" + player.id);
-      bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid↔playerId (Tier 2)
+      await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid אמיתי ↔ playerId
       onDone();
     }
     else { setLoginError(true); setTimeout(() => setLoginError(false), 1500); }
@@ -1151,17 +1170,23 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   async function completeSetup() {
     let valid = true;
     if (!pass.trim()) { setPassError("יש להזין סיסמה"); valid = false; }
-    else if (pass.trim().length < 4) { setPassError("הסיסמה חייבת להכיל לפחות 4 תווים"); valid = false; }
-    else if (pass.trim() === "1234") { setPassError("הסיסמה 1234 שמורה למערכת — בחרי סיסמה אחרת"); valid = false; }
+    else if (pass.trim().length < 6) { setPassError("הסיסמה חייבת להכיל לפחות 6 תווים"); valid = false; }
     else setPassError("");
     if (!phone.trim()) { setPhoneError("יש להזין מספר טלפון"); valid = false; } else setPhoneError("");
     if (!valid) return;
+    // יצירת חשבון Firebase אמיתי (או כניסה אם כבר קיים) — הסיסמה נשמרת ב-Firebase, לא בפרופיל.
+    const res = await emailAuth(playerEmail(CURRENT_TEAM, player.id), pass.trim());
+    if (!res.ok) {
+      setPassError(res.error === "weak" ? "הסיסמה חלשה מדי (לפחות 6 תווים)" : "החשבון כבר קיים — נסי להיכנס עם הסיסמה הקיימת, או בקשי איפוס מהמנהלת");
+      return;
+    }
+    // כריכת חברות עם ה-uid האמיתי לפני כתיבת הפרופיל (כדי שכללי שלב 5 יתירו את הכתיבה)
+    await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player);
     const updated = {
       ...playerProfiles,
-      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true, password: pass.trim() }
+      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true }
     };
     await upd.playerProfiles(updated);
-    await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid↔playerId (Tier 2)
     onDone();
   }
 
