@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, getDocs, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
@@ -212,7 +212,7 @@ async function saveTeamKey(teamId, key, val) {
 async function addTeamAdmin(teamId, uid, email, defaultStatus) {
   const existing = await loadTeamKey(teamId, KEYS.meta, null);
   if (!existing || !existing.ownerUid) {
-    // קבוצה חדשה: בעלים + status התחלתי (קבוצה חדשה = "pending"; הבינלאומי/מוכרות = "active")
+    // קבוצה חדשה: בעלים + status התחלתי (חדשה = "pending"; הבינלאומי/מוכרות = "active")
     await saveTeamKey(teamId, KEYS.meta, {
       ownerUid: uid, ownerEmail: email, adminUids: [uid],
       status: defaultStatus || "active", plan: "free", createdAt: new Date().toISOString(),
@@ -224,6 +224,52 @@ async function addTeamAdmin(teamId, uid, email, defaultStatus) {
     if (!next.status) { next.status = defaultStatus || "active"; if (!next.plan) next.plan = "free"; }
     await saveTeamKey(teamId, KEYS.meta, next);
   }
+}
+
+// ── חברות (members) ואינדקס סופר-אדמין (Tier 2, שלב 2) ────────────────────────
+// מסמך חברות קושר טוקן (uid)→קבוצה→שחקנית. זו הכריכה שמאפשרת אכיפה פר-שחקנית בכללים.
+async function writeMember(teamId, uid, data) {
+  if (!teamId || !uid) return;
+  try { await setDoc(doc(db, "teams", teamId, "members", uid), data); }
+  catch (e) { console.error("writeMember:", e); }
+}
+// כריכת שחקנית: הטוקן האנונימי של המכשיר ↔ playerId. נקרא בהקמה/כניסה.
+async function bindPlayerMembership(teamId, uid, player) {
+  if (!uid || !player) return;
+  await writeMember(teamId, uid, { role: "player", playerId: player.id, name: player.name, joinedAt: new Date().toISOString() });
+}
+// אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
+async function syncTeamIndex(teamId) {
+  try {
+    const meta = await loadTeamKey(teamId, KEYS.meta, {}) || {};
+    const players = await loadTeamKey(teamId, KEYS.players, []) || [];
+    const st = await loadTeamKey(teamId, KEYS.settings, {}) || {};
+    await setDoc(doc(db, "teamIndex", teamId), {
+      teamId,
+      teamName: st.teamName || teamId,
+      ownerEmail: meta.ownerEmail || "",
+      status: meta.status || "active",
+      plan: meta.plan || "free",
+      createdAt: meta.createdAt || "",
+      playerCount: Array.isArray(players) ? players.length : 0,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) { console.error("syncTeamIndex:", e); }
+}
+// סופר-אדמין: רשימת כל הקבוצות, ושינוי סטטוס (אישור/השהיה).
+async function listAllTeams() {
+  try {
+    const snap = await getDocs(collection(db, "teamIndex"));
+    return snap.docs.map(d => d.data()).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  } catch (e) { console.error("listAllTeams:", e); return []; }
+}
+async function setTeamStatus(teamId, status) {
+  const meta = await loadTeamKey(teamId, KEYS.meta, {}) || {};
+  await saveTeamKey(teamId, KEYS.meta, {
+    ...meta, status,
+    activatedAt: status === "active" ? new Date().toISOString() : (meta.activatedAt || null),
+  });
+  await syncTeamIndex(teamId);
 }
 // קבוצה חדשה לגמרי (גוגל לא מוכר) — מאתחלים ריקה כדי לא להציג שחקניות לדוגמה.
 async function seedNewTeam(teamId) {
@@ -237,17 +283,25 @@ async function seedNewTeam(teamId) {
 async function resolveAdminTeam(user) {
   const uid = user.uid;
   const email = (user.email || "").toLowerCase();
+  const known = BIBLEUMI_ADMIN_EMAILS.includes(email);
+  let teamId;
   const mapping = await loadUserTeam(uid);
-  if (mapping && mapping.teamId) return mapping.teamId;
-  if (BIBLEUMI_ADMIN_EMAILS.includes(email)) {
-    await saveUserTeam(uid, { teamId: DEFAULT_TEAM, email });
-    await addTeamAdmin(DEFAULT_TEAM, uid, email, "active");
-    return DEFAULT_TEAM;
+  if (mapping && mapping.teamId) {
+    teamId = mapping.teamId;
+  } else if (known) {
+    teamId = DEFAULT_TEAM;
+    await saveUserTeam(uid, { teamId, email });
+  } else {
+    teamId = "team_" + uid;
+    await saveUserTeam(uid, { teamId, email });
+    await seedNewTeam(teamId);
   }
-  const teamId = "team_" + uid;
-  await saveUserTeam(uid, { teamId, email });
-  await addTeamAdmin(teamId, uid, email, "pending");
-  await seedNewTeam(teamId);
+  // status התחלתי: בינלאומי/מוכרות = active, חדשה = pending. addTeamAdmin שומר status קיים.
+  const initialStatus = (teamId === DEFAULT_TEAM || known) ? "active" : "pending";
+  await addTeamAdmin(teamId, uid, email, initialStatus);
+  // חברות מנהל + רישום/עדכון באינדקס הסופר-אדמין (רץ גם לקבוצות ממופות ותיקות)
+  await writeMember(teamId, uid, { role: "admin", playerId: null, email, joinedAt: new Date().toISOString() });
+  await syncTeamIndex(teamId);
   return teamId;
 }
 
@@ -347,7 +401,7 @@ export default function App() {
       load(KEYS.personalNotifs, {}),
     ]);
     setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
-    // meta של הקבוצה (status/בעלות) — לקביעת שער הכניסה. חסר status ⇒ "active" (קבוצה ותיקה, לא נועלים)
+    // meta של הקבוצה (status/בעלות) — לשער הכניסה. חסר status ⇒ "active" (קבוצה ותיקה, לא נועלים)
     const m = await load(KEYS.meta, null);
     setTeamMeta(m);
     // צ'אט בזמן אמת — האזנה חיה (onSnapshot) למסמך הצ'אט של הקבוצה הנוכחית
@@ -511,11 +565,10 @@ export default function App() {
   const sc = settings.secondaryColor || "#f5c842";
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, teamMeta };
 
-  // ── שער כניסה (שלב 1 מסחור) ──────────────────────────────────────────────────
-  // קבוצה ללא status נחשבת "active" (קבוצה ותיקה — לא נועלים). רק "pending" מפורש נועל.
+  // ── שער כניסה (מסחור) ────────────────────────────────────────────────────────
+  // קבוצה ללא status נחשבת "active" (ותיקה — לא נועלים). רק "pending" מפורש נועל לשחקניות.
   const teamStatus = teamMeta?.status || "active";
   const isTeamAdmin = !!(authUser && !authUser.isAnonymous && teamMeta && (teamMeta.adminUids || []).includes(authUser.uid));
-  // השחקניות (לא-מנהלות) נעולות בקבוצה pending; המנהלת נכנסת ומקימה רגיל.
   const lockedForPlayers = teamStatus === "pending" && !isTeamAdmin;
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
@@ -624,16 +677,6 @@ function WhatsNewScreen({ pc, sc, onDone }) {
   );
 }
 
-// ── SPLASH ────────────────────────────────────────────────────────────────────
-function Splash({ pc, sc }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: pc }}>
-      <div style={{ fontSize: 80, animation: "bounce 0.6s ease", userSelect: "none" }}>🏐</div>
-      <div style={{ width: 60, height: 4, background: sc, borderRadius: 2, marginTop: 28 }} />
-    </div>
-  );
-}
-
 // ── LOCKED TEAM (קבוצה pending — נעולה לשחקניות עד אישור) ─────────────────────
 function LockedTeamScreen({ pc, sc, settings, onAdmin }) {
   const teamName = settings?.teamName || "הקבוצה";
@@ -652,11 +695,37 @@ function LockedTeamScreen({ pc, sc, settings, onAdmin }) {
   );
 }
 
+// ── SPLASH ────────────────────────────────────────────────────────────────────
+function Splash({ pc, sc }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: pc }}>
+      <div style={{ fontSize: 80, animation: "bounce 0.6s ease", userSelect: "none" }}>🏐</div>
+      <div style={{ width: 60, height: 4, background: sc, borderRadius: 2, marginTop: 28 }} />
+    </div>
+  );
+}
+
 // ── SUPER ADMIN ──────────────────────────────────────────────────────────────
 // כניסה דרך לחיצה ארוכה על הלוגו במסך הבית. הרשאה: רק בעל המוצר (Google), לעתיד הרב-קבוצתי.
 function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [gErr, setGErr] = useState("");
   const isOwner = authUser && (authUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
+  const [teams, setTeams] = useState(null); // null = טוען
+  const [busyId, setBusyId] = useState(null);
+
+  async function refreshTeams() {
+    setTeams(null);
+    const list = await listAllTeams();
+    setTeams(list);
+  }
+  useEffect(() => { if (isOwner) refreshTeams(); }, [isOwner]);
+
+  async function act(teamId, status) {
+    setBusyId(teamId);
+    await setTeamStatus(teamId, status);
+    await refreshTeams();
+    setBusyId(null);
+  }
 
   async function login() {
     setGErr("");
@@ -695,10 +764,45 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
         </a>
-        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", color: "#94a3b8", fontWeight: 600, fontSize: 13, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 22 }}>👥</span> תצוגת שימוש לכל הקבוצות
-          <span style={{ marginRight: "auto", fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "3px 8px", borderRadius: 8 }}>בקרוב</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 2px 0" }}>
+          <span style={{ fontSize: 18 }}>👥</span>
+          <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 15 }}>קבוצות במערכת</span>
+          <button onClick={refreshTeams} style={{ marginRight: "auto", background: "transparent", border: "none", color: pc, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>↻ רענן</button>
         </div>
+
+        {teams === null && <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: 18 }}>טוען קבוצות…</div>}
+        {teams && teams.length === 0 && <div style={{ background: "white", borderRadius: 14, padding: 18, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>אין עדיין קבוצות באינדקס. קבוצה תופיע כאן אחרי שמנהל/ת מתחבר/ת בפעם הראשונה.</div>}
+
+        {teams && teams.map(t => {
+          const pending = (t.status || "active") === "pending";
+          return (
+            <div key={t.teamId} style={{ background: "white", borderRadius: 14, padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontWeight: 800, color: "#1e293b", fontSize: 14, overflowWrap: "anywhere" }}>{t.teamName || t.teamId}</div>
+                <span style={{ marginRight: "auto", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8, background: pending ? "#fef3c7" : "#dcfce7", color: pending ? "#92400e" : "#166534" }}>
+                  {pending ? "⏳ ממתינה" : "✅ פעילה"}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, overflowWrap: "anywhere" }}>{t.ownerEmail || "—"}</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                {t.playerCount || 0} שחקניות{t.createdAt ? ` · נוצרה ${formatShort(t.createdAt.split("T")[0])}` : ""} · <code style={{ fontSize: 10 }}>{t.teamId}</code>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                {pending ? (
+                  <button disabled={busyId === t.teamId} onClick={() => act(t.teamId, "active")}
+                    style={{ flex: 1, padding: "9px", background: "#22c55e", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 700, opacity: busyId === t.teamId ? 0.6 : 1 }}>
+                    {busyId === t.teamId ? "…" : "✅ אשר והפעל"}
+                  </button>
+                ) : (
+                  <button disabled={busyId === t.teamId || t.teamId === DEFAULT_TEAM} onClick={() => act(t.teamId, "pending")}
+                    style={{ flex: 1, padding: "9px", background: t.teamId === DEFAULT_TEAM ? "#e2e8f0" : "#fff", color: t.teamId === DEFAULT_TEAM ? "#94a3b8" : "#ef4444", border: `1px solid ${t.teamId === DEFAULT_TEAM ? "#e2e8f0" : "#fecaca"}`, borderRadius: 10, cursor: t.teamId === DEFAULT_TEAM ? "default" : "pointer", fontSize: 13, fontWeight: 700, opacity: busyId === t.teamId ? 0.6 : 1 }}>
+                    {t.teamId === DEFAULT_TEAM ? "🔒 הבינלאומי (קבוע)" : (busyId === t.teamId ? "…" : "⏸️ השהה")}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -934,6 +1038,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
     if (pass === PLAYER_PASS) {
       if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
       else localStorage.removeItem("rememberPlayer_" + player.id);
+      bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid↔playerId (Tier 2)
       onDone();
     }
     else { setLoginError(true); setTimeout(() => setLoginError(false), 1500); }
@@ -967,6 +1072,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
       [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true, password: pass.trim() }
     };
     await upd.playerProfiles(updated);
+    await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid↔playerId (Tier 2)
     onDone();
   }
 
