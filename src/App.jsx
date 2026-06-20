@@ -342,12 +342,17 @@ function isGoogleUser(u) {
 // ── שלב 5′ חצי ב': קריאה ל-Cloud Functions לניהול חשבונות שחקניות ─────────────
 const callResetFn = httpsCallable(functions, "adminResetPlayerPassword");
 const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
+const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
   return res.data; // { ok, tempPassword }
 }
 async function adminDeletePlayerRemote(teamId, playerId) {
   const res = await callDeleteFn({ teamId, playerId });
+  return res.data; // { ok }
+}
+async function adminDeleteTeamRemote(teamId) {
+  const res = await callDeleteTeamFn({ teamId });
   return res.data; // { ok }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
@@ -844,6 +849,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const isOwner = authUser && (authUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
   const [teams, setTeams] = useState(null); // null = טוען
   const [busyId, setBusyId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [delErr, setDelErr] = useState("");
 
   async function refreshTeams() {
     setTeams(null);
@@ -856,6 +864,19 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     setBusyId(teamId);
     await setTeamStatus(teamId, status);
     await refreshTeams();
+    setBusyId(null);
+  }
+
+  async function doDelete() {
+    if (!deleteTarget) return;
+    setBusyId(deleteTarget.teamId); setDelErr("");
+    try {
+      await adminDeleteTeamRemote(deleteTarget.teamId);
+      setDeleteTarget(null); setConfirmText("");
+      await refreshTeams();
+    } catch (e) {
+      setDelErr(e.message || "המחיקה נכשלה");
+    }
     setBusyId(null);
   }
 
@@ -931,11 +952,46 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                     {t.teamId === DEFAULT_TEAM ? "🔒 הבינלאומי (קבוע)" : (busyId === t.teamId ? "…" : "⏸️ השהה")}
                   </button>
                 )}
+                {t.teamId !== DEFAULT_TEAM && (
+                  <button disabled={busyId === t.teamId} onClick={() => { setDeleteTarget(t); setConfirmText(""); setDelErr(""); }}
+                    style={{ padding: "9px 12px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, cursor: busyId === t.teamId ? "default" : "pointer", fontSize: 13, fontWeight: 700, opacity: busyId === t.teamId ? 0.6 : 1 }}>🗑</button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {deleteTarget && (() => {
+        const expected = deleteTarget.teamName || deleteTarget.teamId;
+        const match = confirmText.trim() === expected;
+        const busy = busyId === deleteTarget.teamId;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}
+            onClick={() => { if (!busy) { setDeleteTarget(null); setConfirmText(""); setDelErr(""); } }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: 22, width: "100%", maxWidth: 380, boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+              <div style={{ fontSize: 40, textAlign: "center" }}>⚠️</div>
+              <h3 style={{ color: "#dc2626", fontSize: 18, fontWeight: 800, textAlign: "center", margin: "8px 0 6px" }}>מחיקת קבוצה לצמיתות</h3>
+              <p style={{ fontSize: 13, color: "#475569", textAlign: "center", margin: "0 0 6px", lineHeight: 1.6 }}>
+                פעולה זו תמחק <b>לצמיתות</b> את הקבוצה «{expected}», כולל כל השחקניות, החשבונות, הנוכחות, התמונות וכל הנתונים. <b>לא ניתן לשחזר.</b>
+              </p>
+              <p style={{ fontSize: 12, color: "#64748b", textAlign: "center", margin: "10px 0 6px" }}>כדי לאשר, הקלידי את שם הקבוצה במדויק:</p>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", textAlign: "center", background: "#f1f5f9", borderRadius: 8, padding: "6px", marginBottom: 8 }}>{expected}</div>
+              <input value={confirmText} onChange={e => { setConfirmText(e.target.value); setDelErr(""); }} placeholder="הקלידי כאן את שם הקבוצה"
+                style={{ ...S.input, textAlign: "center", border: `2px solid ${match ? "#22c55e" : "#e2e8f0"}` }} autoFocus />
+              {delErr && <p style={{ color: "#dc2626", fontSize: 12, margin: "0 0 8px", fontWeight: 600, textAlign: "center" }}>⚠️ {delErr}</p>}
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button disabled={busy} onClick={() => { setDeleteTarget(null); setConfirmText(""); setDelErr(""); }}
+                  style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>ביטול</button>
+                <button disabled={!match || busy} onClick={doDelete}
+                  style={{ flex: 1, padding: 12, background: (!match || busy) ? "#fca5a5" : "#dc2626", color: "white", border: "none", borderRadius: 12, cursor: (!match || busy) ? "default" : "pointer", fontSize: 14, fontWeight: 800 }}>
+                  {busy ? "מוחק…" : "🗑 מחק לצמיתות"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
