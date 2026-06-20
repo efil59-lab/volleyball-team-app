@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { db, storage, auth } from "./firebase";
+import { db, storage, auth, functions } from "./firebase";
 import { doc, getDoc, setDoc, onSnapshot, getDocs, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
@@ -335,6 +336,18 @@ async function emailAuth(email, pass) {
 // הבחנה בין מנהל (Google) לשחקנית (password) — שניהם לא-אנונימיים, אז ההבחנה לפי הספק.
 function isGoogleUser(u) {
   return !!(u && !u.isAnonymous && (u.providerData || []).some(p => p.providerId === "google.com"));
+}
+
+// ── שלב 5′ חצי ב': קריאה ל-Cloud Functions לניהול חשבונות שחקניות ─────────────
+const callResetFn = httpsCallable(functions, "adminResetPlayerPassword");
+const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
+async function adminResetPlayer(teamId, playerId) {
+  const res = await callResetFn({ teamId, playerId });
+  return res.data; // { ok, tempPassword }
+}
+async function adminDeletePlayerRemote(teamId, playerId) {
+  const res = await callDeleteFn({ teamId, playerId });
+  return res.data; // { ok }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
 async function syncTeamIndex(teamId) {
@@ -1146,6 +1159,9 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const [email, setEmail] = useState(prof.email || "");
   const [birthday, setBirthday] = useState(prof.birthday || "");
   const photoRef = useRef();
+  const [forceChange, setForceChange] = useState(false); // אחרי איפוס: חובה לבחור סיסמה חדשה
+  const [newPass, setNewPass] = useState("");
+  const [newPassErr, setNewPassErr] = useState("");
 
   // כניסה: אימות מול Firebase (חשבון אמיתי). אין יותר השוואת סיסמה בצד-לקוח.
   async function tryLogin() {
@@ -1155,9 +1171,24 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
       if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
       else localStorage.removeItem("rememberPlayer_" + player.id);
       await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid אמיתי ↔ playerId
+      // נכנסה עם סיסמה זמנית אחרי איפוס → חובה לבחור סיסמה חדשה
+      if ((playerProfiles[player.id] || {}).mustChangePassword) { setForceChange(true); return; }
       onDone();
     }
     else { setLoginError(true); setTimeout(() => setLoginError(false), 1500); }
+  }
+
+  // החלפת סיסמה מאולצת אחרי איפוס (השחקנית כבר מחוברת — updatePassword מותר).
+  async function submitNewPass() {
+    if (newPass.trim().length < 6) { setNewPassErr("הסיסמה חייבת להכיל לפחות 6 תווים"); return; }
+    try {
+      await updatePassword(auth.currentUser, newPass.trim());
+    } catch (e) {
+      setNewPassErr("שגיאה בעדכון הסיסמה — נסי להיכנס מחדש"); return;
+    }
+    const cur = playerProfiles[player.id] || {};
+    await upd.playerProfiles({ ...playerProfiles, [player.id]: { ...cur, mustChangePassword: false, setupDone: true } });
+    onDone();
   }
 
   async function handlePhotoUpload(e) {
@@ -1196,6 +1227,29 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
     };
     await upd.playerProfiles(updated);
     onDone();
+  }
+
+  if (forceChange) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+        <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, padding: "40px 20px", textAlign: "center" }}>
+          <div style={{ fontSize: 44 }}>🔑</div>
+          <h2 style={{ color: "white", fontSize: 20, fontWeight: 800, margin: "8px 0 0" }}>בחירת סיסמה חדשה</h2>
+          <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, margin: "6px 0 0" }}>הסיסמה שלך אופסה. בחרי סיסמה חדשה כדי להמשיך.</p>
+        </div>
+        <div style={{ padding: 28, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ position: "relative", width: "100%", maxWidth: 300 }}>
+            <input type={showPass ? "text" : "password"} value={newPass} onChange={e => { setNewPass(e.target.value); setNewPassErr(""); }}
+              placeholder="סיסמה חדשה (לפחות 6 תווים)" autoFocus onKeyDown={e => e.key === "Enter" && submitNewPass()}
+              style={{ ...S.input, width: "100%", boxSizing: "border-box", marginBottom: 0, paddingLeft: 44, border: `2px solid ${newPassErr ? "#ef4444" : "#e2e8f0"}` }} />
+            <button type="button" onClick={() => setShowPass(v => !v)} aria-label="הצג/הסתר סיסמה"
+              style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", fontSize: 18, padding: 4, lineHeight: 1 }}>{showPass ? "🙈" : "👁️"}</button>
+          </div>
+          {newPassErr && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0", fontWeight: 600 }}>⚠️ {newPassErr}</p>}
+          <button onClick={submitNewPass} style={{ width: "100%", maxWidth: 300, marginTop: 18, padding: 14, background: pc, color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>שמרי והמשיכי ✓</button>
+        </div>
+      </div>
+    );
   }
 
   if (isReturning) {
@@ -2702,12 +2756,25 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
   }
 
   async function resetPassword(p) {
-    const prof = playerProfiles[p.id] || {};
-    // Reset to default "1234" and force re-setup of personal password on next login
-    const updated = { ...playerProfiles, [p.id]: { ...prof, password: "", setupDone: false } };
-    await upd.playerProfiles(updated);
-    setResetMsg(p.name);
-    setTimeout(() => setResetMsg(null), 4000);
+    setResetMsg({ name: p.name, loading: true });
+    try {
+      const res = await adminResetPlayer(CURRENT_TEAM, p.id);
+      if (res && res.ok) setResetMsg({ name: p.name, temp: res.tempPassword, whatsapp: (playerProfiles[p.id] || {}).whatsapp || "" });
+      else setResetMsg({ name: p.name, error: "האיפוס נכשל" });
+    } catch (e) {
+      setResetMsg({ name: p.name, error: e.message || "שגיאה באיפוס" });
+    }
+  }
+
+  async function deletePlayerFull(p) {
+    try {
+      await adminDeletePlayerRemote(CURRENT_TEAM, p.id);
+    } catch (e) {
+      alert("המחיקה נכשלה: " + (e.message || "שגיאה"));
+      return;
+    }
+    // ה-Function מחקה הכל בשרת (חשבון + מסמכים + רשימה). מעדכנים גם את ה-state המקומי.
+    upd.players(players.filter(x => x.id !== p.id));
   }
 
   function startEdit(p) {
@@ -2725,8 +2792,27 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
   return (
     <div>
       {resetMsg && (
-        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#ea580c", fontWeight: 600 }}>
-          🔑 הסיסמה של {resetMsg} אופסה. בכניסה הבאה היא תגדיר סיסמה חדשה (אפשר להיכנס זמנית עם 1234).
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "12px 14px", marginBottom: 12, fontSize: 13, color: "#9a3412", position: "relative" }}>
+          <button onClick={() => setResetMsg(null)} style={{ position: "absolute", left: 8, top: 8, background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "#9a3412" }}>✕</button>
+          {resetMsg.loading ? (
+            <span style={{ fontWeight: 600 }}>🔑 מאפס סיסמה ל{resetMsg.name}…</span>
+          ) : resetMsg.error ? (
+            <span style={{ fontWeight: 600, color: "#dc2626" }}>⚠️ {resetMsg.name}: {resetMsg.error}</span>
+          ) : (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>🔑 סיסמה זמנית ל{resetMsg.name}:</div>
+              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 3, color: "#ea580c", background: "white", borderRadius: 8, padding: "8px 12px", textAlign: "center", margin: "6px 0", fontFamily: "monospace" }}>{resetMsg.temp}</div>
+              <div style={{ fontSize: 12, marginBottom: 8 }}>העבירי לה אותה. בכניסה הבאה היא תתבקש לבחור סיסמה חדשה.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { try { navigator.clipboard.writeText(resetMsg.temp); } catch {} }}
+                  style={{ flex: 1, background: "#fde68a", color: "#92400e", border: "none", borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>📋 העתק</button>
+                {resetMsg.whatsapp && (
+                  <button onClick={() => window.open(`https://wa.me/${resetMsg.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`היי ${resetMsg.name}, הסיסמה הזמנית שלך לאפליקציה: ${resetMsg.temp}\nבכניסה הבאה תתבקשי לבחור סיסמה חדשה.`)}`, "_blank")}
+                    style={{ flex: 1, background: "#25D366", color: "white", border: "none", borderRadius: 8, padding: "8px", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>📱 שלח בוואטסאפ</button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
@@ -2756,11 +2842,11 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 5 }}>
-                <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? היא תתבקש להגדיר סיסמה חדשה בכניסה הבאה (סיסמה זמנית: 1234).`, () => resetPassword(p))}
+                <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? תיווצר סיסמה זמנית שתעבירי לה, והיא תבחר סיסמה חדשה בכניסה הבאה.`, () => resetPassword(p))}
                   style={{ background: "#fff7ed", color: "#ea580c", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔑</button>
                 <button onClick={() => expanded === p.id ? setExpanded(null) : startEdit(p)}
                   style={{ background: `${pc}15`, color: pc, border: "none", borderRadius: 7, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️</button>
-                <button onClick={() => askConfirm(`למחוק את ${p.name}?`, () => upd.players(players.filter(x => x.id !== p.id)))}
+                <button onClick={() => askConfirm(`למחוק לצמיתות את ${p.name}? הפעולה תמחק את חשבונה, הפרופיל וכל הנתונים שלה — לא ניתן לשחזר.`, () => deletePlayerFull(p))}
                   style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}>🗑</button>
               </div>
             </div>
