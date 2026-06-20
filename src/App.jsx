@@ -59,11 +59,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 14,
-  versionName: "גרסה 14.0",
+  version: 15,
+  versionName: "גרסה 15.0",
   date: "יוני 2026",
   features: [
-    { icon: "💬", title: "צ'אט קבוצתי", text: "לשונית '💬 צ'אט' חדשה — שיחה קבוצתית בזמן אמת! ההודעות מופיעות מיד אצל כולן. אפשר למחוק הודעה ששלחת בלחיצה על 🗑." },
+    { icon: "👁️", title: "הצגת סיסמה בעת הקלדה", text: "בכניסה ובבחירת סיסמה — אפשר ללחוץ על 👁️ כדי לראות מה הקלדת ולוודא שאין טעות. לחיצה נוספת מסתירה." },
   ],
 };
 
@@ -1136,6 +1136,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const isReturning = !!prof.setupDone;
   const [pass, setPass] = useState("");
   const [passError, setPassError] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [loginError, setLoginError] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -1211,9 +1212,13 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
         </div>
         <div style={{ padding: 28, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <p style={{ color: "#64748b", fontSize: 14, marginBottom: 16, textAlign: "center" }}>הכנסי את הסיסמה שלך להמשך</p>
-          <input type="password" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && tryLogin()}
-            placeholder="סיסמה אישית" autoFocus
-            style={{ ...S.input, maxWidth: 260, textAlign: "center", fontSize: 20, letterSpacing: 6, border: `2px solid ${loginError ? "#ef4444" : "#e2e8f0"}` }} />
+          <div style={{ position: "relative", width: "100%", maxWidth: 260, marginBottom: 10 }}>
+            <input type={showPass ? "text" : "password"} value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && tryLogin()}
+              placeholder="סיסמה אישית" autoFocus
+              style={{ ...S.input, width: "100%", maxWidth: "none", marginBottom: 0, boxSizing: "border-box", textAlign: "center", fontSize: 20, letterSpacing: 6, paddingLeft: 44, border: `2px solid ${loginError ? "#ef4444" : "#e2e8f0"}` }} />
+            <button type="button" onClick={() => setShowPass(v => !v)} aria-label="הצג/הסתר סיסמה"
+              style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", fontSize: 18, padding: 4, lineHeight: 1 }}>{showPass ? "🙈" : "👁️"}</button>
+          </div>
           {loginError && <p style={{ color: "#ef4444", margin: "0 0 12px", fontSize: 13 }}>{!pass.trim() ? "יש להזין סיסמה ❌" : "סיסמה שגויה ❌"}</p>}
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#64748b", cursor: "pointer", marginTop: 10, maxWidth: 280 }}>
             <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 18, height: 18, accentColor: pc, cursor: "pointer", flexShrink: 0 }} />
@@ -1253,7 +1258,11 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 
         <div style={S.card}>
           <Label>סיסמה אישית <span style={{ color: "#ef4444" }}>*</span></Label>
-          <input type="password" value={pass} onChange={e => { setPass(e.target.value); setPassError(""); }} placeholder="בחרי סיסמה לכניסות הבאות" style={{ ...S.input, border: `2px solid ${passError ? "#ef4444" : "#e2e8f0"}` }} />
+          <div style={{ position: "relative", marginBottom: 10 }}>
+            <input type={showPass ? "text" : "password"} value={pass} onChange={e => { setPass(e.target.value); setPassError(""); }} placeholder="בחרי סיסמה לכניסות הבאות (לפחות 6 תווים)" style={{ ...S.input, marginBottom: 0, boxSizing: "border-box", paddingLeft: 44, border: `2px solid ${passError ? "#ef4444" : "#e2e8f0"}` }} />
+            <button type="button" onClick={() => setShowPass(v => !v)} aria-label="הצג/הסתר סיסמה"
+              style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", fontSize: 18, padding: 4, lineHeight: 1 }}>{showPass ? "🙈" : "👁️"}</button>
+          </div>
           {passError && <p style={{ color: "#ef4444", fontSize: 12, margin: "-6px 0 8px", fontWeight: 600 }}>⚠️ {passError}</p>}
 
           <Label>טלפון <span style={{ color: "#ef4444" }}>*</span></Label>
