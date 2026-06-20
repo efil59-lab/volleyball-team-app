@@ -621,12 +621,19 @@ export default function App() {
 
   // מסלול חלופי: אם כבר מחובר עם Google (הסשן נשמר) — להיכנס בלי redirect נוסף.
   async function continueAsAdmin() {
-    if (!auth.currentUser || auth.currentUser.isAnonymous) return { ok: false, error: "אין משתמש Google מחובר" };
+    if (!isGoogleUser(auth.currentUser)) return { ok: false, error: "אין משתמש Google מחובר" };
     const teamId = await resolveAdminTeam(auth.currentUser);
     setCurrentTeam(teamId);
     await loadTeamData();
     setScreen("admin");
     return { ok: true };
+  }
+
+  // התנתקות שחקנית: יוצא מחשבון Firebase שלה, חוזר לטוקן אנונימי, וחוזר למסך הבית (בחירת שם).
+  async function handlePlayerLogout() {
+    try { await signOut(auth); } catch (e) { console.error("player signOut:", e); }
+    try { await signInAnonymously(auth); } catch (e) { console.error("anon after player logout:", e); }
+    setScreen("home");
   }
 
   // התנתקות מנהל: יוצא מ-Google, חוזר לטוקן אנונימי (כדי שהשחקניות ימשיכו לעבוד), חוזר לבינלאומי ולמסך הבית.
@@ -717,7 +724,7 @@ export default function App() {
           else setScreen("onboard");
         }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
-        {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
+        {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} onLogout={handlePlayerLogout} />}
         {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
         {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} onLogout={handleAdminLogout} />}
         {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
@@ -1273,7 +1280,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 }
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout }) {
   const [tab, setTab] = useState("event");
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
@@ -1525,7 +1532,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       })()}
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
-        <button onClick={() => { localStorage.removeItem("rememberPlayer_" + player.id); onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
+        <button onClick={() => { localStorage.removeItem("rememberPlayer_" + player.id); onLogout ? onLogout() : onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
           {prof.photo
             ? <img src={prof.photo} style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
@@ -2036,7 +2043,7 @@ function PlayerPolls({ polls, player, upd, pc, sc }) {
 // ── ADMIN LOGIN ───────────────────────────────────────────────────────────────
 function AdminLogin({ pc, sc, onGoogle, onContinue, authUser, onBack, initialError }) {
   const [gLoading, setGLoading] = useState(false); const [gError, setGError] = useState(initialError || "");
-  const isGoogleUser = authUser && !authUser.isAnonymous;
+  const isAdminGoogle = isGoogleUser(authUser); // רק חשבון Google = מנהל; חשבון שחקנית לא נחשב
   async function googleLogin() {
     setGError(""); setGLoading(true);
     const res = await onGoogle();
@@ -2055,7 +2062,7 @@ function AdminLogin({ pc, sc, onGoogle, onContinue, authUser, onBack, initialErr
         <h2 style={{ color: "white", fontSize: 20, fontWeight: 700, margin: "10px 0 0" }}>כניסת מנהל</h2>
       </div>
       <div style={{ padding: 32, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {isGoogleUser ? (
+        {isAdminGoogle ? (
           <>
             <p style={{ color: "#16a34a", fontSize: 14, margin: "0 0 14px", fontWeight: 600 }}>✓ מחובר כ-{authUser.email}</p>
             <button onClick={continueAdmin} disabled={gLoading}
