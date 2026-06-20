@@ -314,6 +314,33 @@ async function bindPlayerMembership(teamId, uid, player) {
   await writeMember(teamId, uid, { role: "player", playerId: player.id, name: player.name, joinedAt: new Date().toISOString() });
 }
 
+// ── דחיסת תמונה בצד-לקוח (canvas) — מקס' 1280px, JPEG 0.8 ────────────────────
+// חיסכון ~10x ברוחב פס ובעלות Storage. אם הקריאה נכשלת — מחזיר את הקובץ המקורי.
+function compressImage(file, maxDim = 1280, quality = 0.8) {
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith("image/")) { resolve(file); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width <= maxDim && height <= maxDim) { resolve(file); return; } // כבר קטנה — לא נוגעים
+      if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+      else { width = Math.round(width * maxDim / height); height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        resolve(new File([blob], (file.name || "photo").replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 // ── שלב 5′: אימות אמיתי לשחקנית (Firebase Email/Password עם אימייל פיקטיבי) ───
 // האימייל הפיקטיבי נגזר מ-teamId+playerId, נסתר מהשחקנית. חווייתה: "שם + סיסמה" כרגיל.
 function playerEmail(teamId, playerId) {
@@ -1421,6 +1448,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [entryPopups, setEntryPopups] = useState([]); // birthday + applause greetings shown once on entry
   const galleryRef = useRef();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [galleryUploading, setGalleryUploading] = useState(false); // מצב טעינה לכפתור ההעלאה
+  const [galleryMsg, setGalleryMsg] = useState(""); // הודעת שגיאה/הגבלה לשחקנית
   const photoRef = useRef();
 
   const prof = playerProfiles[player.id] || {};
@@ -1546,12 +1575,39 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     reader.readAsDataURL(file);
   }
 
+  // הגבלה: 5 תמונות לשחקנית ליום (ספירה בצד-לקוח מתוך הגלריה הטעונה).
+  const GALLERY_DAILY_LIMIT = 5;
+  function uploadedTodayByPlayer() {
+    const today = new Date().toDateString();
+    return (gallery || []).filter(g =>
+      g.playerId === player.id && g.date && new Date(g.date).toDateString() === today
+    ).length;
+  }
+
   async function uploadGallery(e) {
-    const file = e.target.files[0]; if (!file) return;
+    const file = e.target.files[0];
+    if (galleryRef.current) galleryRef.current.value = ""; // איפוס כדי לאפשר בחירה חוזרת של אותו קובץ
+    if (!file) return;
+    setGalleryMsg("");
+
+    // 1) הגבלת 5/יום
+    if (uploadedTodayByPlayer() >= GALLERY_DAILY_LIMIT) {
+      setGalleryMsg(`הגעת ל-${GALLERY_DAILY_LIMIT} תמונות היום 🏐 אפשר להמשיך מחר`);
+      return;
+    }
+    // 2) ולידציית סוג (הגנה ראשונית; כללי Storage אוכפים גם בצד-שרת)
+    if (!file.type || !file.type.startsWith("image/")) {
+      setGalleryMsg("אפשר להעלות רק קבצי תמונה");
+      return;
+    }
+
+    setGalleryUploading(true);
     try {
-      const path = `gallery/${Date.now()}_${file.name}`;
+      const compressed = await compressImage(file); // דחיסה לפני העלאה
+      const safeName = (compressed.name || "photo").replace(/[^\w.\-]/g, "_");
+      const path = `teams/${CURRENT_TEAM}/gallery/${Date.now()}_${safeName}`; // נתיב לפי קבוצה
       const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, compressed);
       const url = await getDownloadURL(storageRef);
       await upd.gallery([...gallery, {
         id: Date.now(), playerId: player.id, playerName: player.name,
@@ -1560,6 +1616,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       }]);
     } catch (err) {
       console.error("שגיאה בהעלאת תמונה:", err);
+      setGalleryMsg("ההעלאה נכשלה, נסי שוב");
+    } finally {
+      setGalleryUploading(false);
     }
   }
 
@@ -2055,12 +2114,14 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>
-              <label style={{ background: pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                + העלי תמונה
-                <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} style={{ display: "none" }} />
+              <label style={{ background: galleryUploading ? "#94a3b8" : pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: galleryUploading ? "default" : "pointer", opacity: galleryUploading ? 0.85 : 1 }}>
+                {galleryUploading ? "מעלה..." : "+ העלי תמונה"}
+                <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} disabled={galleryUploading} style={{ display: "none" }} />
               </label>
             </div>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>
+            <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>
+            <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 12px" }}>נותרו לך {Math.max(0, GALLERY_DAILY_LIMIT - uploadedTodayByPlayer())} תמונות להעלאה היום</p>
+            {galleryMsg && <p style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>{galleryMsg}</p>}
             {gallery.length === 0 && <Empty icon="📸" text="אין תמונות עדיין - היי הראשונה!" />}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
               {[...gallery].reverse().map(item => (
