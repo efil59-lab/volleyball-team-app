@@ -542,14 +542,20 @@ export default function App() {
 
   // טוען את כל נתוני הקבוצה הנוכחית (CURRENT_TEAM). ניתן לקריאה חוזרת אחרי החלפת קבוצה.
   async function loadTeamData() {
+    // ערכי ברירת המחדל (רשימת שחקניות/אירועים/משחקים לדוגמה) שייכים אך ורק לבינלאומי.
+    // לכל קבוצה אחרת — fallback ריק, אחרת נתוני-הדוגמה של בינלאומי "דולפים" לקבוצה חדשה/ריקה.
+    const isBibleumi = CURRENT_TEAM === DEFAULT_TEAM;
+    const fbPlayers = isBibleumi ? DEFAULT_PLAYERS : [];
+    const fbEvents = isBibleumi ? DEFAULT_EVENTS : [];
+    const fbGames = isBibleumi ? DEFAULT_GAMES : [];
     const [p, e, a, n, s, ar, g, gal, pp] = await Promise.all([
-      load(KEYS.players, DEFAULT_PLAYERS),
-      load(KEYS.events, DEFAULT_EVENTS),
+      load(KEYS.players, fbPlayers),
+      load(KEYS.events, fbEvents),
       loadAttendanceSplit(),
       load(KEYS.notifications, []),
       load(KEYS.settings, DEFAULT_SETTINGS),
       load(KEYS.archive, []),
-      load(KEYS.games, DEFAULT_GAMES),
+      load(KEYS.games, fbGames),
       load(KEYS.gallery, []),
       loadProfilesSplit(),
     ]);
@@ -2377,6 +2383,11 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
     await upd.settings({ ...settings, teamName: teamName.trim() || settings.teamName, onboardingDone: true });
     onFinish();
   }
+  async function skipWizard() {
+    // יציאה מהאשף לפאנל הניהול בלי להשלים — שומר את מה שכבר הוקלד ומסמן שלא להציג שוב.
+    await upd.settings({ ...settings, teamName: teamName.trim() || settings.teamName, onboardingDone: true });
+    onFinish();
+  }
   function copyLink() {
     try { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
   }
@@ -2392,7 +2403,11 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, display: "flex", flexDirection: "column" }}>
       {/* מד התקדמות */}
       <div style={{ padding: "20px 20px 0" }}>
-        <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 700, marginBottom: 8, textAlign: "center" }}>צעד {step} מתוך 3</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ width: 60 }} />
+          <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 700 }}>צעד {step} מתוך 3</span>
+          <button onClick={skipWizard} style={{ width: 60, background: "transparent", border: "none", color: "rgba(255,255,255,0.7)", fontSize: 12, cursor: "pointer", textAlign: "left" }}>דלגי ✕</button>
+        </div>
         <div style={{ height: 6, background: "rgba(255,255,255,0.25)", borderRadius: 99, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${(step / 3) * 100}%`, background: sc, borderRadius: 99, transition: "width 0.4s ease" }} />
         </div>
@@ -2476,8 +2491,10 @@ function AdminPanel(props) {
   const { pc, sc, onBack, onLogout, teamMeta, askConfirm, settings, players, upd } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
   // אשף הקמה למנהלת חדשה: קבוצה שאינה הבינלאומי, טרם הושלם onboarding, ואין עדיין שחקניות.
+  // אשף הקמה למנהלת חדשה: מותנה אך ורק בדגל onboardingDone (יציב — לא תלוי במספר שחקניות).
+  // הבינלאומי מוחרגת (היא ותיקה ואין לה את הדגל). מנהלת שטרם השלימה רואה אשף; שהשלימה — לא.
   const [showWizard, setShowWizard] = useState(
-    CURRENT_TEAM !== DEFAULT_TEAM && !settings?.onboardingDone && (players || []).length === 0
+    CURRENT_TEAM !== DEFAULT_TEAM && !settings?.onboardingDone
   );
   if (showWizard) {
     return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
