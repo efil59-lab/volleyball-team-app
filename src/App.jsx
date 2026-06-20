@@ -1178,6 +1178,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   const [chatText, setChatText] = useState("");
   const chatEndRef = useRef(null);
+  const [chatSeenTs, setChatSeenTs] = useState(() => Number(localStorage.getItem("chatLastSeen_" + player.id) || 0));
+  const hasUnreadChat = (chat || []).some(m => m.playerId !== player.id && (m.ts || 0) > chatSeenTs);
 
   const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "chat", label: "💬 צ'אט" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
 
@@ -1192,7 +1194,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     upd.chat((chat || []).filter(m => m.id !== id));
   }
   useEffect(() => {
-    if (tab === "chat" && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (tab === "chat") {
+      if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+      const latest = (chat && chat.length) ? Math.max(...chat.map(m => m.ts || 0)) : 0;
+      if (latest > chatSeenTs) { localStorage.setItem("chatLastSeen_" + player.id, String(latest)); setChatSeenTs(latest); }
+    }
   }, [chat, tab]);
 
   // Attendees of the most recent event (last archived event, else current event's "coming" list)
@@ -1314,6 +1320,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           <button key={t.key} onClick={(e) => { setTab(t.key); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
             style={{ flex: 1, padding: "12px 4px", border: "none", background: "transparent", color: tab === t.key ? pc : "#64748b", cursor: "pointer", fontSize: 13, fontWeight: tab === t.key ? 700 : 500, borderBottom: tab === t.key ? `3px solid ${sc}` : "3px solid transparent", whiteSpace: "nowrap" }}>
             {t.label}
+            {t.key === "chat" && hasUnreadChat && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#ef4444", marginInlineStart: 5, verticalAlign: "middle" }} />}
           </button>
         ))}
       </div>
