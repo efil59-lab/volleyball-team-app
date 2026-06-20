@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db, storage, auth, functions } from "./firebase";
-import { doc, getDoc, setDoc, onSnapshot, getDocs, collection } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, getDocs, collection, query, orderBy, limit, deleteDoc, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from "firebase/auth";
@@ -550,10 +550,16 @@ export default function App() {
     // meta של הקבוצה (status/בעלות) — לשער הכניסה. חסר status ⇒ "active" (קבוצה ותיקה, לא נועלים)
     const m = await load(KEYS.meta, null);
     setTeamMeta(m);
-    // צ'אט בזמן אמת — האזנה חיה (onSnapshot) למסמך הצ'אט של הקבוצה הנוכחית
+    // צ'אט בזמן אמת — subcollection (כל הודעה = מסמך נפרד). אין דריסה, אין אובדן הודעות.
+    // מוגבל ל-200 האחרונות; ממוין לפי ts. הפורמט זהה למערך הישן כך שה-UI לא משתנה.
     if (chatUnsubRef.current) chatUnsubRef.current();
-    chatUnsubRef.current = onSnapshot(doc(db, "teams", CURRENT_TEAM, "data", "chat"),
-      snap => setChat(snap.exists() ? (snap.data().value || []) : []),
+    const chatQ = query(collection(db, "teams", CURRENT_TEAM, "chat"), orderBy("ts", "desc"), limit(200));
+    chatUnsubRef.current = onSnapshot(chatQ,
+      snap => {
+        const msgs = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+        msgs.reverse(); // desc→asc: הישנה למעלה, החדשה למטה
+        setChat(msgs);
+      },
       err => console.error("chat onSnapshot:", err));
   }
 
@@ -718,7 +724,6 @@ export default function App() {
     applause: async v => { setApplause(v); await save(KEYS.applause, v); },
     polls: async v => { setPolls(v); await save(KEYS.polls, v); },
     personalNotifs: async v => { setPersonalNotifs(v); await save(KEYS.personalNotifs, v); },
-    chat: async v => { setChat(v); await save(KEYS.chat, v); },
     installVersion: async v => { setSettings(s => ({ ...s, installVersion: v })); await save(KEYS.installVersion, v); },
   };
 
@@ -1642,12 +1647,25 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   async function sendChat() {
     const t = chatText.trim();
     if (!t) return;
-    const msg = { id: `${player.id}_${Date.now()}`, playerId: player.id, name: player.name, text: t, ts: Date.now() };
     setChatText("");
-    await upd.chat([...(chat || []), msg].slice(-200));
+    const id = `${player.id}_${Date.now()}`;
+    const msg = { id, playerId: player.id, name: player.name, text: t, ts: Date.now() };
+    try {
+      // כל הודעה = מסמך נפרד (id כשם המסמך) — אין דריסה, אין אובדן בשליחה במקביל.
+      await setDoc(doc(db, "teams", CURRENT_TEAM, "chat", id), msg);
+    } catch (err) {
+      console.error("שגיאה בשליחת הודעה:", err);
+      setChatText(t); // החזרת הטקסט כדי שאפשר לנסות שוב
+    }
   }
-  function deleteChatMsg(id) {
-    upd.chat((chat || []).filter(m => m.id !== id));
+  async function deleteChatMsg(id) {
+    try {
+      const m = (chat || []).find(x => x.id === id);
+      const docId = (m && m._docId) || id; // הודעות חדשות: _docId === id
+      await deleteDoc(doc(db, "teams", CURRENT_TEAM, "chat", docId));
+    } catch (err) {
+      console.error("שגיאה במחיקת הודעה:", err);
+    }
   }
   useEffect(() => {
     if (tab === "chat") {
