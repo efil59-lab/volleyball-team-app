@@ -425,6 +425,21 @@ async function seedNewTeam(teamId) {
     await saveTeamKey(teamId, KEYS.settings, { ...DEFAULT_SETTINGS, teamName: "הקבוצה שלי" });
   }
 }
+// ── מזהה קבוצה קצר וקריא לשיתוף (vb-XXXX). בודק ייחודיות מול teamIndex. ──
+async function generateTeamId() {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789"; // ללא O/0/I/l/1 מבלבלים
+  for (let attempt = 0; attempt < 8; attempt++) {
+    let code = "";
+    for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    const id = "vb-" + code;
+    try {
+      const snap = await getDoc(doc(db, "teamIndex", id));
+      if (!snap.exists()) return id;
+    } catch { return id; } // אם הבדיקה נכשלה — סיכוי ההתנגשות זניח ממילא
+  }
+  return "vb-" + Date.now().toString(36).slice(-5); // נפילה בטוחה (תמיד ייחודי)
+}
+
 // מזהה את הקבוצה של המנהל המחובר, ואם צריך — יוצר/מאמץ. מחזיר teamId.
 async function resolveAdminTeam(user) {
   const uid = user.uid;
@@ -438,7 +453,7 @@ async function resolveAdminTeam(user) {
     teamId = DEFAULT_TEAM;
     await saveUserTeam(uid, { teamId, email });
   } else {
-    teamId = "team_" + uid;
+    teamId = await generateTeamId(); // קוד קצר וקריא לשיתוף (vb-XXXX) במקום team_<uid>
     await saveUserTeam(uid, { teamId, email });
     await seedNewTeam(teamId);
   }
@@ -2337,11 +2352,136 @@ function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
   );
 }
 
+// ── ADMIN ONBOARDING (אשף הקמת קבוצה למנהלת חדשה) ─────────────────────────────
+function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }) {
+  const [step, setStep] = useState(1);
+  const [teamName, setTeamName] = useState(settings?.teamName && settings.teamName !== "הקבוצה שלי" ? settings.teamName : "");
+  const [newPlayer, setNewPlayer] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const inviteLink = `${window.location.origin}/?team=${CURRENT_TEAM}`;
+
+  async function saveName() {
+    const t = teamName.trim();
+    if (!t) return;
+    await upd.settings({ ...settings, teamName: t });
+    setStep(2);
+  }
+  async function addPlayer() {
+    const n = newPlayer.trim();
+    if (!n) return;
+    await upd.players([...players, { id: Date.now(), name: n, phone: "", email: "", address: "", whatsapp: "" }]);
+    setNewPlayer("");
+  }
+  async function finish() {
+    await upd.settings({ ...settings, teamName: teamName.trim() || settings.teamName, onboardingDone: true });
+    onFinish();
+  }
+  function copyLink() {
+    try { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  }
+  function shareWhatsapp() {
+    const msg = `היי! הצטרפי לקבוצת ${teamName.trim() || "הכדורשת"} שלנו באפליקציה 🏐\nהיכנסי לקישור, בחרי את שמך וקבעי סיסמה:\n${inviteLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
+  const btn = { background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 16, fontWeight: 800, cursor: "pointer", width: "100%" };
+  const btnGhost = { background: "transparent", color: "#94a3b8", border: "none", padding: "10px", fontSize: 13, cursor: "pointer", width: "100%" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, display: "flex", flexDirection: "column" }}>
+      {/* מד התקדמות */}
+      <div style={{ padding: "20px 20px 0" }}>
+        <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 700, marginBottom: 8, textAlign: "center" }}>צעד {step} מתוך 3</div>
+        <div style={{ height: 6, background: "rgba(255,255,255,0.25)", borderRadius: 99, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${(step / 3) * 100}%`, background: sc, borderRadius: 99, transition: "width 0.4s ease" }} />
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 22px" }}>
+        <div style={{ background: "white", borderRadius: 20, padding: "28px 22px", boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}>
+
+          {/* צעד 1 — שם הקבוצה */}
+          {step === 1 && (
+            <>
+              <div style={{ fontSize: 44, textAlign: "center" }}>🏐</div>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: pc, textAlign: "center", margin: "8px 0 4px" }}>ברוכה הבאה!</h2>
+              <p style={{ fontSize: 14, color: "#64748b", textAlign: "center", margin: "0 0 22px" }}>בואי נקים את הקבוצה שלך בכמה צעדים פשוטים. איך קוראים לקבוצה?</p>
+              <input value={teamName} onChange={e => setTeamName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()}
+                placeholder="לדוגמה: מכבי חיפה כדורשת" autoFocus
+                style={{ ...S.input, fontSize: 16, textAlign: "center", margin: "0 0 18px" }} />
+              <button onClick={saveName} disabled={!teamName.trim()} style={{ ...btn, opacity: teamName.trim() ? 1 : 0.5 }}>המשך ←</button>
+            </>
+          )}
+
+          {/* צעד 2 — הוספת שחקניות */}
+          {step === 2 && (
+            <>
+              <div style={{ fontSize: 44, textAlign: "center" }}>👥</div>
+              <h2 style={{ fontSize: 21, fontWeight: 800, color: pc, textAlign: "center", margin: "8px 0 4px" }}>מי השחקניות?</h2>
+              <p style={{ fontSize: 13.5, color: "#64748b", textAlign: "center", margin: "0 0 18px" }}>הוסיפי את שמות השחקניות (אפשר גם אחר כך).</p>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <input value={newPlayer} onChange={e => setNewPlayer(e.target.value)} onKeyDown={e => e.key === "Enter" && addPlayer()}
+                  placeholder="שם שחקנית" autoFocus style={{ ...S.input, flex: 1, margin: 0 }} />
+                <button onClick={addPlayer} disabled={!newPlayer.trim()} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "0 18px", cursor: "pointer", fontWeight: 800, fontSize: 22, opacity: newPlayer.trim() ? 1 : 0.5 }}>+</button>
+              </div>
+              {players.length > 0 ? (
+                <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 18 }}>
+                  {players.map((p, i) => (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "#f8fafc", borderRadius: 10, marginBottom: 6 }}>
+                      <span style={{ width: 24, height: 24, borderRadius: "50%", background: sc, color: pc, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", flex: 1 }}>{p.name}</span>
+                      <button onClick={() => upd.players(players.filter(x => x.id !== p.id))} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", fontSize: 15 }}>🗑</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 12.5, color: "#94a3b8", textAlign: "center", margin: "0 0 18px" }}>עדיין לא הוספת שחקניות</p>
+              )}
+              <button onClick={() => setStep(3)} style={btn}>{players.length > 0 ? `המשך עם ${players.length} שחקניות ←` : "המשך ←"}</button>
+              {players.length === 0 && <button onClick={() => setStep(3)} style={btnGhost}>דלגי ואוסיף אחר כך</button>}
+            </>
+          )}
+
+          {/* צעד 3 — סיום + שיתוף קישור */}
+          {step === 3 && (
+            <>
+              <div style={{ fontSize: 48, textAlign: "center" }}>🎉</div>
+              <h2 style={{ fontSize: 21, fontWeight: 800, color: pc, textAlign: "center", margin: "8px 0 4px" }}>{teamName.trim() || "הקבוצה"} מוכנה!</h2>
+              <p style={{ fontSize: 13.5, color: "#64748b", textAlign: "center", margin: "0 0 18px" }}>
+                {players.length > 0 ? `${players.length} שחקניות נוספו. ` : ""}עכשיו שתפי את הקישור — כל שחקנית תיכנס, תבחר את שמה ותקבע סיסמה.
+              </p>
+              <div style={{ background: "#f1f5f9", borderRadius: 12, padding: "12px 14px", marginBottom: 14, fontSize: 13, color: pc, fontWeight: 700, wordBreak: "break-all", textAlign: "center" }}>{inviteLink}</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <button onClick={copyLink} style={{ flex: 1, background: "#e2e8f0", color: "#1e293b", border: "none", borderRadius: 10, padding: "12px", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>{copied ? "✓ הועתק" : "📋 העתקי קישור"}</button>
+                <button onClick={shareWhatsapp} style={{ flex: 1, background: "#25D366", color: "white", border: "none", borderRadius: 10, padding: "12px", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>📱 וואטסאפ</button>
+              </div>
+              {isPending && (
+                <div style={{ background: "#fef9c3", borderRadius: 10, padding: "10px 12px", margin: "6px 0 14px", fontSize: 12, color: "#854d0e", textAlign: "center", lineHeight: 1.5 }}>
+                  ⏳ הקבוצה תיפתח לשחקניות זמן קצר לאחר אישור. בינתיים אפשר להגדיר הכל.
+                </div>
+              )}
+              <button onClick={finish} style={btn}>סיום — לפאנל הניהול</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
-  const { pc, sc, onBack, onLogout, teamMeta, askConfirm } = props;
+  const { pc, sc, onBack, onLogout, teamMeta, askConfirm, settings, players, upd } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
+  // אשף הקמה למנהלת חדשה: קבוצה שאינה הבינלאומי, טרם הושלם onboarding, ואין עדיין שחקניות.
+  const [showWizard, setShowWizard] = useState(
+    CURRENT_TEAM !== DEFAULT_TEAM && !settings?.onboardingDone && (players || []).length === 0
+  );
+  if (showWizard) {
+    return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
+  }
   const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
