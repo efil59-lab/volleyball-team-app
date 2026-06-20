@@ -60,11 +60,12 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 15,
-  versionName: "גרסה 15.0",
+  version: 16,
+  versionName: "גרסה 16.0",
   date: "יוני 2026",
   features: [
-    { icon: "👁️", title: "הצגת סיסמה בעת הקלדה", text: "בכניסה ובבחירת סיסמה — אפשר ללחוץ על 👁️ כדי לראות מה הקלדת ולוודא שאין טעות. לחיצה נוספת מסתירה." },
+    { icon: "ℹ️", title: "מסך 'אודות' חדש", text: "במסך הבית יש כעת כפתור 'אודות' עם מידע על האפליקציה ומדור שאלות ותשובות (שכחתי סיסמה, איך מסמנים הגעה, ועוד)." },
+    { icon: "🔴", title: "התראת צ'אט", text: "כשיש הודעות חדשות בצ'אט שלא קראת — נקודה אדומה מהבהבת ליד לשונית הצ'אט. נכנסים, וההתראה נעלמת." },
   ],
 };
 
@@ -341,7 +342,6 @@ function isGoogleUser(u) {
 // ── שלב 5′ חצי ב': קריאה ל-Cloud Functions לניהול חשבונות שחקניות ─────────────
 const callResetFn = httpsCallable(functions, "adminResetPlayerPassword");
 const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
-const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
   return res.data; // { ok, tempPassword }
@@ -349,10 +349,6 @@ async function adminResetPlayer(teamId, playerId) {
 async function adminDeletePlayerRemote(teamId, playerId) {
   const res = await callDeleteFn({ teamId, playerId });
   return res.data; // { ok }
-}
-async function adminDeleteTeamRemote(teamId) {
-  const res = await callDeleteTeamFn({ teamId });
-  return res.data; // { ok, deletedAccounts }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
 async function syncTeamIndex(teamId) {
@@ -740,12 +736,13 @@ export default function App() {
           const remembered = localStorage.getItem("rememberPlayer_" + p.id) === "1";
           if (remembered && playerProfiles[p.id]?.setupDone) setScreen("player");
           else setScreen("onboard");
-        }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onSuperAdmin={enterSuperAdmin} />}
+        }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onAbout={() => setScreen("about")} onSuperAdmin={enterSuperAdmin} />}
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
         {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} onLogout={handlePlayerLogout} />}
         {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
         {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} onLogout={handleAdminLogout} />}
         {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
+        {screen === "about" && <AboutScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
       </div>
     </div>
   );
@@ -845,9 +842,6 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const isOwner = authUser && (authUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
   const [teams, setTeams] = useState(null); // null = טוען
   const [busyId, setBusyId] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null); // קבוצה למחיקה
-  const [confirmText, setConfirmText] = useState("");
-  const [delErr, setDelErr] = useState("");
 
   async function refreshTeams() {
     setTeams(null);
@@ -860,19 +854,6 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     setBusyId(teamId);
     await setTeamStatus(teamId, status);
     await refreshTeams();
-    setBusyId(null);
-  }
-
-  async function doDelete() {
-    if (!deleteTarget) return;
-    setBusyId(deleteTarget.teamId); setDelErr("");
-    try {
-      await adminDeleteTeamRemote(deleteTarget.teamId);
-      setDeleteTarget(null); setConfirmText("");
-      await refreshTeams();
-    } catch (e) {
-      setDelErr(e.message || "המחיקה נכשלה");
-    }
     setBusyId(null);
   }
 
@@ -948,46 +929,11 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                     {t.teamId === DEFAULT_TEAM ? "🔒 הבינלאומי (קבוע)" : (busyId === t.teamId ? "…" : "⏸️ השהה")}
                   </button>
                 )}
-                {t.teamId !== DEFAULT_TEAM && (
-                  <button disabled={busyId === t.teamId} onClick={() => { setDeleteTarget(t); setConfirmText(""); setDelErr(""); }}
-                    style={{ padding: "9px 12px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, cursor: busyId === t.teamId ? "default" : "pointer", fontSize: 13, fontWeight: 700, opacity: busyId === t.teamId ? 0.6 : 1 }}>🗑</button>
-                )}
               </div>
             </div>
           );
         })}
       </div>
-
-      {deleteTarget && (() => {
-        const expected = deleteTarget.teamName || deleteTarget.teamId;
-        const match = confirmText.trim() === expected;
-        const busy = busyId === deleteTarget.teamId;
-        return (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}
-            onClick={() => { if (!busy) { setDeleteTarget(null); setConfirmText(""); setDelErr(""); } }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: 22, width: "100%", maxWidth: 380, boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
-              <div style={{ fontSize: 40, textAlign: "center" }}>⚠️</div>
-              <h3 style={{ color: "#dc2626", fontSize: 18, fontWeight: 800, textAlign: "center", margin: "8px 0 6px" }}>מחיקת קבוצה לצמיתות</h3>
-              <p style={{ fontSize: 13, color: "#475569", textAlign: "center", margin: "0 0 6px", lineHeight: 1.6 }}>
-                פעולה זו תמחק <b>לצמיתות</b> את הקבוצה «{expected}», כולל כל השחקניות, החשבונות, הנוכחות, התמונות וכל הנתונים. <b>לא ניתן לשחזר.</b>
-              </p>
-              <p style={{ fontSize: 12, color: "#64748b", textAlign: "center", margin: "10px 0 6px" }}>כדי לאשר, הקלידי את שם הקבוצה במדויק:</p>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", textAlign: "center", background: "#f1f5f9", borderRadius: 8, padding: "6px", marginBottom: 8 }}>{expected}</div>
-              <input value={confirmText} onChange={e => { setConfirmText(e.target.value); setDelErr(""); }} placeholder="הקלידי כאן את שם הקבוצה"
-                style={{ ...S.input, textAlign: "center", border: `2px solid ${match ? "#22c55e" : "#e2e8f0"}` }} autoFocus />
-              {delErr && <p style={{ color: "#dc2626", fontSize: 12, margin: "0 0 8px", fontWeight: 600, textAlign: "center" }}>⚠️ {delErr}</p>}
-              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                <button disabled={busy} onClick={() => { setDeleteTarget(null); setConfirmText(""); setDelErr(""); }}
-                  style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>ביטול</button>
-                <button disabled={!match || busy} onClick={doDelete}
-                  style={{ flex: 1, padding: 12, background: (!match || busy) ? "#fca5a5" : "#dc2626", color: "white", border: "none", borderRadius: 12, cursor: (!match || busy) ? "default" : "pointer", fontSize: 14, fontWeight: 800 }}>
-                  {busy ? "מוחק…" : "🗑 מחק לצמיתות"}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
@@ -1053,7 +999,7 @@ function NotifTicker({ notifs, pc, sc }) {
 }
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onSuperAdmin }) {
+function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin }) {
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
@@ -1074,9 +1020,14 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
           style={{ fontSize: 28, userSelect: "none", WebkitUserSelect: "none", flexShrink: 0 }}>🏐</span>
         <span style={{ color: "white", fontSize: 15, fontWeight: 800, lineHeight: 1.25, minWidth: 0, overflowWrap: "break-word" }}>{settings.teamName}</span>
       </div>
-      <button onClick={onHelp} style={{ flexShrink: 0, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-        <span style={{ color: sc, fontWeight: 800 }}>?</span> עזרה
-      </button>
+      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        <button onClick={onAbout} style={{ flexShrink: 0, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+          <span style={{ color: sc, fontWeight: 800 }}>ℹ</span> אודות
+        </button>
+        <button onClick={onHelp} style={{ flexShrink: 0, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+          <span style={{ color: sc, fontWeight: 800 }}>?</span> עזרה
+        </button>
+      </div>
     </div>
   );
 
@@ -1605,6 +1556,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      <style>{`@keyframes chatDotPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.45); } }`}</style>
       {/* Entry popups: self birthday, others' birthday (send greeting), applause, received greetings */}
       {entryPopups.length > 0 && (() => {
         const top = entryPopups[0];
@@ -1708,7 +1660,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           <button key={t.key} onClick={(e) => { setTab(t.key); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
             style={{ flex: 1, padding: "12px 4px", border: "none", background: "transparent", color: tab === t.key ? pc : "#64748b", cursor: "pointer", fontSize: 13, fontWeight: tab === t.key ? 700 : 500, borderBottom: tab === t.key ? `3px solid ${sc}` : "3px solid transparent", whiteSpace: "nowrap" }}>
             {t.label}
-            {t.key === "chat" && hasUnreadChat && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#ef4444", marginInlineStart: 5, verticalAlign: "middle" }} />}
+            {t.key === "chat" && hasUnreadChat && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#ef4444", marginInlineStart: 5, verticalAlign: "middle", animation: "chatDotPulse 1s ease-in-out infinite" }} />}
           </button>
         ))}
       </div>
@@ -3502,6 +3454,57 @@ function HelpScreen({ pc, sc, settings, onBack }) {
         <div style={{ background: `${sc}30`, borderRadius: 14, padding: 16, textAlign: "center", marginTop: 8 }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>🏐</div>
           <div style={{ fontSize: 13, color: pc, fontWeight: 600 }}>שאלות? פני למנהל הקבוצה</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ABOUT SCREEN ──────────────────────────────────────────────────────────────
+function AboutScreen({ pc, sc, settings, onBack }) {
+  const faq = [
+    { q: "איך נכנסים בפעם הראשונה?", a: "לחצי על שמך ברשימה במסך הבית, בחרי סיסמה אישית (לפחות 6 תווים) והוסיפי פרטי קשר. מהפעם הבאה — רק שם וסיסמה." },
+    { q: "שכחתי את הסיסמה — מה עושים?", a: "פני למנהלת הקבוצה, והיא תאפס לך אותה ותעביר לך סיסמה זמנית. בכניסה הבאה תתבקשי לבחור סיסמה חדשה משלך." },
+    { q: "איך מאשרים הגעה לאימון?", a: "לחצי על שמך, ואז על 'מגיעה' או 'לא מגיעה'. אפשר להוסיף הערה, ואפשר לשנות את התשובה בכל עת לפני האימון." },
+    { q: "איך שולחים הודעה בצ'אט?", a: "בלשונית '💬 צ'אט' כותבים הודעה ושולחים — כולן רואות מיד. נקודה אדומה מהבהבת ליד הצ'אט מסמנת שיש הודעות חדשות שלא קראת." },
+    { q: "איך מעלים תמונה?", a: "בלשונית '📸 תמונות מהמשחק' לחצי על '+ העלי תמונה'. כדי למחוק תמונה שהעלית — לחצי עליה ואז על 'מחקי תמונה'." },
+    { q: "הנתונים שלי מאובטחים?", a: "כן. לכל שחקנית חשבון אישי ומאובטח, וכל אחת רואה ועורכת רק את הפרטים שלה. הסיסמאות מאוחסנות בצורה מוצפנת ואינן גלויות לאיש." },
+    { q: "איך מתקינים את האפליקציה על הנייד?", a: "אנדרואיד (Chrome): תפריט ⋮ ← 'הוסף למסך הבית'. אייפון (Safari): כפתור שיתוף ↑ ← 'הוסף למסך הבית'." },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, padding: "28px 20px 36px", textAlign: "center", position: "relative" }}>
+        <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
+        <div style={{ fontSize: 48 }}>🏐</div>
+        <h2 style={{ color: "white", fontSize: 20, fontWeight: 800, margin: "8px 0 4px" }}>אודות</h2>
+        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, margin: 0 }}>{settings.teamName}</p>
+      </div>
+      <div style={{ padding: 16 }}>
+        <div style={{ ...S.card, marginBottom: 14, textAlign: "center", padding: "20px 16px" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: pc, marginBottom: 4 }}>{settings.teamName || "הקבוצה שלי"}</div>
+          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>אפליקציה לניהול קבוצת הכדורשת</div>
+          <div style={{ display: "inline-block", background: `${pc}10`, borderRadius: 10, padding: "8px 16px" }}>
+            <div style={{ fontSize: 12, color: "#94a3b8" }}>פותח על ידי</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: pc }}>אפי לוי</div>
+          </div>
+          <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 12 }}>גרסה {WHATS_NEW.versionName || WHATS_NEW.version}</div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 4px 10px" }}>
+          <span style={{ fontSize: 20 }}>❓</span>
+          <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 16 }}>שאלות ותשובות</span>
+        </div>
+        {faq.map((item, i) => (
+          <div key={i} style={{ ...S.card, marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, color: pc, fontSize: 14, marginBottom: 5 }}>{item.q}</div>
+            <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8, whiteSpace: "pre-line" }}>{item.a}</div>
+          </div>
+        ))}
+
+        <div style={{ background: `${sc}30`, borderRadius: 14, padding: 16, textAlign: "center", marginTop: 8 }}>
+          <div style={{ fontSize: 24, marginBottom: 6 }}>💙</div>
+          <div style={{ fontSize: 13, color: pc, fontWeight: 600 }}>תודה שאתן חלק מהקבוצה!</div>
         </div>
       </div>
     </div>
