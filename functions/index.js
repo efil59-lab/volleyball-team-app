@@ -114,3 +114,45 @@ exports.adminDeletePlayer = onCall(async (request) => {
 
   return { ok: true };
 });
+
+// ── מחיקת קבוצה מלאה — סופר-אדמין בלבד, הבינלאומי מוגנת ─────────────────────
+exports.adminDeleteTeam = onCall(async (request) => {
+  const { teamId } = request.data || {};
+  if (!teamId) throw new HttpsError("invalid-argument", "חסר teamId");
+
+  // סופר-אדמין בלבד (לא כל מנהל)
+  const email = ((request.auth && request.auth.token && request.auth.token.email) || "").toLowerCase();
+  if (email !== SUPER_ADMIN_EMAIL) {
+    throw new HttpsError("permission-denied", "מחיקת קבוצה מותרת לבעל המוצר בלבד");
+  }
+  // הגנה על הקבוצה הראשית
+  if (teamId === "bibleumi") {
+    throw new HttpsError("failed-precondition", "לא ניתן למחוק את קבוצת הבינלאומי הראשית");
+  }
+
+  // 1) מחיקת חשבונות Firebase של כל השחקניות
+  let deletedAccounts = 0;
+  try {
+    const playersSnap = await db.doc(`teams/${teamId}/data/players`).get();
+    const players = playersSnap.exists ? (playersSnap.data().value || []) : [];
+    for (const p of players) {
+      try {
+        const u = await admin.auth().getUserByEmail(playerEmail(teamId, p.id));
+        await admin.auth().deleteUser(u.uid);
+        deletedAccounts++;
+      } catch (e) { /* user-not-found — שחקנית שלא נכנסה מעולם */ }
+    }
+  } catch (e) { /* אין מסמך players */ }
+
+  // 2) מחיקת כל מסמכי הקבוצה כולל תת-האוספים (data/members/attendance/profiles/secrets)
+  await admin.firestore().recursiveDelete(db.doc(`teams/${teamId}`));
+
+  // 3) מחיקת רשומת האינדקס
+  await db.doc(`teamIndex/${teamId}`).delete().catch(() => {});
+
+  // 4) מחיקת מסמכי users הממופים לקבוצה
+  const usersSnap = await db.collection("users").where("teamId", "==", teamId).get();
+  await Promise.all(usersSnap.docs.map((d) => d.ref.delete().catch(() => {})));
+
+  return { ok: true, deletedAccounts };
+});
