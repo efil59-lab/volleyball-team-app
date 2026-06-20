@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage, auth } from "./firebase";
 import { doc, getDoc, setDoc, onSnapshot, getDocs, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 
 // ── זהות קבוצה ────────────────────────────────────────────────────────────────
 // בינלאומי = ברירת המחדל (שחקניות קיימות לא מושפעות). קבוצה אחרת מגיעה דרך ?team=XXXX.
@@ -530,6 +530,15 @@ export default function App() {
     return { ok: true };
   }
 
+  // התנתקות מנהל: יוצא מ-Google, חוזר לטוקן אנונימי (כדי שהשחקניות ימשיכו לעבוד), חוזר לבינלאומי ולמסך הבית.
+  async function handleAdminLogout() {
+    try { await signOut(auth); } catch (e) { console.error("signOut:", e); }
+    try { await signInAnonymously(auth); } catch (e) { console.error("anon after logout:", e); }
+    setCurrentTeam(DEFAULT_TEAM);
+    await loadTeamData();
+    setScreen("home");
+  }
+
   // כניסה לסופר אדמין (לחיצה ארוכה על הלוגו). רק בעל המוצר. אם מחובר כבר — נכנס; אחרת Google.
   async function enterSuperAdmin() {
     const cur = (auth.currentUser?.email || "").toLowerCase();
@@ -611,7 +620,7 @@ export default function App() {
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
         {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} />}
         {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
-        {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} />}
+        {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} onLogout={handleAdminLogout} />}
         {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
       </div>
     </div>
@@ -2011,7 +2020,7 @@ function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
-  const { pc, sc, onBack, teamMeta } = props;
+  const { pc, sc, onBack, onLogout, teamMeta, askConfirm } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
   const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
@@ -2019,6 +2028,7 @@ function AdminPanel(props) {
     <div style={{ minHeight: "100vh" }}>
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
+        {onLogout && <button onClick={() => askConfirm ? askConfirm("להתנתק מחשבון המנהל?", onLogout) : onLogout()} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתק</button>}
         <div style={{ fontSize: 32 }}>🔐</div>
         <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0" }}>פאנל מנהל</h2>
       </div>
