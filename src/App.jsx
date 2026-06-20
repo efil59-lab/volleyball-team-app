@@ -209,12 +209,20 @@ async function saveTeamKey(teamId, key, val) {
 }
 // מוסיף מנהל לקבוצה. אם אין עדיין בעלים — המתחבר הופך לבעלים (אימוץ).
 // אם כבר יש בעלים — מוסיף את ה-uid ל-adminUids (מנהל נוסף לאותה קבוצה).
-async function addTeamAdmin(teamId, uid, email) {
+async function addTeamAdmin(teamId, uid, email, defaultStatus) {
   const existing = await loadTeamKey(teamId, KEYS.meta, null);
   if (!existing || !existing.ownerUid) {
-    await saveTeamKey(teamId, KEYS.meta, { ownerUid: uid, ownerEmail: email, adminUids: [uid] });
-  } else if (!(existing.adminUids || []).includes(uid)) {
-    await saveTeamKey(teamId, KEYS.meta, { ...existing, adminUids: [...(existing.adminUids || []), uid] });
+    // קבוצה חדשה: בעלים + status התחלתי (קבוצה חדשה = "pending"; הבינלאומי/מוכרות = "active")
+    await saveTeamKey(teamId, KEYS.meta, {
+      ownerUid: uid, ownerEmail: email, adminUids: [uid],
+      status: defaultStatus || "active", plan: "free", createdAt: new Date().toISOString(),
+    });
+  } else {
+    const next = { ...existing };
+    if (!(next.adminUids || []).includes(uid)) next.adminUids = [...(next.adminUids || []), uid];
+    // מילוי-לאחור: קבוצה ותיקה ללא status נחשבת פעילה (לא נועלים נתונים קיימים)
+    if (!next.status) { next.status = defaultStatus || "active"; if (!next.plan) next.plan = "free"; }
+    await saveTeamKey(teamId, KEYS.meta, next);
   }
 }
 // קבוצה חדשה לגמרי (גוגל לא מוכר) — מאתחלים ריקה כדי לא להציג שחקניות לדוגמה.
@@ -233,12 +241,12 @@ async function resolveAdminTeam(user) {
   if (mapping && mapping.teamId) return mapping.teamId;
   if (BIBLEUMI_ADMIN_EMAILS.includes(email)) {
     await saveUserTeam(uid, { teamId: DEFAULT_TEAM, email });
-    await addTeamAdmin(DEFAULT_TEAM, uid, email);
+    await addTeamAdmin(DEFAULT_TEAM, uid, email, "active");
     return DEFAULT_TEAM;
   }
   const teamId = "team_" + uid;
   await saveUserTeam(uid, { teamId, email });
-  await addTeamAdmin(teamId, uid, email);
+  await addTeamAdmin(teamId, uid, email, "pending");
   await seedNewTeam(teamId);
   return teamId;
 }
@@ -311,6 +319,7 @@ export default function App() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [googleLoginError, setGoogleLoginError] = useState("");
   const [authUser, setAuthUser] = useState(null);
+  const [teamMeta, setTeamMeta] = useState(null); // meta של הקבוצה הנוכחית (status/בעלות) — לשער הכניסה
 
   // ── שלב מעבר לאבטחה: bootstrap של Auth מתבצע באפקט המאוחד למטה ────────────────
   // קודם פותרים redirect של Google, ורק אם אין משתמש כלל — מתחברים אנונימית.
@@ -338,6 +347,9 @@ export default function App() {
       load(KEYS.personalNotifs, {}),
     ]);
     setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
+    // meta של הקבוצה (status/בעלות) — לקביעת שער הכניסה. חסר status ⇒ "active" (קבוצה ותיקה, לא נועלים)
+    const m = await load(KEYS.meta, null);
+    setTeamMeta(m);
     // צ'אט בזמן אמת — האזנה חיה (onSnapshot) למסמך הצ'אט של הקבוצה הנוכחית
     if (chatUnsubRef.current) chatUnsubRef.current();
     chatUnsubRef.current = onSnapshot(doc(db, "teams", CURRENT_TEAM, "data", "chat"),
@@ -497,7 +509,14 @@ export default function App() {
 
   const pc = settings.primaryColor || "#1a237e";
   const sc = settings.secondaryColor || "#f5c842";
-  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm };
+  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, teamMeta };
+
+  // ── שער כניסה (שלב 1 מסחור) ──────────────────────────────────────────────────
+  // קבוצה ללא status נחשבת "active" (קבוצה ותיקה — לא נועלים). רק "pending" מפורש נועל.
+  const teamStatus = teamMeta?.status || "active";
+  const isTeamAdmin = !!(authUser && !authUser.isAnonymous && teamMeta && (teamMeta.adminUids || []).includes(authUser.uid));
+  // השחקניות (לא-מנהלות) נעולות בקבוצה pending; המנהלת נכנסת ומקימה רגיל.
+  const lockedForPlayers = teamStatus === "pending" && !isTeamAdmin;
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
@@ -511,6 +530,11 @@ export default function App() {
     localStorage.setItem("whatsNewSeenVer", String(WHATS_NEW.version));
     setShowWhatsNew(false); setScreen("home");
   }} />;
+
+  // קבוצה pending: השחקניות רואות מסך נעילה. המנהלת (admin-login/admin/superAdmin) ממשיכה רגיל.
+  if (lockedForPlayers && (screen === "home" || screen === "onboard" || screen === "player")) {
+    return <LockedTeamScreen pc={pc} sc={sc} settings={settings} onAdmin={() => setScreen("admin-login")} />;
+  }
 
   return (
     <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
@@ -606,6 +630,24 @@ function Splash({ pc, sc }) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: pc }}>
       <div style={{ fontSize: 80, animation: "bounce 0.6s ease", userSelect: "none" }}>🏐</div>
       <div style={{ width: 60, height: 4, background: sc, borderRadius: 2, marginTop: 28 }} />
+    </div>
+  );
+}
+
+// ── LOCKED TEAM (קבוצה pending — נעולה לשחקניות עד אישור) ─────────────────────
+function LockedTeamScreen({ pc, sc, settings, onAdmin }) {
+  const teamName = settings?.teamName || "הקבוצה";
+  return (
+    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+      <div style={{ fontSize: 64, marginBottom: 8 }}>🔒</div>
+      <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 6px" }}>{teamName}</h2>
+      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>הקבוצה עדיין לא פעילה</p>
+      <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.6, maxWidth: 320, margin: "0 0 24px" }}>
+        מנהל/ת הקבוצה בתהליך הקמה. ברגע שהקבוצה תופעל — תוכלי להיכנס ולסמן הגעה. נסי שוב מאוחר יותר 🏐
+      </p>
+      <button onClick={onAdmin} style={{ padding: "10px 20px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 12, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+        כניסת מנהל/ת
+      </button>
     </div>
   );
 }
@@ -1863,7 +1905,8 @@ function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
-  const { pc, sc, onBack } = props;
+  const { pc, sc, onBack, teamMeta } = props;
+  const isPending = (teamMeta?.status || "active") === "pending";
   const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
@@ -1873,6 +1916,14 @@ function AdminPanel(props) {
         <div style={{ fontSize: 32 }}>🔐</div>
         <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0" }}>פאנל מנהל</h2>
       </div>
+      {isPending && (
+        <div style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", borderBottom: "1px solid #fcd34d", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>⏳</span>
+          <div style={{ fontSize: 12.5, color: "#92400e", fontWeight: 600, lineHeight: 1.45 }}>
+            הקבוצה ממתינה לאישור — את/ה יכול/ה להקים הכול, אך <strong>השחקניות עדיין לא רואות אותה</strong>. לאחר ההפעלה — היא תיפתח לכולן.
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", overflowX: "auto", background: "white", borderBottom: "2px solid #e2e8f0" }}>
         {tabs.map(([key, label]) => (
           <button key={key} onClick={(e) => { setTab(key); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
