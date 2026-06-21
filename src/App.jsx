@@ -301,21 +301,28 @@ async function loadTeamKey(teamId, key, fallback) {
 async function saveTeamKey(teamId, key, val) {
   try { await setDoc(doc(db, "teams", teamId, "data", key), { value: val }); } catch (e) { console.error("saveTeamKey:", e); }
 }
-// מוסיף מנהל לקבוצה. אם אין עדיין בעלים — המתחבר הופך לבעלים (אימוץ).
-// אם כבר יש בעלים — מוסיף את ה-uid ל-adminUids (מנהל נוסף לאותה קבוצה).
+// מוסיף מנהל לקבוצה. שלושה מצבים:
+//  1) אין meta כלל → קבוצה חדשה לגמרי: המתחבר הופך לבעלים.
+//  2) יש meta אך ownerUid ריק (נוצר ע"י סופר-אדמין דרך הזמנה) → אימוץ: ממלאים ownerUid
+//     ומוסיפים ל-adminUids, בלי לדרוס status/createdAt/plan הקיימים.
+//  3) יש meta עם בעלים → מוסיפים uid ל-adminUids בלבד.
 async function addTeamAdmin(teamId, uid, email, defaultStatus) {
   const existing = await loadTeamKey(teamId, KEYS.meta, null);
-  if (!existing || !existing.ownerUid) {
-    // קבוצה חדשה: בעלים + status התחלתי (חדשה = "pending"; הבינלאומי/מוכרות = "active")
+  if (!existing) {
+    // (1) קבוצה חדשה לגמרי
     await saveTeamKey(teamId, KEYS.meta, {
       ownerUid: uid, ownerEmail: email, adminUids: [uid],
       status: defaultStatus || "active", plan: "free", createdAt: new Date().toISOString(),
     });
   } else {
+    // (2)+(3) meta קיים — לא דורסים status/createdAt/plan. רק ממלאים בעלים וחברות.
     const next = { ...existing };
+    if (!next.ownerUid) next.ownerUid = uid;              // אימוץ הזמנה (ownerUid היה null)
+    if (!next.ownerEmail) next.ownerEmail = email;
     if (!(next.adminUids || []).includes(uid)) next.adminUids = [...(next.adminUids || []), uid];
-    // מילוי-לאחור: קבוצה ותיקה ללא status נחשבת פעילה (לא נועלים נתונים קיימים)
-    if (!next.status) { next.status = defaultStatus || "active"; if (!next.plan) next.plan = "free"; }
+    if (!next.status) next.status = defaultStatus || "active"; // מילוי-לאחור בלבד; לא דורס active קיים
+    if (!next.plan) next.plan = "free";
+    if (!next.createdAt) next.createdAt = new Date().toISOString();
     await saveTeamKey(teamId, KEYS.meta, next);
   }
 }
@@ -2490,13 +2497,17 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
     await upd.players([...players, { id: Date.now(), name: n, phone: "", email: "", address: "", whatsapp: "" }]);
     setNewPlayer("");
   }
-  async function finish() {
-    await upd.settings({ ...settings, teamName: teamName.trim() || settings.teamName, onboardingDone: true });
-    onFinish();
-  }
+  async function finish() { await completeWizard(); }
   async function skipWizard() {
     // יציאה מהאשף לפאנל הניהול בלי להשלים — שומר את מה שכבר הוקלד ומסמן שלא להציג שוב.
-    await upd.settings({ ...settings, teamName: teamName.trim() || settings.teamName, onboardingDone: true });
+    await completeWizard();
+  }
+  // שומר onboardingDone+teamName מבלי לדרוס שדות אחרים (צבעים וכו') שאולי נשמרו במקביל.
+  // קורא את ה-settings הטרי מהדיסק ומאחה עליו, במקום להסתמך על ה-prop שאולי התיישן.
+  async function completeWizard() {
+    let base = settings || {};
+    try { const fresh = await load(KEYS.settings, null); if (fresh) base = fresh; } catch {}
+    await upd.settings({ ...base, teamName: teamName.trim() || base.teamName, onboardingDone: true });
     onFinish();
   }
   function copyLink() {
