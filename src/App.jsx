@@ -834,7 +834,7 @@ export default function App() {
   };
 
   function askConfirm(msg, onOk) { setConfirm({ msg, onOk }); }
-  // התראת-יידוע מעוצבת (כפתור אחד). מחליפה את alert() המכוער של הדפדפן.
+  // התראת-יידוע מעוצבת (כפתור אחד). מחליפה את חלון ה-alert המכוער של הדפדפן.
   function notify(msg, opts) { setConfirm({ msg, notice: true, icon: opts?.icon, okLabel: opts?.okLabel, tone: opts?.tone }); }
 
   const pc = settings.primaryColor || "#1a237e";
@@ -2845,7 +2845,7 @@ function AdminPanel(props) {
 }
 
 // ── ADMIN ATTENDANCE ──────────────────────────────────────────────────────────
-function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings }) {
+function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings, notify }) {
   const [attModal, setAttModal] = useState(null);
   const nextEvent = getNextEvent(events);
 
@@ -2900,7 +2900,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
       const wa = (prof.whatsapp || "").replace(/\D/g, "");
       if (wa) { window.open(`https://wa.me/${wa}?text=${msg}`, "_blank"); sent++; }
     });
-    if (sent === 0) alert("אין מספרי וואטסאפ לשחקניות שטרם ענו. הוסיפי אותם בלשונית שחקניות.");
+    if (sent === 0) notify("אין מספרי וואטסאפ לשחקניות שטרם ענו. הוסיפי אותם בלשונית שחקניות.");
   }
 
   // תזכורת קבוצתית: הודעה אחת עם שמות החוסרים, לשיתוף לקבוצת הוואטסאפ.
@@ -2921,10 +2921,10 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     try {
       await navigator.clipboard.writeText(text);
       const grp = (settings && settings.whatsappGroup) || "";
-      alert("✅ רשימת החוסרים הועתקה. " + (grp ? "פותחת את קבוצת הוואטסאפ — הדביקי שם." : "הדביקי בקבוצת הוואטסאפ."));
+      notify("✅ רשימת החוסרים הועתקה. " + (grp ? "פותחת את קבוצת הוואטסאפ — הדביקי שם." : "הדביקי בקבוצת הוואטסאפ."));
       if (grp) window.open(grp, "_blank");
     } catch {
-      alert("לא ניתן להעתיק אוטומטית. הרשימה:\n\n" + text);
+      notify("לא ניתן להעתיק אוטומטית. הרשימה:\n\n" + text);
     }
   }
 
@@ -3063,7 +3063,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
     try { await navigator.clipboard.writeText(txt); setWaCopied(true); } catch (e) { setWaCopied(false); }
     const link = settings && settings.whatsappGroup ? settings.whatsappGroup : "";
     if (link) setTimeout(() => window.open(link, "_blank"), 300);
-    else alert("לא הוגדר קישור לקבוצת וואטסאפ. אפשר להוסיף בהגדרות.");
+    else notify("לא הוגדר קישור לקבוצת וואטסאפ. אפשר להוסיף בהגדרות.");
   }
 
   // אירועים שתאריכם עבר (מהיום שאחרי האירוע) וטרם אורכבו
@@ -3381,7 +3381,7 @@ function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
 }
 
 // ── ADMIN PLAYERS ─────────────────────────────────────────────────────────────
-function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
+function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify }) {
   const [newName, setNewName] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [editData, setEditData] = useState({});
@@ -3413,7 +3413,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
     try {
       await adminDeletePlayerRemote(CURRENT_TEAM, p.id);
     } catch (e) {
-      alert("המחיקה נכשלה: " + (e.message || "שגיאה"));
+      notify("המחיקה נכשלה: " + (e.message || "שגיאה"));
       return;
     }
     // ה-Function מחקה הכל בשרת (חשבון + מסמכים + רשימה). מעדכנים גם את ה-state המקומי.
@@ -3525,7 +3525,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm }) {
 }
 
 // ── ADMIN NOTIFICATIONS ───────────────────────────────────────────────────────
-function AdminNotifications({ notifications, players, playerProfiles, events, settings, upd, pc, sc, askConfirm }) {
+function AdminNotifications({ notifications, players, playerProfiles, events, settings, upd, pc, sc, askConfirm, notify }) {
   const [type, setType] = useState("general");
   const [text, setText] = useState("");
   const [showWAConfirm, setShowWAConfirm] = useState(null);
@@ -3550,7 +3550,7 @@ function AdminNotifications({ notifications, players, playerProfiles, events, se
     try { await navigator.clipboard.writeText(fullMsg); setCopied(true); } catch (e) { setCopied(false); }
     const link = (settings && settings.whatsappGroup) ? settings.whatsappGroup : "";
     if (link) setTimeout(() => window.open(link, "_blank"), 300);
-    else alert("לא הוגדר קישור לקבוצת וואטסאפ. אפשר להוסיף בהגדרות.");
+    else notify("לא הוגדר קישור לקבוצת וואטסאפ. אפשר להוסיף בהגדרות.");
   }
 
   async function toggleNotif(id) {
@@ -3732,7 +3732,7 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
 }
 
 // ── ARCHIVE & STATS ───────────────────────────────────────────────────────────
-function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
+function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
   const [view, setView] = useState("stats"); // "stats" | "table"
   const [exporting, setExporting] = useState(false);
   const total = archive.length;
@@ -3827,7 +3827,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Excel export error:", e);
-      alert("שגיאה בייצוא הקובץ. נסה שוב.");
+      notify("שגיאה בייצוא הקובץ. נסה שוב.");
     } finally {
       setExporting(false);
     }
@@ -3971,7 +3971,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc }) {
 }
 
 // ── ADMIN SETTINGS ────────────────────────────────────────────────────────────
-function AdminSettings({ settings, upd, pc, sc }) {
+function AdminSettings({ settings, upd, pc, sc, notify }) {
   const [s, setS] = useState({ ...settings });
 
   // Sync if settings change from outside
@@ -4043,7 +4043,7 @@ function AdminSettings({ settings, upd, pc, sc }) {
         }} style={{ width: "100%", padding: "11px", background: "#1a237e", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
           📲 הצג מסך התקנה לכולם מחדש
         </button>
-        <button onClick={() => { localStorage.removeItem("whatsNewSeenVer"); alert("מסך 'מה חדש' יוצג לך שוב בכניסה הבאה. לכל שחקנית הוא יוצג פעם אחת אוטומטית כשמשתחררת גרסה חדשה."); }}
+        <button onClick={() => { localStorage.removeItem("whatsNewSeenVer"); notify("מסך 'מה חדש' יוצג לך שוב בכניסה הבאה. לכל שחקנית הוא יוצג פעם אחת אוטומטית כשמשתחררת גרסה חדשה."); }}
           style={{ width: "100%", padding: "11px", background: "#7c3aed", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
           ✨ הצג שוב את מסך "מה חדש"
         </button>
