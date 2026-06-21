@@ -662,6 +662,7 @@ export default function App() {
         setChat(msgs);
       },
       err => console.error("chat onSnapshot:", err));
+    return { players: p, playerProfiles: pp };
   }
 
   // משקיף בלבד על מצב ההזדהות (לא מתחבר — כך אין מרוץ עם ה-redirect). משמש לאבחון ולכפתור "המשך".
@@ -733,13 +734,16 @@ export default function App() {
       }
 
       // 4) זרימה רגילה
-      await loadTeamData();
+      const td = await loadTeamData();
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
+      // שחקנית שהמכשיר זוכר (עם setupDone) → קפיצה ישירה לעמוד השחקנית, כמו פעם.
+      const remembered = (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1" && (td.playerProfiles[p.id] || {}).setupDone);
       setTimeout(() => {
         if (seenVer < installVer) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
+        else if (remembered) { setCurrentPlayer(remembered); setScreen(s => s === "splash" ? "player" : s); }
         else setScreen(s => s === "splash" ? "home" : s);
       }, 2500);
     })();
