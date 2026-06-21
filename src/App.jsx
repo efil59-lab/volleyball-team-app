@@ -938,9 +938,12 @@ function NoInviteScreen({ pc, sc, authUser, onLogout, onBack }) {
       <div style={{ background: "white", borderRadius: 20, padding: "30px 24px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.2)", textAlign: "center" }}>
         <div style={{ fontSize: 48 }}>🏐</div>
         <h2 style={{ fontSize: 21, fontWeight: 800, color: pc, margin: "10px 0 6px" }}>פתיחת קבוצה חדשה</h2>
-        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: "0 0 18px" }}>
+        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: "0 0 14px" }}>
           כדי לפתוח קבוצה חדשה, יש ליצור קשר. לאחר האישור — תוכלי להיכנס ולהקים את הקבוצה שלך.
         </p>
+        <div style={{ background: "#fef9c3", borderRadius: 10, padding: "9px 12px", margin: "0 0 18px", fontSize: 12.5, color: "#854d0e", lineHeight: 1.5 }}>
+          💳 השירות כרוך בעלות חודשית. הפרטים יימסרו בפנייה.
+        </div>
         <div style={{ background: "#f1f5f9", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#64748b", margin: "0 0 18px", lineHeight: 1.5 }}>
           חשוב: יש להיכנס עם <strong>אותה כתובת Gmail</strong> שתמסרי. הכתובת שלך כעת:<br />
           <strong style={{ color: pc, wordBreak: "break-all" }}>{email || "—"}</strong>

@@ -154,5 +154,9 @@ exports.adminDeleteTeam = onCall(async (request) => {
   const usersSnap = await db.collection("users").where("teamId", "==", teamId).get();
   await Promise.all(usersSnap.docs.map((d) => d.ref.delete().catch(() => {})));
 
+  // 5) מחיקת הזמנות (invites) הממופות לקבוצה — אחרת מייל שאושר ונמחק "ייכנס" שוב לקבוצת-רפאים
+  const invitesSnap = await db.collection("invites").where("teamId", "==", teamId).get();
+  await Promise.all(invitesSnap.docs.map((d) => d.ref.delete().catch(() => {})));
+
   return { ok: true, deletedAccounts };
 });
