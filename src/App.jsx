@@ -738,16 +738,9 @@ export default function App() {
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
-      // שחקנית שהמכשיר זוכר (עם setupDone) → קפיצה ישירה לעמוד השחקנית, כמו פעם.
-      const remembered = (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1" && (td.playerProfiles[p.id] || {}).setupDone);
-      console.log("🔍 bootstrap nav:", {
-        players: (td?.players || []).length,
-        profiles: Object.keys(td?.playerProfiles || {}).length,
-        rememberedKeys: (td?.players || []).filter(p => localStorage.getItem("rememberPlayer_" + p.id) === "1").map(p => p.id),
-        allRememberLS: Object.keys(localStorage).filter(k => k.startsWith("rememberPlayer_")),
-        sampleProfile: (td?.players || []).slice(0, 3).map(p => ({ id: p.id, type: typeof p.id, setupDone: (td.playerProfiles[p.id] || {}).setupDone })),
-        remembered: remembered ? { id: remembered.id, name: remembered.name } : null
-      });
+      // שחקנית שהמכשיר זוכר → קפיצה ישירה לעמוד שלה. rememberPlayer נשמר רק לאחר כניסה מוצלחת,
+      // אז הוא לבדו עדות מספקת (לא דורשים setupDone שאולי טרם נטען מה-subcollection).
+      const remembered = (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1");
       setTimeout(() => {
         if (seenVer < installVer) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
@@ -1539,7 +1532,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
   const nextEvent = getNextEvent(events || []);
   // שחקנית שהמכשיר "זוכר" — אם קיימת, מציגים דשבורד אישי (מצב א'); אחרת רשימת בחירה (מצב ב')
-  const me = !forceRoster ? players.find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1" && (playerProfiles[p.id] || {}).setupDone) : null;
+  // rememberPlayer נשמר רק לאחר כניסה מוצלחת — עדות מספקת בלי לדרוש setupDone שאולי טרם נטען.
+  const me = !forceRoster ? players.find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1") : null;
 
   // כותרת דקה משותפת לשני המצבים (כולל לחיצה ארוכה על הלוגו → סופר-אדמין)
   const header = (
