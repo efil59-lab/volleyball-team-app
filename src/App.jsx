@@ -10,6 +10,9 @@ import { signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPo
 const DEFAULT_TEAM = "bibleumi";
 const BIBLEUMI_ADMIN_EMAILS = ["efil59@gmail.com", "miri.levi1962@gmail.com"]; // מנהלי קבוצת הבינלאומי
 const SUPER_ADMIN_EMAIL = "efil59@gmail.com"; // בעל המוצר — גישה לסופר אדמין (רק הוא)
+// פרטי יצירת קשר למסך "פתיחת קבוצה" (מנהלת חדשה ללא הזמנה). ⚠️ אפי — מלא כאן את מספר הוואטסאפ שלך:
+const OWNER_CONTACT_EMAIL = "efil59@gmail.com";
+const OWNER_CONTACT_WHATSAPP = ""; // לדוגמה: "972501234567" (קוד מדינה ללא +). ריק = לא יוצג כפתור וואטסאפ.
 
 function resolveInitialTeam() {
   try {
@@ -273,6 +276,22 @@ async function loadUserTeam(uid) {
 async function saveUserTeam(uid, data) {
   try { await setDoc(doc(db, "users", uid), data); } catch (e) { console.error("saveUserTeam:", e); }
 }
+// ── הזמנות לפי מייל (גישה A): סופר-אדמין יוצר קבוצה + הזמנה; מנהלת נכנסת רק אם יש הזמנה ──
+function inviteKey(email) { return String(email || "").trim().toLowerCase(); }
+async function loadInvite(email) {
+  const k = inviteKey(email);
+  if (!k) return null;
+  try {
+    const snap = await getDoc(doc(db, "invites", k));
+    return snap.exists() ? snap.data() : null; // { teamId, createdAt }
+  } catch { return null; }
+}
+async function saveInvite(email, teamId) {
+  const k = inviteKey(email);
+  if (!k) return;
+  try { await setDoc(doc(db, "invites", k), { teamId, email: k, createdAt: new Date().toISOString() }); }
+  catch (e) { console.error("saveInvite:", e); }
+}
 async function loadTeamKey(teamId, key, fallback) {
   try {
     const snap = await getDoc(doc(db, "teams", teamId, "data", key));
@@ -453,9 +472,15 @@ async function resolveAdminTeam(user) {
     teamId = DEFAULT_TEAM;
     await saveUserTeam(uid, { teamId, email });
   } else {
-    teamId = await generateTeamId(); // קוד קצר וקריא לשיתוף (vb-XXXX) במקום team_<uid>
-    await saveUserTeam(uid, { teamId, email });
-    await seedNewTeam(teamId);
+    // מנהלת לא-מוכרת: יוצרים קבוצה אך ורק אם סופר-אדמין הכין הזמנה למייל שלה.
+    const invite = await loadInvite(email);
+    if (invite && invite.teamId) {
+      teamId = invite.teamId; // הקבוצה כבר נוצרה (pending, ריקה) ע"י הסופר-אדמין
+      await saveUserTeam(uid, { teamId, email });
+      // הקבוצה כבר seeded; addTeamAdmin למטה יוסיף את ה-uid ל-adminUids.
+    } else {
+      return "__NO_INVITE__"; // אין הזמנה — לא יוצרים קבוצה, מפנים למסך "פתיחת קבוצה"
+    }
   }
   // status התחלתי: בינלאומי/מוכרות = active, חדשה = pending. addTeamAdmin שומר status קיים.
   const initialStatus = (teamId === DEFAULT_TEAM || known) ? "active" : "pending";
@@ -625,6 +650,7 @@ export default function App() {
       // 3) אם זוהה מנהל — לזהות/לאמץ קבוצה ולעבור לפאנל
       if (adminUser) {
         const teamId = await resolveAdminTeam(adminUser);
+        if (teamId === "__NO_INVITE__") { setScreen("no-invite"); return; }
         setCurrentTeam(teamId);
         await loadTeamData();
         setScreen("admin");
@@ -670,6 +696,7 @@ export default function App() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const teamId = await resolveAdminTeam(result.user);
+      if (teamId === "__NO_INVITE__") { setScreen("no-invite"); return { ok: true }; }
       setCurrentTeam(teamId);
       await loadTeamData();
       setScreen("admin");
@@ -698,6 +725,7 @@ export default function App() {
   async function continueAsAdmin() {
     if (!isGoogleUser(auth.currentUser)) return { ok: false, error: "אין משתמש Google מחובר" };
     const teamId = await resolveAdminTeam(auth.currentUser);
+    if (teamId === "__NO_INVITE__") { setScreen("no-invite"); return { ok: true }; }
     setCurrentTeam(teamId);
     await loadTeamData();
     setScreen("admin");
@@ -762,6 +790,7 @@ export default function App() {
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
+  if (screen === "no-invite") return <NoInviteScreen pc={pc} sc={sc} authUser={authUser} onLogout={handleAdminLogout} onBack={() => setScreen("home")} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
     localStorage.setItem("installSeenVer", String(ver));
     setShowInstall(false);
@@ -897,6 +926,37 @@ function Splash({ pc, sc }) {
 
 // ── SUPER ADMIN ──────────────────────────────────────────────────────────────
 // כניסה דרך לחיצה ארוכה על הלוגו במסך הבית. הרשאה: רק בעל המוצר (Google), לעתיד הרב-קבוצתי.
+// ── NO-INVITE (מנהלת חדשה ללא הזמנה — מסך "פתיחת קבוצה") ──────────────────────
+function NoInviteScreen({ pc, sc, authUser, onLogout, onBack }) {
+  const email = (authUser && authUser.email) || "";
+  const waLink = OWNER_CONTACT_WHATSAPP
+    ? `https://wa.me/${OWNER_CONTACT_WHATSAPP}?text=${encodeURIComponent(`היי, אני רוצה לפתוח קבוצת כדורשת באפליקציה. כתובת ה-Gmail שלי: ${email}`)}`
+    : "";
+  const mailLink = `mailto:${OWNER_CONTACT_EMAIL}?subject=${encodeURIComponent("בקשה לפתיחת קבוצה")}&body=${encodeURIComponent(`היי, אני רוצה לפתוח קבוצת כדורשת. כתובת ה-Gmail שלי: ${email}`)}`;
+  return (
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 20, padding: "30px 24px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div style={{ fontSize: 48 }}>🏐</div>
+        <h2 style={{ fontSize: 21, fontWeight: 800, color: pc, margin: "10px 0 6px" }}>פתיחת קבוצה חדשה</h2>
+        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: "0 0 18px" }}>
+          כדי לפתוח קבוצה חדשה, יש ליצור קשר. לאחר האישור — תוכלי להיכנס ולהקים את הקבוצה שלך.
+        </p>
+        <div style={{ background: "#f1f5f9", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#64748b", margin: "0 0 18px", lineHeight: 1.5 }}>
+          חשוב: יש להיכנס עם <strong>אותה כתובת Gmail</strong> שתמסרי. הכתובת שלך כעת:<br />
+          <strong style={{ color: pc, wordBreak: "break-all" }}>{email || "—"}</strong>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {waLink && (
+            <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ background: "#25D366", color: "white", borderRadius: 12, padding: "13px", textDecoration: "none", fontSize: 15, fontWeight: 700 }}>📱 פנייה בוואטסאפ</a>
+          )}
+          <a href={mailLink} style={{ background: pc, color: "white", borderRadius: 12, padding: "13px", textDecoration: "none", fontSize: 15, fontWeight: 700 }}>✉️ פנייה במייל</a>
+        </div>
+        <button onClick={() => onLogout ? onLogout() : onBack()} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, cursor: "pointer", marginTop: 16, width: "100%" }}>← חזרה / התנתקות</button>
+      </div>
+    </div>
+  );
+}
+
 function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [gErr, setGErr] = useState("");
   const isOwner = authUser && (authUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
@@ -905,6 +965,33 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [confirmText, setConfirmText] = useState("");
   const [delErr, setDelErr] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMsg, setInviteMsg] = useState(null); // { teamId, email } | { error }
+  const [inviteBusy, setInviteBusy] = useState(false);
+
+  async function createTeamInvite() {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) { setInviteMsg({ error: "כתובת מייל לא תקינה" }); return; }
+    setInviteBusy(true); setInviteMsg(null);
+    try {
+      const existing = await loadInvite(email);
+      if (existing && existing.teamId) { setInviteMsg({ teamId: existing.teamId, email, reused: true }); setInviteBusy(false); return; }
+      const teamId = await generateTeamId();
+      await seedNewTeam(teamId);                          // קבוצה ריקה
+      await saveTeamKey(teamId, KEYS.meta, {              // meta pending, בלי ownerUid עדיין
+        ownerUid: null, ownerEmail: email, adminUids: [],
+        status: "pending", plan: "free", createdAt: new Date().toISOString(),
+      });
+      await saveInvite(email, teamId);                   // ההזמנה לפי מייל
+      await syncTeamIndex(teamId);
+      setInviteMsg({ teamId, email });
+      setInviteEmail("");
+      await refreshTeams();
+    } catch (e) {
+      setInviteMsg({ error: e.message || "יצירת ההזמנה נכשלה" });
+    }
+    setInviteBusy(false);
+  }
 
   async function refreshTeams() {
     setTeams(null);
@@ -970,6 +1057,30 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
         </a>
+
+        {/* כלי: יצירת קבוצה + הזמנה למנהלת חדשה */}
+        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>➕</span>
+            <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14 }}>פתיחת קבוצה למנהלת חדשה</span>
+          </div>
+          <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 10px", lineHeight: 1.5 }}>הקלידי את כתובת ה-Gmail של המנהלת. תיווצר קבוצה ריקה (ממתינה), והיא תוכל להיכנס איתה ולהקים אותה.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="gmail של המנהלת" type="email"
+              style={{ ...S.input, flex: 1, margin: 0 }} />
+            <button onClick={createTeamInvite} disabled={inviteBusy} style={{ background: inviteBusy ? "#94a3b8" : pc, color: "white", border: "none", borderRadius: 8, padding: "0 16px", cursor: inviteBusy ? "default" : "pointer", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>
+              {inviteBusy ? "יוצר…" : "צור הזמנה"}
+            </button>
+          </div>
+          {inviteMsg && inviteMsg.error && <p style={{ color: "#ef4444", fontSize: 12.5, margin: "10px 0 0", fontWeight: 600 }}>⚠️ {inviteMsg.error}</p>}
+          {inviteMsg && inviteMsg.teamId && (
+            <div style={{ background: "#dcfce7", borderRadius: 10, padding: "10px 12px", marginTop: 10, fontSize: 12.5, color: "#166534", lineHeight: 1.6 }}>
+              ✅ {inviteMsg.reused ? "כבר קיימת הזמנה" : "נוצרה קבוצה"} עבור <strong>{inviteMsg.email}</strong> (קוד: <strong>{inviteMsg.teamId}</strong>).<br />
+              עכשיו המנהלת יכולה להיכנס עם אותו Gmail, והאשף ייפתח.
+            </div>
+          )}
+        </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 2px 0" }}>
           <span style={{ fontSize: 18 }}>👥</span>
           <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 15 }}>קבוצות במערכת</span>
