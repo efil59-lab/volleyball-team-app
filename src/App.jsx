@@ -679,16 +679,20 @@ export default function App() {
       sessionStorage.removeItem("pendingGoogleLogin");
       let adminUser = null;
 
-      // 1) קודם כל — לפתור redirect של Google אם יש (לפני כל פעולת auth אחרת!)
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) adminUser = result.user;
-      } catch (e) {
-        console.error("Redirect login error:", e);
-        setGoogleLoginError(e.code || e.message || "שגיאה לא ידועה");
-        await loadTeamData();
-        setScreen("admin-login");
-        return;
+      // 1) לפתור redirect של Google — אך ורק אם באמת חזרנו מ-redirect (wasPending).
+      // באייפון/ספארי getRedirectResult עלול לתלות עד timeout ארוך (ITP); לקרוא לו בכל פתיחה
+      // מאט את הטעינה לכל המשתמשות (גם שחקניות שלא ניסו להתחבר). מדלגים כשאין redirect ממתין.
+      if (wasPending) {
+        try {
+          const result = await getRedirectResult(auth);
+          if (result && result.user) adminUser = result.user;
+        } catch (e) {
+          console.error("Redirect login error:", e);
+          setGoogleLoginError(e.code || e.message || "שגיאה לא ידועה");
+          await loadTeamData();
+          setScreen("admin-login");
+          return;
+        }
       }
 
       // גיבוי: אם getRedirectResult ריק אבל סשן Google נשמר — נשתמש במשתמש המחובר.
