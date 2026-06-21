@@ -740,6 +740,14 @@ export default function App() {
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
       // שחקנית שהמכשיר זוכר (עם setupDone) → קפיצה ישירה לעמוד השחקנית, כמו פעם.
       const remembered = (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1" && (td.playerProfiles[p.id] || {}).setupDone);
+      console.log("🔍 bootstrap nav:", {
+        players: (td?.players || []).length,
+        profiles: Object.keys(td?.playerProfiles || {}).length,
+        rememberedKeys: (td?.players || []).filter(p => localStorage.getItem("rememberPlayer_" + p.id) === "1").map(p => p.id),
+        allRememberLS: Object.keys(localStorage).filter(k => k.startsWith("rememberPlayer_")),
+        sampleProfile: (td?.players || []).slice(0, 3).map(p => ({ id: p.id, type: typeof p.id, setupDone: (td.playerProfiles[p.id] || {}).setupDone })),
+        remembered: remembered ? { id: remembered.id, name: remembered.name } : null
+      });
       setTimeout(() => {
         if (seenVer < installVer) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
