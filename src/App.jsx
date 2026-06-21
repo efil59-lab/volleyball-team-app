@@ -20,7 +20,13 @@ function resolveInitialTeam() {
   try {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("team");
-    if (fromUrl) { TEAM_FROM_URL = true; localStorage.setItem("currentTeamId", fromUrl); return fromUrl; }
+    if (fromUrl) {
+      TEAM_FROM_URL = true;
+      localStorage.setItem("currentTeamId", fromUrl);
+      // נשמר ל-PWA: הסקריפט ב-index.html משחזר את ?team= מכאן כשפותחים מהאייקון (start_url חשוף).
+      localStorage.setItem("pwaTeam", fromUrl);
+      return fromUrl;
+    }
   } catch {}
   // אין ?team= → ברירת מחדל זמנית (כדי שקוד תלוי-קבוצה לא יקרוס), אך נציג דף נחיתה.
   return DEFAULT_TEAM;
@@ -29,7 +35,7 @@ let CURRENT_TEAM = resolveInitialTeam();
 function setCurrentTeam(id) {
   CURRENT_TEAM = id;
   TEAM_FROM_URL = true; // ברגע שנבחרה קבוצה (כניסת מנהל/בחירת בינלאומי) — לא דף נחיתה
-  try { localStorage.setItem("currentTeamId", id); } catch {}
+  try { localStorage.setItem("currentTeamId", id); localStorage.setItem("pwaTeam", id); } catch {}
 }
 
 const googleProvider = new GoogleAuthProvider();
