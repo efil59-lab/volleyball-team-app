@@ -508,7 +508,6 @@ async function resolveAdminTeam(user) {
   // חברות מנהל + רישום/עדכון באינדקס הסופר-אדמין (רץ גם לקבוצות ממופות ותיקות)
   await writeMember(teamId, uid, { role: "admin", playerId: null, email, joinedAt: new Date().toISOString() });
   await syncTeamIndex(teamId);
-  console.log("🔍 resolveAdminTeam:", { uid, email, teamId, fromMapping: !!(mapping && mapping.teamId), initialStatus });
   return teamId;
 }
 
@@ -2638,7 +2637,6 @@ function AdminPanel(props) {
   const [showWizard, setShowWizard] = useState(
     CURRENT_TEAM !== DEFAULT_TEAM && !settings?.onboardingDone
   );
-  console.log("🔍 AdminPanel:", { CURRENT_TEAM, onboardingDone: settings?.onboardingDone, status: teamMeta?.status, playersCount: (players||[]).length, showWizard });
   if (showWizard) {
     return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
   }
