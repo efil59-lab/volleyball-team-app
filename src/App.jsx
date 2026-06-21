@@ -14,19 +14,21 @@ const SUPER_ADMIN_EMAIL = "efil59@gmail.com"; // בעל המוצר — גישה 
 const OWNER_CONTACT_EMAIL = "efil59@gmail.com";
 const OWNER_CONTACT_WHATSAPP = ""; // לדוגמה: "972501234567" (קוד מדינה ללא +). ריק = לא יוצג כפתור וואטסאפ.
 
+// האם הגיעה קבוצה מפורשת ב-URL (?team=). אם לא — מציגים דף נחיתה (לא מנחשים מ-localStorage ישן).
+let TEAM_FROM_URL = false;
 function resolveInitialTeam() {
   try {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("team");
-    if (fromUrl) { localStorage.setItem("currentTeamId", fromUrl); return fromUrl; }
-    const stored = localStorage.getItem("currentTeamId");
-    if (stored) return stored;
+    if (fromUrl) { TEAM_FROM_URL = true; localStorage.setItem("currentTeamId", fromUrl); return fromUrl; }
   } catch {}
+  // אין ?team= → ברירת מחדל זמנית (כדי שקוד תלוי-קבוצה לא יקרוס), אך נציג דף נחיתה.
   return DEFAULT_TEAM;
 }
 let CURRENT_TEAM = resolveInitialTeam();
 function setCurrentTeam(id) {
   CURRENT_TEAM = id;
+  TEAM_FROM_URL = true; // ברגע שנבחרה קבוצה (כניסת מנהל/בחירת בינלאומי) — לא דף נחיתה
   try { localStorage.setItem("currentTeamId", id); } catch {}
 }
 
@@ -708,6 +710,12 @@ export default function App() {
         return;
       }
 
+      // 3.5) כניסה לכתובת חשופה (בלי ?team=) ואין מנהל מזוהה → דף נחיתה (שער ראשי), לא ניחוש קבוצה.
+      if (!TEAM_FROM_URL) {
+        setScreen("landing");
+        return;
+      }
+
       // 4) זרימה רגילה
       await loadTeamData();
       const installVer = await load(KEYS.installVersion, 1);
@@ -834,6 +842,10 @@ export default function App() {
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
+  if (screen === "landing") return <LandingScreen pc={pc} sc={sc}
+    onNewGroup={() => setScreen("admin-login")}
+    onAdminLogin={() => setScreen("admin-login")}
+    onEnterBibleumi={async () => { setCurrentTeam(DEFAULT_TEAM); await loadTeamData(); setScreen("home"); }} />;
   if (screen === "pending-request") return <PendingRequestScreen pc={pc} sc={sc} authUser={authUser} onLogout={handleAdminLogout} onBack={() => setScreen("home")} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
     localStorage.setItem("installSeenVer", String(ver));
@@ -999,6 +1011,44 @@ function NoInviteScreen({ pc, sc, authUser, onLogout, onBack }) {
           <a href={mailLink} style={{ background: pc, color: "white", borderRadius: 12, padding: "13px", textDecoration: "none", fontSize: 15, fontWeight: 700 }}>✉️ פנייה במייל</a>
         </div>
         <button onClick={() => onLogout ? onLogout() : onBack()} style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: 13, cursor: "pointer", marginTop: 16, width: "100%" }}>← חזרה / התנתקות</button>
+      </div>
+    </div>
+  );
+}
+
+// ── LANDING (שער ראשי — כניסה לכתובת חשופה בלי ?team=) ────────────────────────
+function LandingScreen({ pc, sc, onNewGroup, onAdminLogin, onEnterBibleumi }) {
+  return (
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ fontSize: 60 }}>🏐</div>
+        <h1 style={{ color: "white", fontSize: 26, fontWeight: 800, margin: "10px 0 6px" }}>אפליקציית כדורשת</h1>
+        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 1.6, maxWidth: 320, margin: "0 auto" }}>
+          ניהול קבוצה במקום אחד: וידוא הגעה, סטטיסטיקות, צ'אט קבוצתי, תזכורות ועוד.
+        </p>
+      </div>
+
+      <div style={{ background: "white", borderRadius: 20, padding: "24px 22px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+        <button onClick={onNewGroup} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "15px", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
+          ➕ פתיחת קבוצה חדשה
+        </button>
+        <p style={{ fontSize: 11.5, color: "#94a3b8", textAlign: "center", margin: "0 0 18px", lineHeight: 1.4 }}>
+          מנהלת חדשה? התחברי עם Google ונאשר את הקבוצה שלך.
+        </p>
+
+        <div style={{ height: 1, background: "#f1f5f9", margin: "0 0 18px" }} />
+
+        <button onClick={onAdminLogin} style={{ width: "100%", background: "white", color: pc, border: `2px solid ${pc}`, borderRadius: 12, padding: "13px", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
+          🔑 כניסת מנהל/ת
+        </button>
+
+        <button onClick={onEnterBibleumi} style={{ width: "100%", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+          כניסה לקבוצת הבינלאומי ←
+        </button>
+
+        <p style={{ fontSize: 11.5, color: "#94a3b8", textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
+          שחקנית בקבוצה אחרת? היכנסי דרך הקישור שקיבלת מהמנהלת שלך.
+        </p>
       </div>
     </div>
   );
