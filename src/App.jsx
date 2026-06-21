@@ -136,7 +136,11 @@ function isIOS() {
   return iOSDevice || iPadOS;
 }
 function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  // תאריך מקומי (לא UTC) — אחרת בשעות הערב toISOString קופץ ליום הבא וחוסם בחירת היום הנוכחי.
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 // returns "MM-DD" for a yyyy-mm-dd birthday string
 function monthDay(dateStr) {
@@ -2996,6 +3000,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
 
   async function addEvent() {
     if (!newEv.date) return;
+    // חסימת תאריך עבר: אירוע נקבע מהיום והלאה בלבד (מגן גם מהקלדה ידנית).
+    if (newEv.date < todayStr()) { alert("לא ניתן לקבוע אירוע בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
     await upd.events([...events, { ...newEv, id: Date.now() }]);
     setAdding(false);
     setNewEv({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
@@ -3318,7 +3324,11 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
           <Label>מיקום</Label>
           <input value={newG.location} onChange={e => setNewG({ ...newG, location: e.target.value })} placeholder="מיקום" style={S.input} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={async () => { if (!newG.date || !newG.opponent) return; await upd.games([...games, { ...newG, id: Date.now() }]); setAdding(false); setNewG({ date: "", time: "18:00", opponent: "", location: "", result: null }); }}
+            <button onClick={async () => {
+              if (!newG.date || !newG.opponent) return;
+              // חסימת תאריך עבר: משחק נקבע מהיום והלאה בלבד (מגן גם מהקלדה ידנית שעוקפת את min).
+              if (newG.date < todayStr()) { alert("לא ניתן לקבוע משחק בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
+              await upd.games([...games, { ...newG, id: Date.now() }]); setAdding(false); setNewG({ date: "", time: "18:00", opponent: "", location: "", result: null }); }}
               style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>הוסף</button>
             <button onClick={() => setAdding(false)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>ביטול</button>
           </div>
