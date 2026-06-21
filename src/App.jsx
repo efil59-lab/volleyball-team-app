@@ -292,6 +292,27 @@ async function saveInvite(email, teamId) {
   try { await setDoc(doc(db, "invites", k), { teamId, email: k, createdAt: new Date().toISOString() }); }
   catch (e) { console.error("saveInvite:", e); }
 }
+// ── בקשות הצטרפות: מנהלת נכנסת עם Google → נרשמת בקשה ממתינה לאישור הסופר-אדמין ──
+async function saveJoinRequest(email, name) {
+  const k = inviteKey(email);
+  if (!k) return;
+  try {
+    // לא לדרוס בקשה קיימת (שומר את ה-createdAt המקורי)
+    const existing = await getDoc(doc(db, "joinRequests", k));
+    if (existing.exists()) return;
+    await setDoc(doc(db, "joinRequests", k), { email: k, name: name || "", createdAt: new Date().toISOString() });
+  } catch (e) { console.error("saveJoinRequest:", e); }
+}
+async function loadJoinRequests() {
+  try {
+    const snap = await getDocs(collection(db, "joinRequests"));
+    return snap.docs.map(d => d.data()).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+  } catch (e) { console.error("loadJoinRequests:", e); return []; }
+}
+async function deleteJoinRequest(email) {
+  const k = inviteKey(email);
+  try { await deleteDoc(doc(db, "joinRequests", k)); } catch (e) { console.error("deleteJoinRequest:", e); }
+}
 async function loadTeamKey(teamId, key, fallback) {
   try {
     const snap = await getDoc(doc(db, "teams", teamId, "data", key));
@@ -496,10 +517,13 @@ async function resolveAdminTeam(user) {
         await saveUserTeam(uid, { teamId, email });
       } else {
         await deleteDoc(doc(db, "invites", inviteKey(email))).catch(() => {}); // הזמנה יתומה
-        return "__NO_INVITE__";
+        await saveJoinRequest(email, user.displayName || "");
+        return "__PENDING_REQUEST__";
       }
     } else {
-      return "__NO_INVITE__"; // אין הזמנה — לא יוצרים קבוצה, מפנים למסך "פתיחת קבוצה"
+      // אין הזמנה — רושמים בקשת הצטרפות ממתינה (הסופר-אדמין יאשר בפאנל), ומציגים מסך "בקשה ממתינה".
+      await saveJoinRequest(email, user.displayName || "");
+      return "__PENDING_REQUEST__";
     }
   }
   // status התחלתי: בינלאומי/מוכרות = active, חדשה = pending. addTeamAdmin שומר status קיים.
@@ -670,7 +694,7 @@ export default function App() {
       // 3) אם זוהה מנהל — לזהות/לאמץ קבוצה ולעבור לפאנל
       if (adminUser) {
         const teamId = await resolveAdminTeam(adminUser);
-        if (teamId === "__NO_INVITE__") { setScreen("no-invite"); return; }
+        if (teamId === "__PENDING_REQUEST__") { setScreen("pending-request"); return; }
         setCurrentTeam(teamId);
         await loadTeamData();
         setScreen("admin");
@@ -716,7 +740,7 @@ export default function App() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const teamId = await resolveAdminTeam(result.user);
-      if (teamId === "__NO_INVITE__") { setScreen("no-invite"); return { ok: true }; }
+      if (teamId === "__PENDING_REQUEST__") { setScreen("pending-request"); return { ok: true }; }
       setCurrentTeam(teamId);
       await loadTeamData();
       setScreen("admin");
@@ -745,7 +769,7 @@ export default function App() {
   async function continueAsAdmin() {
     if (!isGoogleUser(auth.currentUser)) return { ok: false, error: "אין משתמש Google מחובר" };
     const teamId = await resolveAdminTeam(auth.currentUser);
-    if (teamId === "__NO_INVITE__") { setScreen("no-invite"); return { ok: true }; }
+    if (teamId === "__PENDING_REQUEST__") { setScreen("pending-request"); return { ok: true }; }
     setCurrentTeam(teamId);
     await loadTeamData();
     setScreen("admin");
@@ -810,7 +834,7 @@ export default function App() {
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
-  if (screen === "no-invite") return <NoInviteScreen pc={pc} sc={sc} authUser={authUser} onLogout={handleAdminLogout} onBack={() => setScreen("home")} />;
+  if (screen === "pending-request") return <PendingRequestScreen pc={pc} sc={sc} authUser={authUser} onLogout={handleAdminLogout} onBack={() => setScreen("home")} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
     localStorage.setItem("installSeenVer", String(ver));
     setShowInstall(false);
@@ -980,6 +1004,30 @@ function NoInviteScreen({ pc, sc, authUser, onLogout, onBack }) {
   );
 }
 
+// ── PENDING REQUEST (מנהלת נכנסה — בקשתה נרשמה אוטומטית, ממתינה לאישור הסופר-אדמין) ──
+function PendingRequestScreen({ pc, sc, authUser, onLogout, onBack }) {
+  const email = (authUser && authUser.email) || "";
+  return (
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 20, padding: "30px 24px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div style={{ fontSize: 48 }}>⏳</div>
+        <h2 style={{ fontSize: 21, fontWeight: 800, color: pc, margin: "10px 0 6px" }}>הבקשה שלך נשלחה!</h2>
+        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: "0 0 14px" }}>
+          קיבלנו את בקשתך לפתוח קבוצה. לאחר אישור — תוכלי להיכנס שוב ולהקים את הקבוצה שלך.
+        </p>
+        <div style={{ background: "#f1f5f9", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#64748b", margin: "0 0 14px", lineHeight: 1.5 }}>
+          נרשמה בקשה עבור:<br />
+          <strong style={{ color: pc, wordBreak: "break-all" }}>{email || "—"}</strong>
+        </div>
+        <div style={{ background: "#fef9c3", borderRadius: 10, padding: "9px 12px", margin: "0 0 18px", fontSize: 12.5, color: "#854d0e", lineHeight: 1.5 }}>
+          💳 השירות כרוך בעלות חודשית. פרטים יימסרו עם האישור.
+        </div>
+        <button onClick={() => onLogout ? onLogout() : onBack()} style={{ background: pc, color: "white", border: "none", borderRadius: 12, padding: "13px", fontSize: 15, fontWeight: 700, cursor: "pointer", width: "100%" }}>הבנתי, אצא כעת</button>
+      </div>
+    </div>
+  );
+}
+
 function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [gErr, setGErr] = useState("");
   const isOwner = authUser && (authUser.email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
@@ -991,35 +1039,64 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState(null); // { teamId, email } | { error }
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [requests, setRequests] = useState(null); // בקשות הצטרפות ממתינות
+  const [reqBusy, setReqBusy] = useState(null);
+
+  // יוצר קבוצה ריקה + הזמנה למייל. משותף ל"כלי ידני" ול"אישור בקשה".
+  async function createTeamForEmail(email) {
+    const existing = await loadInvite(email);
+    if (existing && existing.teamId) {
+      const metaSnap = await getDoc(doc(db, "teams", existing.teamId, "data", "meta"));
+      if (metaSnap.exists()) return { teamId: existing.teamId, reused: true };
+      await deleteDoc(doc(db, "invites", inviteKey(email))).catch(() => {}); // הזמנה יתומה
+    }
+    const teamId = await generateTeamId();
+    await seedNewTeam(teamId);
+    await saveTeamKey(teamId, KEYS.meta, {
+      ownerUid: null, ownerEmail: email, adminUids: [],
+      status: "pending", plan: "free", createdAt: new Date().toISOString(),
+    });
+    await saveInvite(email, teamId);
+    await syncTeamIndex(teamId);
+    return { teamId, reused: false };
+  }
 
   async function createTeamInvite() {
     const email = inviteEmail.trim().toLowerCase();
     if (!email || !email.includes("@")) { setInviteMsg({ error: "כתובת מייל לא תקינה" }); return; }
     setInviteBusy(true); setInviteMsg(null);
     try {
-      const existing = await loadInvite(email);
-      // אם יש הזמנה ישנה — לוודא שהקבוצה שלה עדיין קיימת. אחרת זו הזמנה "יתומה" (קבוצה נמחקה) → ליצור מחדש.
-      if (existing && existing.teamId) {
-        const metaSnap = await getDoc(doc(db, "teams", existing.teamId, "data", "meta"));
-        if (metaSnap.exists()) { setInviteMsg({ teamId: existing.teamId, email, reused: true }); setInviteBusy(false); return; }
-        // הקבוצה לא קיימת — מנקים את ההזמנה היתומה וממשיכים ליצור חדשה
-        await deleteDoc(doc(db, "invites", inviteKey(email))).catch(() => {});
-      }
-      const teamId = await generateTeamId();
-      await seedNewTeam(teamId);                          // קבוצה ריקה
-      await saveTeamKey(teamId, KEYS.meta, {              // meta pending, בלי ownerUid עדיין
-        ownerUid: null, ownerEmail: email, adminUids: [],
-        status: "pending", plan: "free", createdAt: new Date().toISOString(),
-      });
-      await saveInvite(email, teamId);                   // ההזמנה לפי מייל
-      await syncTeamIndex(teamId);
-      setInviteMsg({ teamId, email });
+      const { teamId, reused } = await createTeamForEmail(email);
+      await deleteJoinRequest(email);   // אם הייתה בקשה ממתינה לאותו מייל — מסירים
+      setInviteMsg({ teamId, email, reused });
       setInviteEmail("");
       await refreshTeams();
+      await refreshRequests();
     } catch (e) {
       setInviteMsg({ error: e.message || "יצירת ההזמנה נכשלה" });
     }
     setInviteBusy(false);
+  }
+
+  async function refreshRequests() {
+    const list = await loadJoinRequests();
+    setRequests(list);
+  }
+  async function approveRequest(email) {
+    setReqBusy(email);
+    try {
+      await createTeamForEmail(email);
+      await deleteJoinRequest(email);
+      await refreshTeams();
+      await refreshRequests();
+    } catch (e) { setInviteMsg({ error: e.message || "אישור הבקשה נכשל" }); }
+    setReqBusy(null);
+  }
+  async function rejectRequest(email) {
+    setReqBusy(email);
+    await deleteJoinRequest(email);
+    await refreshRequests();
+    setReqBusy(null);
   }
 
   async function refreshTeams() {
@@ -1027,7 +1104,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     const list = await listAllTeams();
     setTeams(list);
   }
-  useEffect(() => { if (isOwner) refreshTeams(); }, [isOwner]);
+  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); } }, [isOwner]);
 
   async function act(teamId, status) {
     setBusyId(teamId);
@@ -1086,6 +1163,33 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
         </a>
+
+        {/* בקשות הצטרפות ממתינות — מנהלות שנכנסו עם Google ומחכות לאישור */}
+        {requests && requests.length > 0 && (
+          <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "2px solid #f59e0b" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 20 }}>🔔</span>
+              <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14 }}>בקשות הצטרפות ממתינות ({requests.length})</span>
+            </div>
+            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px", lineHeight: 1.5 }}>מנהלות שנכנסו עם Google וממתינות לאישור. אישור יוצר להן קבוצה ריקה — בכניסה הבאה הן יקבלו אשף הקמה.</p>
+            {requests.map(r => (
+              <div key={r.email} style={{ borderTop: "1px solid #f1f5f9", paddingTop: 10, marginTop: 10 }}>
+                <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 14 }}>{r.name || "מנהלת חדשה"}</div>
+                <div style={{ fontSize: 12.5, color: "#64748b", wordBreak: "break-all", marginBottom: 8 }}>{r.email}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => approveRequest(r.email)} disabled={reqBusy === r.email}
+                    style={{ flex: 1, background: reqBusy === r.email ? "#94a3b8" : "#16a34a", color: "white", border: "none", borderRadius: 8, padding: "9px", cursor: reqBusy === r.email ? "default" : "pointer", fontWeight: 700, fontSize: 13 }}>
+                    {reqBusy === r.email ? "מאשר…" : "✓ אשר וצור קבוצה"}
+                  </button>
+                  <button onClick={() => rejectRequest(r.email)} disabled={reqBusy === r.email}
+                    style={{ background: "#fee2e2", color: "#b91c1c", border: "none", borderRadius: 8, padding: "9px 14px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                    דחה
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* כלי: יצירת קבוצה + הזמנה למנהלת חדשה */}
         <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
