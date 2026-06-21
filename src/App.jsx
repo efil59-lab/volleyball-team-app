@@ -493,7 +493,9 @@ async function generateTeamId() {
 }
 
 // מזהה את הקבוצה של המנהל המחובר, ואם צריך — יוצר/מאמץ. מחזיר teamId.
-async function resolveAdminTeam(user) {
+// allowRequest: רק זרימת "רכישה" רשאית לרשום בקשת הצטרפות. "כניסת מנהל" (allowRequest=false)
+// של משתמש לא-מוכר מחזירה __NOT_REGISTERED__ (מבוי-סתום מנומס) — לעולם לא שולחת בקשה.
+async function resolveAdminTeam(user, allowRequest) {
   const uid = user.uid;
   const email = (user.email || "").toLowerCase();
   const known = BIBLEUMI_ADMIN_EMAILS.includes(email);
@@ -522,11 +524,13 @@ async function resolveAdminTeam(user) {
         await saveUserTeam(uid, { teamId, email });
       } else {
         await deleteDoc(doc(db, "invites", inviteKey(email))).catch(() => {}); // הזמנה יתומה
+        if (!allowRequest) return "__NOT_REGISTERED__";
         await saveJoinRequest(email, user.displayName || "");
         return "__PENDING_REQUEST__";
       }
     } else {
-      // אין הזמנה — רושמים בקשת הצטרפות ממתינה (הסופר-אדמין יאשר בפאנל), ומציגים מסך "בקשה ממתינה".
+      // משתמש לא-מוכר: רק זרימת רכישה (allowRequest) רושמת בקשה. כניסת-מנהל → מבוי-סתום.
+      if (!allowRequest) return "__NOT_REGISTERED__";
       await saveJoinRequest(email, user.displayName || "");
       return "__PENDING_REQUEST__";
     }
@@ -700,8 +704,11 @@ export default function App() {
 
       // 3) אם זוהה מנהל — לזהות/לאמץ קבוצה ולעבור לפאנל
       if (adminUser) {
-        const teamId = await resolveAdminTeam(adminUser);
+        const wantPurchase = sessionStorage.getItem("purchaseFlow") === "1";
+        sessionStorage.removeItem("purchaseFlow");
+        const teamId = await resolveAdminTeam(adminUser, wantPurchase);
         if (teamId === "__PENDING_REQUEST__") { setScreen("pending-request"); return; }
+        if (teamId === "__NOT_REGISTERED__") { setScreen("not-registered"); return; }
         setCurrentTeam(teamId);
         await loadTeamData();
         setScreen("admin");
@@ -737,11 +744,12 @@ export default function App() {
   // התחברות מנהל עם Google.
   // אנדרואיד/מחשב: popup (אמין, לא תלוי אחסון בין-דומייני), עם נפילה ל-redirect אם נחסם.
   // אייפון/iPadOS: redirect ישיר — שם ה-popup לא אמין (ITP מאבד את התוצאה בדרך חזרה).
-  async function handleGoogleLogin() {
+  async function handleGoogleLogin(purchaseFlow) {
     setGoogleLoginError("");
     if (isIOS()) {
       try {
         sessionStorage.setItem("pendingGoogleLogin", "1");
+        if (purchaseFlow) sessionStorage.setItem("purchaseFlow", "1"); else sessionStorage.removeItem("purchaseFlow");
         await signInWithRedirect(auth, googleProvider);
         return { ok: true };
       } catch (e) {
@@ -752,8 +760,9 @@ export default function App() {
     }
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const teamId = await resolveAdminTeam(result.user);
+      const teamId = await resolveAdminTeam(result.user, !!purchaseFlow);
       if (teamId === "__PENDING_REQUEST__") { setScreen("pending-request"); return { ok: true }; }
+      if (teamId === "__NOT_REGISTERED__") { setScreen("not-registered"); return { ok: true }; }
       setCurrentTeam(teamId);
       await loadTeamData();
       setScreen("admin");
@@ -767,6 +776,7 @@ export default function App() {
       if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
         try {
           sessionStorage.setItem("pendingGoogleLogin", "1");
+          if (purchaseFlow) sessionStorage.setItem("purchaseFlow", "1"); else sessionStorage.removeItem("purchaseFlow");
           await signInWithRedirect(auth, googleProvider);
           return { ok: true };
         } catch (e2) {
@@ -779,10 +789,11 @@ export default function App() {
   }
 
   // מסלול חלופי: אם כבר מחובר עם Google (הסשן נשמר) — להיכנס בלי redirect נוסף.
-  async function continueAsAdmin() {
+  async function continueAsAdmin(purchaseFlow) {
     if (!isGoogleUser(auth.currentUser)) return { ok: false, error: "אין משתמש Google מחובר" };
-    const teamId = await resolveAdminTeam(auth.currentUser);
+    const teamId = await resolveAdminTeam(auth.currentUser, !!purchaseFlow);
     if (teamId === "__PENDING_REQUEST__") { setScreen("pending-request"); return { ok: true }; }
+    if (teamId === "__NOT_REGISTERED__") { setScreen("not-registered"); return { ok: true }; }
     setCurrentTeam(teamId);
     await loadTeamData();
     setScreen("admin");
@@ -850,9 +861,15 @@ export default function App() {
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
   if (screen === "landing") return <LandingScreen pc={pc} sc={sc}
-    onNewGroup={() => setScreen("admin-login")}
     onAdminLogin={() => setScreen("admin-login")}
+    onPurchase={() => setScreen("purchase")}
     onEnterBibleumi={async () => { setCurrentTeam(DEFAULT_TEAM); await loadTeamData(); setScreen("home"); }} />;
+  if (screen === "purchase") return <PurchaseScreen pc={pc} sc={sc} authUser={authUser}
+    onGoogle={() => handleGoogleLogin(true)} onContinue={() => continueAsAdmin(true)}
+    onBack={() => setScreen(TEAM_FROM_URL ? "home" : "landing")} />;
+  if (screen === "not-registered") return <NotRegisteredScreen pc={pc} sc={sc} authUser={authUser}
+    onPurchase={() => setScreen("purchase")} onLogout={handleAdminLogout}
+    onBack={() => setScreen(TEAM_FROM_URL ? "home" : "landing")} />;
   if (screen === "pending-request") return <PendingRequestScreen pc={pc} sc={sc} authUser={authUser} onLogout={handleAdminLogout} onBack={() => setScreen("home")} />;
   if (showInstall) return <InstallScreen pc={pc} sc={sc} installVersion={settings.installVersion||1} onDone={(ver) => {
     localStorage.setItem("installSeenVer", String(ver));
@@ -890,7 +907,7 @@ export default function App() {
           const remembered = localStorage.getItem("rememberPlayer_" + p.id) === "1";
           if (remembered && playerProfiles[p.id]?.setupDone) setScreen("player");
           else setScreen("onboard");
-        }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onAbout={() => setScreen("about")} onSuperAdmin={enterSuperAdmin} />}
+        }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onAbout={() => setScreen("about")} onSuperAdmin={enterSuperAdmin} onPurchase={() => setScreen("purchase")} />}
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
         {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} onLogout={handlePlayerLogout} />}
         {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
@@ -1025,8 +1042,101 @@ function NoInviteScreen({ pc, sc, authUser, onLogout, onBack }) {
   );
 }
 
+// ── באנר שיווקי מתחלף (fade) — דף בית שחקנית + דף נחיתה ──────────────────────
+function PurchaseBanner({ pc, sc, onClick }) {
+  const [showB, setShowB] = useState(false);
+  useEffect(() => {
+    const id = setInterval(() => setShowB(v => !v), 3000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <button onClick={onClick}
+      style={{ width: "100%", border: `1px dashed ${pc}55`, background: `${pc}0a`, borderRadius: 14, padding: "12px 16px", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 46 }}>
+      <span style={{ position: "relative", display: "inline-block", height: 20, lineHeight: "20px" }}>
+        <span style={{ opacity: showB ? 0 : 1, transition: "opacity 0.5s", color: pc, fontWeight: 700, fontSize: 14 }}>
+          🏐 מעוניינת באפליקציה לקבוצה שלך?
+        </span>
+        <span style={{ position: "absolute", inset: 0, opacity: showB ? 1 : 0, transition: "opacity 0.5s", color: pc, fontWeight: 800, fontSize: 14, whiteSpace: "nowrap" }}>
+          לחצי כאן לפרטים ←
+        </span>
+      </span>
+    </button>
+  );
+}
+
+// ── מסך רכישה (מנהלת חדשה שרוצה לפתוח קבוצה) — מסביר, ורק באישור מפורש שולח בקשה ──
+function PurchaseScreen({ pc, sc, authUser, onGoogle, onContinue, onBack }) {
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const alreadyGoogle = isGoogleUser(authUser);
+  async function go(fn) {
+    setBusy(true); setErr("");
+    const res = await fn();
+    if (res && !res.ok && res.error) setErr(res.error);
+    setBusy(false);
+  }
+  return (
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 380, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
+        <div style={{ textAlign: "center", fontSize: 46 }}>🏐</div>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: pc, textAlign: "center", margin: "8px 0 4px" }}>אפליקציה לקבוצה שלך</h2>
+        <p style={{ fontSize: 14, color: "#475569", textAlign: "center", lineHeight: 1.6, margin: "0 0 18px" }}>
+          כל מה שצריך לניהול קבוצת כדורשת במקום אחד:
+        </p>
+        <div style={{ background: "#f8fafc", borderRadius: 14, padding: "14px 16px", marginBottom: 16 }}>
+          {[["✅", "וידוא הגעה לאימונים ומשחקים"], ["📊", "סטטיסטיקות ודירוג שחקניות"], ["💬", "צ'אט קבוצתי, סקרים ותזכורות"], ["🏆", "לוח משחקים וגלריית תמונות"]].map(([ic, tx]) => (
+            <div key={tx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "#334155", padding: "4px 0" }}>
+              <span style={{ fontSize: 17 }}>{ic}</span><span>{tx}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: "#fef9c3", borderRadius: 10, padding: "10px 14px", margin: "0 0 18px", fontSize: 13, color: "#854d0e", lineHeight: 1.5, textAlign: "center" }}>
+          💳 השירות כרוך בעלות חודשית. הפרטים יימסרו לאחר אישור הבקשה.
+        </div>
+        <p style={{ fontSize: 13, color: "#64748b", textAlign: "center", margin: "0 0 14px", lineHeight: 1.5 }}>
+          כדי לבקש לפתוח קבוצה, התחברי עם חשבון Google שלך. <strong>הבקשה תישלח רק לאחר אישורך במסך הבא.</strong>
+        </p>
+        {err && <div style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12, textAlign: "center" }}>{err}</div>}
+        {alreadyGoogle ? (
+          <button disabled={busy} onClick={() => go(onContinue)} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: busy ? "default" : "pointer", marginBottom: 10 }}>
+            {busy ? "רגע…" : `המשיכי כ-${authUser.email}`}
+          </button>
+        ) : (
+          <button disabled={busy} onClick={() => go(onGoogle)} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: busy ? "default" : "pointer", marginBottom: 10 }}>
+            {busy ? "רגע…" : "התחברי עם Google"}
+          </button>
+        )}
+        <button onClick={onBack} style={{ width: "100%", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>חזרה</button>
+      </div>
+    </div>
+  );
+}
+
+// ── מבוי-סתום מנומס: "כניסת מנהל" של חשבון לא-משויך. לא נשלחה בקשה. דרך קדימה לרכישה. ──
+function NotRegisteredScreen({ pc, sc, authUser, onPurchase, onLogout, onBack }) {
+  const email = (authUser && authUser.email) || "";
+  return (
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 20, padding: "30px 24px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div style={{ fontSize: 46 }}>🔍</div>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: pc, margin: "10px 0 6px" }}>החשבון אינו משויך לקבוצה</h2>
+        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: "0 0 14px" }}>
+          החשבון <strong style={{ color: pc, wordBreak: "break-all" }}>{email || "—"}</strong> אינו מנהל של קבוצה קיימת.
+        </p>
+        <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 12, padding: "12px 14px", margin: "0 0 18px", fontSize: 13, color: "#0c4a6e", lineHeight: 1.5 }}>
+          מעוניינת לפתוח קבוצה משלך? אפשר לרכוש את האפליקציה ולהקים קבוצה.
+        </div>
+        <button onClick={onPurchase} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "13px", fontSize: 15, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
+          🏐 לפרטים על פתיחת קבוצה ←
+        </button>
+        <button onClick={() => onLogout ? onLogout() : onBack()} style={{ width: "100%", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>יציאה</button>
+      </div>
+    </div>
+  );
+}
+
 // ── LANDING (שער ראשי — כניסה לכתובת חשופה בלי ?team=) ────────────────────────
-function LandingScreen({ pc, sc, onNewGroup, onAdminLogin, onEnterBibleumi }) {
+function LandingScreen({ pc, sc, onAdminLogin, onPurchase, onEnterBibleumi }) {
   return (
     <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -1038,22 +1148,15 @@ function LandingScreen({ pc, sc, onNewGroup, onAdminLogin, onEnterBibleumi }) {
       </div>
 
       <div style={{ background: "white", borderRadius: 20, padding: "24px 22px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
-        <button onClick={onNewGroup} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "15px", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
-          ➕ פתיחת קבוצה חדשה
-        </button>
-        <p style={{ fontSize: 11.5, color: "#94a3b8", textAlign: "center", margin: "0 0 18px", lineHeight: 1.4 }}>
-          מנהלת חדשה? התחברי עם Google ונאשר את הקבוצה שלך.
-        </p>
-
-        <div style={{ height: 1, background: "#f1f5f9", margin: "0 0 18px" }} />
-
-        <button onClick={onAdminLogin} style={{ width: "100%", background: "white", color: pc, border: `2px solid ${pc}`, borderRadius: 12, padding: "13px", fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
+        <button onClick={onAdminLogin} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: "pointer", marginBottom: 12 }}>
           🔑 כניסת מנהל/ת
         </button>
 
-        <button onClick={onEnterBibleumi} style={{ width: "100%", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+        <button onClick={onEnterBibleumi} style={{ width: "100%", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
           כניסה לקבוצת הבינלאומי ←
         </button>
+
+        <PurchaseBanner pc={pc} sc={sc} onClick={onPurchase} />
 
         <p style={{ fontSize: 11.5, color: "#94a3b8", textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
           שחקנית בקבוצה אחרת? היכנסי דרך הקישור שקיבלת מהמנהלת שלך.
@@ -1413,7 +1516,7 @@ function NotifTicker({ notifs, pc, sc }) {
 }
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin }) {
+function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
@@ -1443,8 +1546,11 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   );
 
   const adminLink = (
-    <div style={{ textAlign: "center", padding: "8px 0 24px" }}>
-      <button onClick={onAdmin} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>🔐 כניסת מנהל</button>
+    <div style={{ padding: "8px 0 24px" }}>
+      <div style={{ padding: "0 0 14px" }}><PurchaseBanner pc={pc} sc={sc} onClick={onPurchase} /></div>
+      <div style={{ textAlign: "center" }}>
+        <button onClick={onAdmin} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>🔐 כניסת מנהל</button>
+      </div>
     </div>
   );
 
