@@ -4089,6 +4089,15 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
 // ── ADMIN SETTINGS ────────────────────────────────────────────────────────────
 function AdminSettings({ settings, upd, pc, sc, notify }) {
   const [s, setS] = useState({ ...settings });
+  const [linkCopied, setLinkCopied] = useState(false);
+  const teamLink = `${window.location.origin}/?team=${CURRENT_TEAM}`;
+  function copyTeamLink() {
+    try { navigator.clipboard.writeText(teamLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } catch {}
+  }
+  function shareTeamLink() {
+    const msg = `היי! הצטרפי לקבוצת ${s.teamName || "הכדורשת"} שלנו באפליקציה 🏐\nהיכנסי לקישור, בחרי את שמך וקבעי סיסמה:\n${teamLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+  }
 
   // Sync if settings change from outside
   useEffect(() => { setS({ ...settings }); }, [settings.primaryColor, settings.secondaryColor]);
@@ -4100,6 +4109,20 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
   }
   return (
     <div>
+      <div style={{ ...S.card, border: `2px solid ${pc}`, background: `${pc}08` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 20 }}>🔗</span>
+          <span style={{ fontWeight: 800, color: pc, fontSize: 15 }}>הקישור של הקבוצה שלך</span>
+        </div>
+        <p style={{ fontSize: 12.5, color: "#64748b", margin: "0 0 10px", lineHeight: 1.5 }}>
+          שלחי את הקישור הזה לשחקניות. הן ייכנסו, יבחרו את שמן ויקבעו סיסמה. כדאי לשמור אותו במסך הבית של הטלפון.
+        </p>
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: pc, fontWeight: 700, wordBreak: "break-all", textAlign: "center" }}>{teamLink}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={copyTeamLink} style={{ flex: 1, background: "#e2e8f0", color: "#1e293b", border: "none", borderRadius: 10, padding: "11px", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>{linkCopied ? "✓ הועתק" : "📋 העתקי קישור"}</button>
+          <button onClick={shareTeamLink} style={{ flex: 1, background: "#25D366", color: "white", border: "none", borderRadius: 10, padding: "11px", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>📱 וואטסאפ</button>
+        </div>
+      </div>
       <div style={S.card}>
         <Label>שם הקבוצה</Label>
         <input value={s.teamName} onChange={e => handleChange("teamName", e.target.value)} style={S.input} />
