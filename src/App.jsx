@@ -2652,7 +2652,7 @@ function AdminPanel(props) {
 }
 
 // ── ADMIN ATTENDANCE ──────────────────────────────────────────────────────────
-function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm }) {
+function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings }) {
   const [attModal, setAttModal] = useState(null);
   const nextEvent = getNextEvent(events);
 
