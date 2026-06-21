@@ -298,12 +298,11 @@ async function saveInvite(email, teamId) {
 async function saveJoinRequest(email, name) {
   const k = inviteKey(email);
   if (!k) return;
+  // כתיבה ישירה (ללא getDoc מקדים — קריאה ל-joinRequests מותרת לסופר-אדמין בלבד,
+  // אז בדיקת-קיום ע"י המנהלת הייתה נחסמת ומונעת את הכתיבה). setDoc יוצר-או-דורס.
   try {
-    // לא לדרוס בקשה קיימת (שומר את ה-createdAt המקורי)
-    const existing = await getDoc(doc(db, "joinRequests", k));
-    if (existing.exists()) return;
     await setDoc(doc(db, "joinRequests", k), { email: k, name: name || "", createdAt: new Date().toISOString() });
-  } catch (e) { console.error("saveJoinRequest:", e); }
+  } catch (e) { console.error("saveJoinRequest:", e.code || e.message); }
 }
 async function loadJoinRequests() {
   try {
