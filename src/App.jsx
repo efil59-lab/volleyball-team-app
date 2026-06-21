@@ -474,17 +474,30 @@ async function resolveAdminTeam(user) {
   let teamId;
   const mapping = await loadUserTeam(uid);
   if (mapping && mapping.teamId) {
-    teamId = mapping.teamId;
-  } else if (known) {
+    // לוודא שהקבוצה הממופה עדיין קיימת. אם נמחקה (mapping יתום) — מתעלמים וממשיכים להזמנה/חסימה.
+    const mSnap = await getDoc(doc(db, "teams", mapping.teamId, "data", "meta"));
+    if (mSnap.exists()) {
+      teamId = mapping.teamId;
+    } else {
+      await deleteDoc(doc(db, "users", uid)).catch(() => {}); // ניקוי mapping יתום
+    }
+  }
+  if (!teamId && known) {
     teamId = DEFAULT_TEAM;
     await saveUserTeam(uid, { teamId, email });
-  } else {
+  } else if (!teamId) {
     // מנהלת לא-מוכרת: יוצרים קבוצה אך ורק אם סופר-אדמין הכין הזמנה למייל שלה.
     const invite = await loadInvite(email);
     if (invite && invite.teamId) {
-      teamId = invite.teamId; // הקבוצה כבר נוצרה (pending, ריקה) ע"י הסופר-אדמין
-      await saveUserTeam(uid, { teamId, email });
-      // הקבוצה כבר seeded; addTeamAdmin למטה יוסיף את ה-uid ל-adminUids.
+      // לוודא שקבוצת ההזמנה קיימת (לא יתומה ממחיקה)
+      const iSnap = await getDoc(doc(db, "teams", invite.teamId, "data", "meta"));
+      if (iSnap.exists()) {
+        teamId = invite.teamId; // הקבוצה כבר נוצרה (pending, ריקה) ע"י הסופר-אדמין
+        await saveUserTeam(uid, { teamId, email });
+      } else {
+        await deleteDoc(doc(db, "invites", inviteKey(email))).catch(() => {}); // הזמנה יתומה
+        return "__NO_INVITE__";
+      }
     } else {
       return "__NO_INVITE__"; // אין הזמנה — לא יוצרים קבוצה, מפנים למסך "פתיחת קבוצה"
     }
@@ -985,7 +998,13 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     setInviteBusy(true); setInviteMsg(null);
     try {
       const existing = await loadInvite(email);
-      if (existing && existing.teamId) { setInviteMsg({ teamId: existing.teamId, email, reused: true }); setInviteBusy(false); return; }
+      // אם יש הזמנה ישנה — לוודא שהקבוצה שלה עדיין קיימת. אחרת זו הזמנה "יתומה" (קבוצה נמחקה) → ליצור מחדש.
+      if (existing && existing.teamId) {
+        const metaSnap = await getDoc(doc(db, "teams", existing.teamId, "data", "meta"));
+        if (metaSnap.exists()) { setInviteMsg({ teamId: existing.teamId, email, reused: true }); setInviteBusy(false); return; }
+        // הקבוצה לא קיימת — מנקים את ההזמנה היתומה וממשיכים ליצור חדשה
+        await deleteDoc(doc(db, "invites", inviteKey(email))).catch(() => {});
+      }
       const teamId = await generateTeamId();
       await seedNewTeam(teamId);                          // קבוצה ריקה
       await saveTeamKey(teamId, KEYS.meta, {              // meta pending, בלי ownerUid עדיין
