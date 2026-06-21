@@ -541,15 +541,17 @@ async function resolveAdminTeam(user) {
 }
 
 // ── CONFIRM DIALOG ────────────────────────────────────────────────────────────
-function Confirm({ msg, onOk, onCancel }) {
+function Confirm({ msg, onOk, onCancel, icon, okLabel, tone }) {
+  const notice = !onCancel; // אין ביטול = התראת-יידוע (כפתור אחד) במקום אישור פעולה
+  const accent = tone === "warn" ? "#f59e0b" : (notice ? "#1a237e" : "#ef4444");
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ background: "white", borderRadius: 20, padding: 28, maxWidth: 300, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
-        <p style={{ fontSize: 15, color: "#1e293b", fontWeight: 600, marginBottom: 22, lineHeight: 1.5 }}>{msg}</p>
+      <div style={{ background: "white", borderRadius: 20, padding: 28, maxWidth: 320, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>{icon || (notice ? "🗓️" : "⚠️")}</div>
+        <p style={{ fontSize: 15, color: "#1e293b", fontWeight: 600, marginBottom: 22, lineHeight: 1.6 }}>{msg}</p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onCancel} style={{ flex: 1, padding: 12, background: "#f1f5f9", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600, color: "#64748b" }}>ביטול</button>
-          <button onClick={onOk} style={{ flex: 1, padding: 12, background: "#ef4444", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, color: "white" }}>אישור</button>
+          {!notice && <button onClick={onCancel} style={{ flex: 1, padding: 12, background: "#f1f5f9", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600, color: "#64748b" }}>ביטול</button>}
+          <button onClick={onOk} style={{ flex: 1, padding: 12, background: accent, border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, color: "white" }}>{okLabel || (notice ? "הבנתי" : "אישור")}</button>
         </div>
       </div>
     </div>
@@ -832,10 +834,12 @@ export default function App() {
   };
 
   function askConfirm(msg, onOk) { setConfirm({ msg, onOk }); }
+  // התראת-יידוע מעוצבת (כפתור אחד). מחליפה את alert() המכוער של הדפדפן.
+  function notify(msg, opts) { setConfirm({ msg, notice: true, icon: opts?.icon, okLabel: opts?.okLabel, tone: opts?.tone }); }
 
   const pc = settings.primaryColor || "#1a237e";
   const sc = settings.secondaryColor || "#f5c842";
-  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, teamMeta };
+  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, notify, teamMeta };
 
   // ── שער כניסה (מסחור) ────────────────────────────────────────────────────────
   // קבוצה ללא status נחשבת "active" (ותיקה — לא נועלים). רק "pending" מפורש נועל לשחקניות.
@@ -876,7 +880,9 @@ export default function App() {
           .collapse-grid { transition: none !important; }
         }
       `}</style>
-      {confirm && <Confirm msg={confirm.msg} onOk={() => { confirm.onOk(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
+      {confirm && <Confirm msg={confirm.msg} icon={confirm.icon} okLabel={confirm.okLabel} tone={confirm.tone}
+        onOk={() => { if (confirm.onOk) confirm.onOk(); setConfirm(null); }}
+        onCancel={confirm.notice ? undefined : () => setConfirm(null)} />}
 
       <div key={screen} className="screen-fade">
         {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => {
@@ -2991,7 +2997,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 }
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
-function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm }) {
+function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm, notify }) {
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
@@ -3001,7 +3007,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   async function addEvent() {
     if (!newEv.date) return;
     // חסימת תאריך עבר: אירוע נקבע מהיום והלאה בלבד (מגן גם מהקלדה ידנית).
-    if (newEv.date < todayStr()) { alert("לא ניתן לקבוע אירוע בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
+    if (newEv.date < todayStr()) { notify("לא ניתן לקבוע אירוע בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
     await upd.events([...events, { ...newEv, id: Date.now() }]);
     setAdding(false);
     setNewEv({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
@@ -3303,7 +3309,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
 }
 
 // ── ADMIN GAMES ───────────────────────────────────────────────────────────────
-function AdminGames({ games, upd, pc, sc, askConfirm }) {
+function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
   const [adding, setAdding] = useState(false);
   const [newG, setNewG] = useState({ date: "", time: "18:00", opponent: "", location: "", result: null });
   const [editResult, setEditResult] = useState({});
@@ -3327,7 +3333,7 @@ function AdminGames({ games, upd, pc, sc, askConfirm }) {
             <button onClick={async () => {
               if (!newG.date || !newG.opponent) return;
               // חסימת תאריך עבר: משחק נקבע מהיום והלאה בלבד (מגן גם מהקלדה ידנית שעוקפת את min).
-              if (newG.date < todayStr()) { alert("לא ניתן לקבוע משחק בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
+              if (newG.date < todayStr()) { notify("לא ניתן לקבוע משחק בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
               await upd.games([...games, { ...newG, id: Date.now() }]); setAdding(false); setNewG({ date: "", time: "18:00", opponent: "", location: "", result: null }); }}
               style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>הוסף</button>
             <button onClick={() => setAdding(false)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>ביטול</button>
