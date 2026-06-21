@@ -2534,7 +2534,7 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
               <h2 style={{ fontSize: 22, fontWeight: 800, color: pc, textAlign: "center", margin: "8px 0 4px" }}>ברוכה הבאה!</h2>
               <p style={{ fontSize: 14, color: "#64748b", textAlign: "center", margin: "0 0 22px" }}>בואי נקים את הקבוצה שלך בכמה צעדים פשוטים. איך קוראים לקבוצה?</p>
               <input value={teamName} onChange={e => setTeamName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()}
-                placeholder="לדוגמה: מכבי חיפה כדורשת" autoFocus
+                placeholder="לדוגמה: קבוצת הכדורשת של הבינלאומי" autoFocus
                 style={{ ...S.input, fontSize: 16, textAlign: "center", margin: "0 0 18px" }} />
               <button onClick={saveName} disabled={!teamName.trim()} style={{ ...btn, opacity: teamName.trim() ? 1 : 0.5 }}>המשך ←</button>
             </>
@@ -2710,6 +2710,31 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     if (sent === 0) alert("אין מספרי וואטסאפ לשחקניות שטרם ענו. הוסיפי אותם בלשונית שחקניות.");
   }
 
+  // תזכורת קבוצתית: הודעה אחת עם שמות החוסרים, לשיתוף לקבוצת הוואטסאפ.
+  // (קישור chat.whatsapp.com הוא קישור הצטרפות בלבד — לא ניתן לשלוח אליו טקסט מוכן,
+  //  לכן: שיתוף נייטיב אם נתמך, אחרת העתקה ללוח + פתיחת הקבוצה.)
+  async function shareGroupReminder() {
+    const pending = getList("pending");
+    if (pending.length === 0) return;
+    const names = pending.map(p => p.name).join(", ");
+    const kind = nextEvent.type === "training" ? "לאימון" : "למשחק";
+    const text = `🏐 טרם סימנו הגעה ${kind} ב-${formatShort(nextEvent.date)}: ${names}.\nאנא סמנו באפליקציה 🙏`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch (e) { if (e && e.name === "AbortError") return; } // המשתמשת ביטלה — לא ליפול להעתקה
+    try {
+      await navigator.clipboard.writeText(text);
+      const grp = (settings && settings.whatsappGroup) || "";
+      alert("✅ רשימת החוסרים הועתקה. " + (grp ? "פותחת את קבוצת הוואטסאפ — הדביקי שם." : "הדביקי בקבוצת הוואטסאפ."));
+      if (grp) window.open(grp, "_blank");
+    } catch {
+      alert("לא ניתן להעתיק אוטומטית. הרשימה:\n\n" + text);
+    }
+  }
+
   return (
     <div>
       <BirthdayBanners />
@@ -2732,7 +2757,13 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
       {countAtt("pending") > 0 && (
         <button onClick={sendWAReminder}
           style={{ width: "100%", padding: "10px", background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
-          💬 שלח וואטסאפ לשחקניות שלא סימנו הגעה ({countAtt("pending")})
+          💬 שלח וואטסאפ אישי לשחקניות שלא סימנו הגעה ({countAtt("pending")})
+        </button>
+      )}
+      {countAtt("pending") > 0 && (
+        <button onClick={shareGroupReminder}
+          style={{ width: "100%", padding: "10px", background: "white", color: "#16a34a", border: "2px solid #25D366", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+          📢 תזכורת קבוצתית עם שמות החוסרות ({countAtt("pending")})
         </button>
       )}
       {countAtt("pending") > 0 && (
