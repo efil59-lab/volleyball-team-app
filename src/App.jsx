@@ -385,6 +385,18 @@ async function uploadProfilePhoto(file, playerId) {
   return await getDownloadURL(storageRef);
 }
 
+// טוען ExcelJS מ-CDN בפעם הראשונה שצריך (ייצוא לאקסל). אינה מותקנת כחבילה.
+function loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+    s.onload = () => window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error("exceljs missing after load"));
+    s.onerror = () => reject(new Error("exceljs load failed"));
+    document.head.appendChild(s);
+  });
+}
+
 // טוען את ספריית heic2any מ-CDN בפעם הראשונה שצריך (תמונות אייפון בפורמט HEIC).
 function loadHeic2any() {
   if (window.heic2any) return Promise.resolve(window.heic2any);
@@ -3923,8 +3935,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
     if (archive.length === 0) return;
     setExporting(true);
     try {
-      const mod = await import("exceljs");
-      const ExcelJS = mod.default || mod;
+      const ExcelJS = await loadExcelJS();
       const evs = [...archive].sort((a, b) => a.date.localeCompare(b.date));
       const N = evs.length, P = players.length;
       const dm = d => { const x = new Date(d + "T12:00:00"); return x.getDate() + "/" + (x.getMonth() + 1); };
