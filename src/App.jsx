@@ -3464,8 +3464,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                     style={{ background: "#dcfce7", color: "#166534", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>↩️ ביטול הביטול</button>
                 : <button onClick={() => openCancelDialog(ev)}
                     style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>❌ ביטול</button>}
-              <button onClick={() => openArchiveDialog(ev)}
-                style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>🔒 ארכיון</button>
+              {isPast && <button onClick={() => openArchiveDialog(ev)}
+                style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>🔒 ארכיון</button>}
               <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
                 style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
             </div>
