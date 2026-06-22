@@ -385,7 +385,33 @@ async function uploadProfilePhoto(file, playerId) {
   return await getDownloadURL(storageRef);
 }
 
-function compressImage(file, maxDim = 1280, quality = 0.8) {
+// טוען את ספריית heic2any מ-CDN בפעם הראשונה שצריך (תמונות אייפון בפורמט HEIC).
+function loadHeic2any() {
+  if (window.heic2any) return Promise.resolve(window.heic2any);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
+    s.onload = () => resolve(window.heic2any);
+    s.onerror = () => reject(new Error("heic load failed"));
+    document.head.appendChild(s);
+  });
+}
+
+async function compressImage(file, maxDim = 1280, quality = 0.8) {
+  // אייפון מצלם ב-HEIC — דפדפנים לא יודעים להציג/לדחוס אותו. ממירים ל-JPEG קודם.
+  const isHeic = file && (/heic|heif/i.test(file.type || "") || /\.(heic|heif)$/i.test(file.name || ""));
+  if (isHeic) {
+    try {
+      const heic2any = await loadHeic2any();
+      const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+      const out = Array.isArray(blob) ? blob[0] : blob;
+      file = new File([out], (file.name || "photo").replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+    } catch (e) { console.error("HEIC convert failed:", e); /* ננסה להמשיך עם המקורי */ }
+  }
+  return compressImageCanvas(file, maxDim, quality);
+}
+
+function compressImageCanvas(file, maxDim = 1280, quality = 0.8) {
   return new Promise((resolve) => {
     if (!file || !file.type || !file.type.startsWith("image/")) { resolve(file); return; }
     const url = URL.createObjectURL(file);
