@@ -374,6 +374,17 @@ async function bindPlayerMembership(teamId, uid, player) {
 
 // ── דחיסת תמונה בצד-לקוח (canvas) — מקס' 1280px, JPEG 0.8 ────────────────────
 // חיסכון ~10x ברוחב פס ובעלות Storage. אם הקריאה נכשלת — מחזיר את הקובץ המקורי.
+// העלאת תמונת פרופיל ל-Storage והחזרת URL קבוע. תמונות פרופיל דחוסות לקטן (512px) —
+// הן מוצגות בעיגול קטן. שומרים URL בלבד בפרופיל (לא base64), כדי לא לחרוג מגבול 1MB של Firestore.
+async function uploadProfilePhoto(file, playerId) {
+  const compressed = await compressImage(file, 512, 0.8);
+  const safeName = (compressed.name || "photo").replace(/[^\w.\-]/g, "_");
+  const path = `teams/${CURRENT_TEAM}/profiles/${playerId}_${Date.now()}_${safeName}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, compressed);
+  return await getDownloadURL(storageRef);
+}
+
 function compressImage(file, maxDim = 1280, quality = 0.8) {
   return new Promise((resolve) => {
     if (!file || !file.type || !file.type.startsWith("image/")) { resolve(file); return; }
@@ -1684,7 +1695,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
 }
 
 // ── ONBOARD SCREEN ────────────────────────────────────────────────────────────
-function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) {
+function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, notify }) {
   const prof = playerProfiles[player.id] || {};
   const isReturning = !!prof.setupDone;
   const [pass, setPass] = useState("");
@@ -1694,6 +1705,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
   const [loginError, setLoginError] = useState(false);
   const [remember, setRemember] = useState(true);
   const [photo, setPhoto] = useState(prof.photo || null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [phone, setPhone] = useState(prof.phone || "");
   const [whatsapp, setWhatsapp] = useState(prof.whatsapp || "");
   const [email, setEmail] = useState(prof.email || "");
@@ -1733,9 +1745,15 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 
   async function handlePhotoUpload(e) {
     const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setPhoto(ev.target.result);
-    reader.readAsDataURL(file);
+    setPhotoUploading(true);
+    try {
+      const url = await uploadProfilePhoto(file, player.id);
+      setPhoto(url);
+    } catch (err) {
+      console.error("profile photo upload:", err);
+      notify("העלאת התמונה נכשלה. נסי שוב או בחרי תמונה אחרת.");
+    }
+    setPhotoUploading(false);
   }
 
   function handlePhoneChange(val) {
@@ -1843,11 +1861,11 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
               ? <img src={photo} style={{ width: 90, height: 90, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
               : <div style={{ width: 90, height: 90, borderRadius: "50%", background: `linear-gradient(135deg, ${pc}, ${pc}99)`, color: sc, fontSize: 34, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: `3px solid ${sc}`, margin: "0 auto" }}>{player.name[0]}</div>
             }
-            <button onClick={() => photoRef.current.click()}
-              style={{ position: "absolute", bottom: 0, left: 0, background: sc, border: "2px solid white", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>📷</button>
+            <button onClick={() => !photoUploading && photoRef.current.click()}
+              style={{ position: "absolute", bottom: 0, left: 0, background: sc, border: "2px solid white", borderRadius: "50%", width: 30, height: 30, cursor: photoUploading ? "default" : "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{photoUploading ? "⏳" : "📷"}</button>
             <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
           </div>
-          <p style={{ color: "#64748b", fontSize: 12, marginTop: 6 }}>לחצי להוספת תמונה</p>
+          <p style={{ color: "#64748b", fontSize: 12, marginTop: 6 }}>{photoUploading ? "מעלה תמונה…" : "לחצי להוספת תמונה"}</p>
         </div>
 
         <div style={S.card}>
@@ -1883,8 +1901,9 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack }) 
 }
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify }) {
   const [tab, setTab] = useState("event");
+  const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
   const [showNoteFor, setShowNoteFor] = useState(null);
@@ -2015,12 +2034,16 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   async function handlePhotoUpload(e) {
     const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async ev => {
-      const updated = { ...playerProfiles, [player.id]: { ...prof, photo: ev.target.result } };
+    setProfilePhotoUploading(true);
+    try {
+      const url = await uploadProfilePhoto(file, player.id);
+      const updated = { ...playerProfiles, [player.id]: { ...prof, photo: url } };
       await upd.playerProfiles(updated);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("profile photo upload:", err);
+      notify("העלאת התמונה נכשלה. נסי שוב או בחרי תמונה אחרת.");
+    }
+    setProfilePhotoUploading(false);
   }
 
   // הגבלה: 5 תמונות לשחקנית ליום (ספירה בצד-לקוח מתוך הגלריה הטעונה).
@@ -2187,7 +2210,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             ? <img src={prof.photo} style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
             : <div style={{ width: 68, height: 68, borderRadius: "50%", background: sc, color: pc, fontSize: 26, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid white", margin: "0 auto" }}>{player.name[0]}</div>
           }
-          <button onClick={() => photoRef.current.click()} style={{ position: "absolute", bottom: 0, left: -2, background: sc, border: "2px solid white", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>📷</button>
+          <button onClick={() => !profilePhotoUploading && photoRef.current.click()} style={{ position: "absolute", bottom: 0, left: -2, background: sc, border: "2px solid white", borderRadius: "50%", width: 24, height: 24, cursor: profilePhotoUploading ? "default" : "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{profilePhotoUploading ? "⏳" : "📷"}</button>
           <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
         </div>
         <h2 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: 0 }}>שלום, {player.name}! 👋</h2>
