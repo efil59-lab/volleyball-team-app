@@ -807,9 +807,11 @@ export default function App() {
       const installVer = await load(KEYS.installVersion, 1);
       const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
-      // שחקנית שהמכשיר זוכר → קפיצה ישירה לעמוד שלה. rememberPlayer נשמר רק לאחר כניסה מוצלחת,
-      // אז הוא לבדו עדות מספקת (לא דורשים setupDone שאולי טרם נטען מה-subcollection).
-      const remembered = (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1");
+      // שחקנית שהמכשיר זוכר → קפיצה ישירה לעמוד שלה — אך ורק אם היא כבר מחוברת עם מייל (לא אנונימית).
+      // אם היא אנונימית (הטוקן פג/נפלה ל-anon) → לא קופצים; היא תעבור דרך מסך הבית→כניסה כדי להתחבר נכון,
+      // אחרת תישאר אנונימית ותיחסם בצ'אט/קריאת נוכחות (permission-denied).
+      const authedWithEmail = auth.currentUser && !auth.currentUser.isAnonymous;
+      const remembered = authedWithEmail ? (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1") : null;
       setTimeout(() => {
         if (seenVer < installVer) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
@@ -983,7 +985,10 @@ export default function App() {
         {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => {
           setCurrentPlayer(p);
           const remembered = localStorage.getItem("rememberPlayer_" + p.id) === "1";
-          if (remembered && playerProfiles[p.id]?.setupDone) setScreen("player");
+          const authedWithEmail = auth.currentUser && !auth.currentUser.isAnonymous;
+          // קפיצה ישירה לעמוד רק אם השחקנית מחוברת עם מייל. אם אנונימית — דרך onboard (סיסמה→emailAuth),
+          // אחרת תיכנס בלי טוקן-מייל ותיחסם בצ'אט/נוכחות.
+          if (remembered && authedWithEmail && playerProfiles[p.id]?.setupDone) setScreen("player");
           else setScreen("onboard");
         }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onAbout={() => setScreen("about")} onSuperAdmin={enterSuperAdmin} onPurchase={() => setScreen("purchase")} />}
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
@@ -2174,8 +2179,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     } catch (err) {
       console.error("שגיאה בשליחת הודעה:", err);
       setChatText(t); // החזרת הטקסט כדי שאפשר לנסות שוב
-      // אבחון זמני (נייד): מציג את קוד השגיאה המדויק על המסך.
-      notify("⚠️ שליחה נכשלה. קוד: " + (err.code || err.message || "לא ידוע") + "\nuid: " + ((auth.currentUser && auth.currentUser.uid) || "אין") + "\nemail: " + ((auth.currentUser && auth.currentUser.email) || "אין") + "\nplayerId: " + player.id);
+      notify("ההודעה לא נשלחה. ייתכן שצריך להיכנס מחדש — צאי ובחרי את שמך עם הסיסמה.");
     }
   }
   async function deleteChatMsg(id) {
