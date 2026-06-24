@@ -745,6 +745,10 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      // ממתינים ש-Firebase ישחזר את ה-session השמורה (שחקנית מחוברת עם מייל) לפני שבודקים currentUser.
+      // בלי זה, ב-bootstrap הראשוני currentUser=null עדיין, ואז signInAnonymously דורס את החיבור השמור
+      // → השחקנית הופכת אנונימית בכל כניסה ונדרשת סיסמה מחדש.
+      try { if (auth.authStateReady) await auth.authStateReady(); } catch (e) { console.error("authStateReady:", e); }
       const wasPending = sessionStorage.getItem("pendingGoogleLogin") === "1";
       sessionStorage.removeItem("pendingGoogleLogin");
       let adminUser = null;
