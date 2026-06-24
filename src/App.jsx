@@ -664,6 +664,7 @@ export default function App() {
   const [personalNotifs, setPersonalNotifs] = useState({});
   const [chat, setChat] = useState([]);
   const chatUnsubRef = useRef(null);
+  const attUnsubRef = useRef(null);
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -717,6 +718,19 @@ export default function App() {
         setChat(msgs);
       },
       err => console.error("chat onSnapshot:", err));
+    // נוכחות בזמן אמת — כל שחקנית = מסמך attendance/{playerId}. listener מונע מצב שבו
+    // מכשיר עובד מול state ישן ודורס רישומים של שחקניות אחרות (last-write-wins).
+    if (attUnsubRef.current) attUnsubRef.current();
+    attUnsubRef.current = onSnapshot(collection(db, "teams", CURRENT_TEAM, "attendance"),
+      snap => {
+        const flat = {};
+        snap.forEach(d => {
+          const evs = d.data() || {};
+          for (const eventId in evs) flat[`${eventId}_${d.id}`] = evs[eventId];
+        });
+        setAttendance(flat);
+      },
+      err => console.error("attendance onSnapshot:", err));
     return { players: p, playerProfiles: pp };
   }
 
@@ -727,7 +741,7 @@ export default function App() {
   }, []);
 
   // ניקוי מנוי הצ'אט בעת יציאה
-  useEffect(() => () => { if (chatUnsubRef.current) chatUnsubRef.current(); }, []);
+  useEffect(() => () => { if (chatUnsubRef.current) chatUnsubRef.current(); if (attUnsubRef.current) attUnsubRef.current(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -801,7 +815,7 @@ export default function App() {
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
         else if (remembered) { setCurrentPlayer(remembered); setScreen(s => s === "splash" ? "player" : s); }
         else setScreen(s => s === "splash" ? "home" : s);
-      }, 2500);
+      }, 600);
     })();
   }, []);
 
@@ -3458,7 +3472,9 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         </div>
       )}
       {[...events].sort((a, b) => a.date.localeCompare(b.date)).map(ev => {
-        const isPast = ev.date < todayStr();
+        // "עבר" = תאריך מוקדם מהיום, או היום אך השעה כבר חלפה (אפשר לארכב אחרי המשחק, לא רק אחרי חצות).
+        const nowHM = `${String(new Date().getHours()).padStart(2,"0")}:${String(new Date().getMinutes()).padStart(2,"0")}`;
+        const isPast = ev.date < todayStr() || (ev.date === todayStr() && (ev.time || "00:00") <= nowHM);
         return (
         <div key={ev.id} style={{ ...S.card, marginBottom: 10, ...(isPast ? { borderColor: "#fdba74", background: "#fffbeb" } : {}) }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
