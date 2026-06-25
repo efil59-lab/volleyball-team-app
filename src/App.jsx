@@ -821,7 +821,7 @@ export default function App() {
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
         else if (remembered) { setCurrentPlayer(remembered); setScreen(s => s === "splash" ? "player" : s); }
         else setScreen(s => s === "splash" ? "home" : s);
-      }, 600);
+      }, 1200);
     })();
   }, []);
 
@@ -1094,8 +1094,28 @@ function LockedTeamScreen({ pc, sc, settings, onAdmin }) {
 function Splash({ pc, sc }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: pc }}>
-      <div style={{ fontSize: 80, animation: "bounce 0.6s ease", userSelect: "none" }}>🏐</div>
-      <div style={{ width: 60, height: 4, background: sc, borderRadius: 2, marginTop: 28 }} />
+      <style>{`
+        @keyframes splashFloat {
+          0%, 100% { transform: translateY(0) rotate(-6deg); }
+          50%      { transform: translateY(-22px) rotate(6deg); }
+        }
+        @keyframes splashShadow {
+          0%, 100% { transform: scaleX(1);   opacity: 0.28; }
+          50%      { transform: scaleX(0.62); opacity: 0.14; }
+        }
+        @keyframes splashShimmer {
+          0%   { transform: translateX(-130%); }
+          100% { transform: translateX(130%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .splash-ball, .splash-shadow, .splash-shimmer { animation: none !important; }
+        }
+      `}</style>
+      <div className="splash-ball" style={{ fontSize: 84, userSelect: "none", animation: "splashFloat 1.4s ease-in-out infinite", willChange: "transform" }}>🏐</div>
+      <div className="splash-shadow" style={{ width: 64, height: 11, background: "rgba(0,0,0,0.5)", borderRadius: "50%", marginTop: 6, filter: "blur(3px)", animation: "splashShadow 1.4s ease-in-out infinite" }} />
+      <div style={{ position: "relative", width: 120, height: 5, background: "rgba(255,255,255,0.18)", borderRadius: 3, marginTop: 30, overflow: "hidden" }}>
+        <div className="splash-shimmer" style={{ position: "absolute", top: 0, bottom: 0, width: "55%", background: sc, borderRadius: 3, animation: "splashShimmer 1.1s ease-in-out infinite" }} />
+      </div>
     </div>
   );
 }
