@@ -929,12 +929,19 @@ export default function App() {
   };
 
   function askConfirm(msg, onOk) { setConfirm({ msg, onOk }); }
+  // עדכון אופטימי: מציג הודעת צ'אט מיד לשולחת, בלי להמתין ל-listener. ה-listener יחליף לפי _docId (אין כפילות).
+  function addChatLocal(msg) {
+    setChat(prev => {
+      if (prev.some(m => m._docId === msg._docId || m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }
   // התראת-יידוע מעוצבת (כפתור אחד). מחליפה את חלון ה-alert המכוער של הדפדפן.
   function notify(msg, opts) { setConfirm({ msg, notice: true, icon: opts?.icon, okLabel: opts?.okLabel, tone: opts?.tone }); }
 
   const pc = settings.primaryColor || "#1a237e";
   const sc = settings.secondaryColor || "#f5c842";
-  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, notify, teamMeta };
+  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, notify, teamMeta, addChatLocal };
 
   // ── שער כניסה (מסחור) ────────────────────────────────────────────────────────
   // קבוצה ללא status נחשבת "active" (ותיקה — לא נועלים). רק "pending" מפורש נועל לשחקניות.
@@ -1962,7 +1969,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
 }
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
   const [tab, setTab] = useState("event");
   const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
   const [attModal, setAttModal] = useState(null);
@@ -2180,6 +2187,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     try {
       // כל הודעה = מסמך נפרד (id כשם המסמך) — אין דריסה, אין אובדן בשליחה במקביל.
       await setDoc(doc(db, "teams", CURRENT_TEAM, "chat", id), msg);
+      if (addChatLocal) addChatLocal({ ...msg, _docId: id }); // הצגה מיידית לשולחת (לא תלוי ב-listener)
     } catch (err) {
       console.error("שגיאה בשליחת הודעה:", err);
       setChatText(t); // החזרת הטקסט כדי שאפשר לנסות שוב
@@ -3611,7 +3619,12 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
     setResetMsg({ name: p.name, loading: true });
     try {
       const res = await adminResetPlayer(CURRENT_TEAM, p.id);
-      if (res && res.ok) setResetMsg({ name: p.name, temp: res.tempPassword, whatsapp: (playerProfiles[p.id] || {}).whatsapp || "" });
+      if (res && res.ok) {
+        // מסמנים שחובה להחליף סיסמה — כך השחקנית תיאלץ לבחור סיסמה חדשה בכניסה עם הזמנית.
+        const cur = playerProfiles[p.id] || {};
+        await upd.playerProfiles({ ...playerProfiles, [p.id]: { ...cur, mustChangePassword: true } });
+        setResetMsg({ name: p.name, temp: res.tempPassword, whatsapp: (playerProfiles[p.id] || {}).whatsapp || "" });
+      }
       else setResetMsg({ name: p.name, error: "האיפוס נכשל" });
     } catch (e) {
       setResetMsg({ name: p.name, error: e.message || "שגיאה באיפוס" });
