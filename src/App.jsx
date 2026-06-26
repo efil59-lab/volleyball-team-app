@@ -3232,7 +3232,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 }
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
-function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm, notify }) {
+function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, games, upd, pc, sc, askConfirm, notify }) {
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
@@ -3427,7 +3427,9 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
         const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
         const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
-        const dayEvents = ds => (events || []).filter(e => e.date === ds);
+        // הלוח מציג גם אירועים (events) וגם משחקים (games) — משחק ממופה עם type:"game" לתצוגה.
+        const gamesAsEvents = (games || []).map(g => ({ ...g, type: "game", note: g.opponent ? `נגד ${g.opponent}` : "", _isGame: true }));
+        const dayEvents = ds => [...(events || []), ...gamesAsEvents].filter(e => e.date === ds);
         const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
         const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
