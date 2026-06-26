@@ -2552,9 +2552,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             <div>
               {/* כותרת + ניווט חודשים */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
+                <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
                 <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
-                <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
+                <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
               </div>
 
               {/* כותרות ימים */}
@@ -3232,7 +3232,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 }
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
-function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm, notify }) {
+function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, games, upd, pc, sc, askConfirm, notify }) {
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
@@ -3427,16 +3427,18 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
         const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
         const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
-        const dayEvents = ds => (events || []).filter(e => e.date === ds);
+        // הלוח מציג גם אירועים (events) וגם משחקים (games) — משחק ממופה עם type:"game" לתצוגה.
+        const gamesAsEvents = (games || []).map(g => ({ ...g, type: "game", note: g.opponent ? `נגד ${g.opponent}` : "", _isGame: true }));
+        const dayEvents = ds => [...(events || []), ...gamesAsEvents].filter(e => e.date === ds);
         const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
         const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
         return (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
+              <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
               <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
-              <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
+              <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
               {dayHeaders.map((h, i) => <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{h}</div>)}
@@ -3552,6 +3554,7 @@ function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
   const [editResult, setEditResult] = useState({});
   const [editOutcome, setEditOutcome] = useState({});
   const [savedId, setSavedId] = useState(null);
+  const [editGame, setEditGame] = useState(null); // {id, date, time, opponent, location} — עריכת פרטי משחק
 
   return (
     <div>
@@ -3594,9 +3597,34 @@ function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
                 ? <div style={{ marginTop: 4 }}><OutcomeBadge outcome={g.outcome} result={g.result} /></div>
                 : g.result && <div style={{ color: pc, fontWeight: 700, marginTop: 3 }}>✅ תוצאה: {g.result}</div>}
             </div>
-            <button onClick={() => askConfirm("למחוק משחק זה?", () => upd.games(games.filter(x => x.id !== g.id)))}
-              style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, height: "fit-content" }}>🗑</button>
+            <div style={{ display: "flex", gap: 6, height: "fit-content" }}>
+              <button onClick={() => setEditGame(editGame && editGame.id === g.id ? null : { id: g.id, date: g.date, time: g.time || "18:00", opponent: g.opponent || "", location: g.location || "" })}
+                style={{ background: `${pc}10`, color: pc, border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>✏️</button>
+              <button onClick={() => askConfirm("למחוק משחק זה?", () => upd.games(games.filter(x => x.id !== g.id)))}
+                style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑</button>
+            </div>
           </div>
+          {editGame && editGame.id === g.id && (
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <Label>תאריך</Label>
+              <input type="date" value={editGame.date} min={todayStr()} onChange={e => setEditGame({ ...editGame, date: e.target.value })} style={S.input} />
+              <Label>שעה</Label>
+              <input type="time" value={editGame.time} onChange={e => setEditGame({ ...editGame, time: e.target.value })} style={S.input} />
+              <Label>שם היריב</Label>
+              <input value={editGame.opponent} onChange={e => setEditGame({ ...editGame, opponent: e.target.value })} placeholder="שם הקבוצה היריבה" style={S.input} />
+              <Label>מיקום</Label>
+              <input value={editGame.location} onChange={e => setEditGame({ ...editGame, location: e.target.value })} placeholder="מיקום" style={S.input} />
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button onClick={async () => {
+                  if (!editGame.date || !editGame.opponent) { notify("יש למלא תאריך ושם יריב."); return; }
+                  if (editGame.date < todayStr()) { notify("לא ניתן לקבוע משחק בתאריך שעבר."); return; }
+                  await upd.games(games.map(x => x.id === g.id ? { ...x, date: editGame.date, time: editGame.time, opponent: editGame.opponent, location: editGame.location } : x));
+                  setEditGame(null);
+                }} style={{ flex: 1, background: pc, color: "white", border: "none", borderRadius: 8, padding: "10px", cursor: "pointer", fontWeight: 700 }}>שמרי שינויים</button>
+                <button onClick={() => setEditGame(null)} style={{ background: "#e2e8f0", color: "#64748b", border: "none", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontWeight: 600 }}>ביטול</button>
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             {[["win", "🟢 ניצחנו", "#16a34a"], ["loss", "🔴 הפסדנו", "#ef4444"], ["draw", "⚪ תיקו", "#64748b"]].map(([val, lbl, c]) => {
               const sel = (editOutcome[g.id] ?? g.outcome) === val;
