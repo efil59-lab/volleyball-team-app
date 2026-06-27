@@ -71,11 +71,12 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 17,
-  versionName: "גרסה 17.0",
+  version: 18,
+  versionName: "גרסה 18.0",
   date: "יוני 2026",
   features: [
-    { icon: "🗓️", title: "מקרא הלוח לחיץ", text: "בלוח החודשי אפשר עכשיו ללחוץ על כל סוג במקרא (🏋️ אימון · 🏆 משחק · 🎂 יום הולדת · ❌ בוטל) ולראות רשימה של כל האירועים מאותו סוג, ממוינת לפי תאריך. במשחקים שהסתיימו מוצגת גם התוצאה." },
+    { icon: "👁️", title: "רואים מי הצביעה", text: "בסקר אפשר עכשיו ללחוץ על 'מי הצביעה' ולראות ליד כל אפשרות את שמות מי שבחרה בה." },
+    { icon: "🗓️", title: "מקרא הלוח לחיץ", text: "בלוח החודשי אפשר ללחוץ על כל סוג במקרא (🏋️ אימון · 🏆 משחק · 🎂 יום הולדת · ❌ בוטל) ולראות רשימה של כל האירועים מאותו סוג." },
   ],
 };
 
@@ -2689,7 +2690,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
         {/* ── POLLS TAB ── */}
         {tab === "polls" && (
-          <PlayerPolls polls={polls} player={player} upd={upd} pc={pc} sc={sc} />
+          <PlayerPolls polls={polls} player={player} players={players} upd={upd} pc={pc} sc={sc} />
         )}
 
         {/* ── GALLERY TAB ── */}
@@ -2764,8 +2765,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 }
 
 // ── PLAYER POLLS ──────────────────────────────────────────────────────────────
-function PlayerPolls({ polls, player, upd, pc, sc }) {
+function PlayerPolls({ polls, player, players, upd, pc, sc }) {
   const activePolls = [...(polls || [])].filter(p => p.active !== false).reverse();
+  const [showVoters, setShowVoters] = useState({}); // pollId -> bool: הצגת שמות המצביעות
+  const nameOf = id => ((players || []).find(p => String(p.id) === String(id)) || {}).name || "—";
 
   async function vote(pollId, optionIdx) {
     const updated = polls.map(poll => {
@@ -2795,17 +2798,29 @@ function PlayerPolls({ polls, player, upd, pc, sc }) {
             {poll.options.map((opt, i) => {
               const pct = total > 0 ? Math.round((counts[i] / total) * 100) : 0;
               const isMine = myVote === i;
+              const voters = Object.entries(votes).filter(([, v]) => v === i).map(([pid]) => nameOf(pid));
               return (
-                <button key={i} onClick={() => vote(poll.id, i)}
-                  style={{ position: "relative", width: "100%", textAlign: "right", border: `2px solid ${isMine ? pc : "#e2e8f0"}`, borderRadius: 10, padding: "11px 14px", marginBottom: 8, cursor: "pointer", background: "white", overflow: "hidden" }}>
-                  {hasVoted && <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: `${pct}%`, background: isMine ? `${pc}22` : "#f1f5f9", transition: "width 0.4s ease", zIndex: 0 }} />}
-                  <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 14, fontWeight: isMine ? 800 : 600, color: isMine ? pc : "#1e293b" }}>{isMine ? "● " : ""}{opt}</span>
-                    {hasVoted && <span style={{ fontSize: 13, fontWeight: 800, color: pc }}>{pct}% ({counts[i]})</span>}
-                  </div>
-                </button>
+                <div key={i}>
+                  <button onClick={() => vote(poll.id, i)}
+                    style={{ position: "relative", width: "100%", textAlign: "right", border: `2px solid ${isMine ? pc : "#e2e8f0"}`, borderRadius: 10, padding: "11px 14px", marginBottom: showVoters[poll.id] ? 2 : 8, cursor: "pointer", background: "white", overflow: "hidden" }}>
+                    {hasVoted && <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: `${pct}%`, background: isMine ? `${pc}22` : "#f1f5f9", transition: "width 0.4s ease", zIndex: 0 }} />}
+                    <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 14, fontWeight: isMine ? 800 : 600, color: isMine ? pc : "#1e293b" }}>{isMine ? "● " : ""}{opt}</span>
+                      {hasVoted && <span style={{ fontSize: 13, fontWeight: 800, color: pc }}>{pct}% ({counts[i]})</span>}
+                    </div>
+                  </button>
+                  {showVoters[poll.id] && (
+                    <div style={{ fontSize: 11, color: "#64748b", padding: "0 6px 8px", lineHeight: 1.6 }}>
+                      {counts[i] > 0 ? `👤 ${voters.join(" · ")}` : <span style={{ color: "#cbd5e1" }}>— אין מצביעות —</span>}
+                    </div>
+                  )}
+                </div>
               );
             })}
+            <button onClick={() => setShowVoters(s => ({ ...s, [poll.id]: !s[poll.id] }))} disabled={total === 0}
+              style={{ background: showVoters[poll.id] ? `${pc}15` : "#f1f5f9", color: total === 0 ? "#cbd5e1" : pc, border: "none", borderRadius: 8, padding: "7px 12px", cursor: total === 0 ? "default" : "pointer", fontSize: 12, fontWeight: 700 }}>
+              {showVoters[poll.id] ? "🙈 הסתר מצביעות" : "👁️ מי הצביעה"}
+            </button>
           </div>
         );
       })}
@@ -3244,6 +3259,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
+  const [evTab, setEvTab] = useState("training"); // לשונית סוג אירוע ברשימה: "training" | "game"
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [calSelected, setCalSelected] = useState(null);
   const [legendKind, setLegendKind] = useState(null); // סוג אירוע שנבחר במקרא הלוח
@@ -3537,11 +3553,14 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
       })()}
 
       {calView === "list" && <>
-      {events.length === 0 && <Empty icon="📅" text="אין אירועים פתוחים" />}
-      {events.length > 0 && (() => {
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {[["training", "🏋️ אימונים"], ["game", "🏆 משחקים"]].map(([t, lbl]) => (
+          <button key={t} onClick={() => setEvTab(t)}
+            style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: evTab === t ? `2px solid ${pc}` : "2px solid #e2e8f0", background: evTab === t ? `${pc}12` : "white", color: evTab === t ? pc : "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: evTab === t ? 800 : 600 }}>{lbl}</button>
+        ))}
+      </div>
+      {(() => {
         const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
-        const trainings = sorted.filter(e => e.type === "training");
-        const matches = sorted.filter(e => e.type === "game");
         const renderEvent = (ev) => {
         // "עבר" = תאריך מוקדם מהיום, או היום אך השעה כבר חלפה (אפשר לארכב אחרי המשחק, לא רק אחרי חצות).
         const nowHM = `${String(new Date().getHours()).padStart(2,"0")}:${String(new Date().getMinutes()).padStart(2,"0")}`;
@@ -3624,13 +3643,13 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         </div>
         );
         }; // סוף renderEvent
+        const list = sorted.filter(e => e.type === evTab);
         return (
           <>
-            <div style={{ fontSize: 15, fontWeight: 800, color: pc, margin: "4px 0 8px", display: "flex", alignItems: "center", gap: 6 }}>🏋️ אימונים</div>
-            {trainings.length === 0 ? <Empty icon="🏋️" text="אין אימונים פתוחים" /> : trainings.map(renderEvent)}
-            <div style={{ fontSize: 15, fontWeight: 800, color: pc, margin: "18px 0 2px", display: "flex", alignItems: "center", gap: 6 }}>🏆 משחקים</div>
-            <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.4 }}>יש למלא את תוצאת המשחק לאחר סיומו. רק לאחר מילוי התוצאה ניתן יהיה לארכב את המשחק.</p>
-            {matches.length === 0 ? <Empty icon="🏆" text="אין משחקים פתוחים" /> : matches.map(renderEvent)}
+            {evTab === "game" && <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.4 }}>יש למלא את תוצאת המשחק לאחר סיומו. רק לאחר מילוי התוצאה ניתן יהיה לארכב את המשחק.</p>}
+            {list.length === 0
+              ? <Empty icon={evTab === "training" ? "🏋️" : "🏆"} text={evTab === "training" ? "אין אימונים פתוחים" : "אין משחקים פתוחים"} />
+              : list.map(renderEvent)}
           </>
         );
       })()}
@@ -3914,7 +3933,7 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
   const [showVoters, setShowVoters] = useState({}); // pollId -> bool: הצגת שמות המצביעות
-  const nameOf = id => (players.find(p => p.id === id) || {}).name || "—";
+  const nameOf = id => (players.find(p => String(p.id) === String(id)) || {}).name || "—";
 
   function setOpt(i, val) {
     setOptions(opts => opts.map((o, idx) => idx === i ? val : o));
@@ -4408,7 +4427,7 @@ function AboutScreen({ pc, sc, settings, onBack }) {
     { q: "איפה רואים את תוצאות המשחקים?", a: "בלשונית '🏆 תוצאות משחקים' מופיעות תוצאות המשחקים שכבר התקיימו (ניצחון/הפסד/תיקו). משחק עתידי שדורש סימון הגעה מופיע בלשונית 'נוכחות' ובלוח." },
     { q: "איך רואים את כל האירועים הקרובים?", a: "בלשונית '🗓️ לוח', מתחת ללוח החודשי, יש מקרא עם הסוגים (🏋️ אימון · 🏆 משחק · 🎂 יום הולדת · ❌ בוטל). לחיצה על סוג פותחת רשימה של כל האירועים מאותו סוג. באימונים ובמשחקים מוצגים רק הקרובים (העתידיים), כשהקרוב ביותר ראשון." },
     { q: "מה זה מחיאות כפיים?", a: "בלשונית האירוע אפשר לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או למשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
-    { q: "איך מצביעים בסקר?", a: "בלשונית '🗳️ סקר' אפשר להצביע על נושאים שהמנהלת פותחת (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
+    { q: "איך מצביעים בסקר?", a: "בלשונית '🗳️ סקר' אפשר להצביע על נושאים שהמנהלת פותחת (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד. אפשר גם ללחוץ על 'מי הצביעה' כדי לראות ליד כל אפשרות מי בחרה בה." },
     { q: "איך מקבלים ברכת יום הולדת?", a: "הוסיפי תאריך לידה בפרופיל שלך, ותקבלי ברכה חמה מהקבוצה ביום ההולדת! 🎉" },
     { q: "איך מעלים תמונה?", a: "בלשונית '📸 תמונות מהמשחק' לחצי על '+ העלי תמונה'. כדי למחוק תמונה שהעלית — לחצי עליה ואז על 'מחקי תמונה'." },
     { q: "הנתונים שלי מאובטחים?", a: "כן. לכל שחקנית חשבון אישי ומאובטח, וכל אחת רואה ועורכת רק את הפרטים שלה. הסיסמאות מאוחסנות בצורה מוצפנת ואינן גלויות לאיש." },
