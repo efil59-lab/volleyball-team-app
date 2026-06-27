@@ -4422,11 +4422,14 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
         dateLabel: formatShort(b),
       }));
   } else {
+    const today = todayStr();
     const base = kind === "cancelled"
       ? allEvents.filter(e => e.cancelled)
-      : allEvents.filter(e => e.type === kind && !e.cancelled);
+      : allEvents.filter(e => e.type === kind && !e.cancelled && (e.date || "") >= today); // רק עתידיים
     rows = base
-      .sort((a, b) => (b.date || "").localeCompare(a.date || "")) // מהעתידי/חדש לישן
+      .sort((a, b) => kind === "cancelled"
+        ? (b.date || "").localeCompare(a.date || "")   // בוטלו: מהחדש לישן
+        : (a.date || "").localeCompare(b.date || ""))  // עתידיים: הקרוב ביותר ראשון
       .map(ev => ({
         key: "e" + ev.id, ev,
         icon: ev.type === "training" ? "🏋️" : "🏆",
