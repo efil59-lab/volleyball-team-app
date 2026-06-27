@@ -3553,10 +3553,10 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
       })()}
 
       {calView === "list" && <>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 14 }}>
         {[["training", "🏋️ אימונים"], ["game", "🏆 משחקים"]].map(([t, lbl]) => (
           <button key={t} onClick={() => setEvTab(t)}
-            style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: evTab === t ? `2px solid ${pc}` : "2px solid #e2e8f0", background: evTab === t ? `${pc}12` : "white", color: evTab === t ? pc : "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: evTab === t ? 800 : 600 }}>{lbl}</button>
+            style={{ border: "none", borderRadius: 999, padding: "7px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", background: evTab === t ? pc : "#f1f5f9", color: evTab === t ? "white" : "#64748b" }}>{lbl}</button>
         ))}
       </div>
       {(() => {
