@@ -1746,7 +1746,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             <div style={{ fontSize: 26 }}>{nextEvent.type === "training" ? "🏋️" : "🏆"}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: "white", fontSize: 15, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {nextEvent.type === "training" ? "אימון" : "משחק"} · {formatShort(nextEvent.date)} · {nextEvent.time}
+                {nextEvent.type === "training" ? "אימון" : (nextEvent.opponent ? `משחק נגד ${nextEvent.opponent}` : "משחק")} · {formatShort(nextEvent.date)} · {nextEvent.time}
               </div>
               <div style={{ color: sc, fontSize: 12, fontWeight: 700, marginTop: 2 }}>בחרי את שמך לאישור הגעה ←</div>
             </div>
@@ -2597,7 +2597,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
                       <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : "משחק"} · {ev.time}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק")} · {ev.time}</div>
                         <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
                       </div>
                       {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
@@ -3389,6 +3389,10 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
             <option value="training">🏋️ אימון</option>
             <option value="game">🏆 משחק</option>
           </select>
+          {newEv.type === "game" && (<>
+            <Label>מול מי (קבוצה יריבה)</Label>
+            <input value={newEv.opponent || ""} onChange={e => setNewEv({ ...newEv, opponent: e.target.value })} placeholder="שם הקבוצה היריבה" style={S.input} />
+          </>)}
           <Label>תאריך</Label>
           <input type="date" value={newEv.date} min={todayStr()} onChange={e => setNewEv({ ...newEv, date: e.target.value })} style={S.input} />
           <Label>שעה</Label>
@@ -3473,7 +3477,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                     <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
                       <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : "משחק"} · {ev.time}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק")} · {ev.time}</div>
                         <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
                       </div>
                       {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
