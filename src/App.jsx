@@ -4419,7 +4419,7 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
       .sort((a, b) => monthDay(a.b).localeCompare(monthDay(b.b))) // לפי יום בשנה
       .map(({ p, b }) => ({
         key: "b" + p.id, icon: "🎂", title: p.name,
-        dateLabel: formatShort(b) + (ageFromBirthday(b) != null ? ` · גיל ${ageFromBirthday(b)}` : ""),
+        dateLabel: formatShort(b),
       }));
   } else {
     const base = kind === "cancelled"
