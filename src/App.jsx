@@ -2196,7 +2196,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [chatSeenTs, setChatSeenTs] = useState(() => Number(localStorage.getItem("chatLastSeen_" + player.id) || 0));
   const hasUnreadChat = (chat || []).some(m => m.playerId !== player.id && (m.ts || 0) > chatSeenTs);
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "chat", label: "💬 צ'אט" }, { key: "games", label: "🏆 תוצאות משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
+  const tabs = [{ key: "event", label: "📋 נוכחות" }, { key: "calendar", label: "🗓️ לוח" }, { key: "games", label: "🏆 תוצאות משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "chat", label: "💬 צ'אט" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
 
   async function sendChat() {
     const t = chatText.trim();
@@ -3040,7 +3040,7 @@ function AdminPanel(props) {
   if (showWizard) {
     return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
   }
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
+  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["players","👥 שחקניות"],["archive","📊 סטטיסטיקה"],["gallery","📸 תמונות מהמשחק"],["settings","⚙️ הגדרות"]];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -3511,13 +3511,11 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
 
       {calView === "list" && <>
       {events.length === 0 && <Empty icon="📅" text="אין אירועים פתוחים" />}
-      {events.length > 0 && (
-        <div style={{ display: "flex", padding: "0 4px", marginBottom: 6 }}>
-          <div style={{ flex: 1, fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>סוג • תאריך • שעה • מיקום</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", width: 80, textAlign: "center" }}>פעולות</div>
-        </div>
-      )}
-      {[...events].sort((a, b) => a.date.localeCompare(b.date)).map(ev => {
+      {events.length > 0 && (() => {
+        const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+        const trainings = sorted.filter(e => e.type === "training");
+        const matches = sorted.filter(e => e.type === "game");
+        const renderEvent = (ev) => {
         // "עבר" = תאריך מוקדם מהיום, או היום אך השעה כבר חלפה (אפשר לארכב אחרי המשחק, לא רק אחרי חצות).
         const nowHM = `${String(new Date().getHours()).padStart(2,"0")}:${String(new Date().getMinutes()).padStart(2,"0")}`;
         const isPast = ev.date < todayStr() || (ev.date === todayStr() && (ev.time || "00:00") <= nowHM);
@@ -3539,7 +3537,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                     style={{ background: "#dcfce7", color: "#166534", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>↩️ ביטול הביטול</button>
                 : <button onClick={() => openCancelDialog(ev)}
                     style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>❌ ביטול</button>}
-              {isPast && <button onClick={() => openArchiveDialog(ev)}
+              {isPast && (ev.type !== "game" || ev.outcome) && <button onClick={() => openArchiveDialog(ev)}
                 style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>🔒 ארכיון</button>}
               <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
                 style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
@@ -3570,7 +3568,17 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
           )}
         </div>
         );
-      })}
+        }; // סוף renderEvent
+        return (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 800, color: pc, margin: "4px 0 8px", display: "flex", alignItems: "center", gap: 6 }}>🏋️ אימונים</div>
+            {trainings.length === 0 ? <Empty icon="🏋️" text="אין אימונים פתוחים" /> : trainings.map(renderEvent)}
+            <div style={{ fontSize: 15, fontWeight: 800, color: pc, margin: "18px 0 2px", display: "flex", alignItems: "center", gap: 6 }}>🏆 משחקים</div>
+            <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.4 }}>יש למלא את תוצאת המשחק לאחר סיומו. רק לאחר מילוי התוצאה ניתן יהיה לארכב את המשחק.</p>
+            {matches.length === 0 ? <Empty icon="🏆" text="אין משחקים פתוחים" /> : matches.map(renderEvent)}
+          </>
+        );
+      })()}
       </>}
       </>}
     </div>
@@ -4328,7 +4336,7 @@ function AboutScreen({ pc, sc, settings, onBack }) {
     { q: "איך מאשרים הגעה לאימון?", a: "לחצי על שמך, ואז על 'מגיעה' או 'לא מגיעה'. אפשר להוסיף הערה, ואפשר לשנות את התשובה בכל עת לפני האימון." },
     { q: "איך רואים מי מגיעה?", a: "במסך הבית לחצי על המספרים (מגיעות / לא מגיעות / טרם ענו) כדי לראות את שמות השחקניות בכל קטגוריה." },
     { q: "איך שולחים הודעה בצ'אט?", a: "בלשונית '💬 צ'אט' כותבים הודעה ושולחים — כולן רואות מיד. נקודה אדומה מהבהבת ליד הצ'אט מסמנת שיש הודעות חדשות שלא קראת." },
-    { q: "איפה רואים את לוח המשחקים?", a: "בלשונית '🏆 משחקים' מופיע לוח המשחקים הקרובים. לאחר משחק מוצגת גם התוצאה (ניצחון/הפסד/תיקו)." },
+    { q: "איפה רואים את תוצאות המשחקים?", a: "בלשונית '🏆 תוצאות משחקים' מופיעות תוצאות המשחקים שכבר התקיימו (ניצחון/הפסד/תיקו). משחק עתידי שדורש סימון הגעה מופיע בלשונית 'נוכחות' ובלוח." },
     { q: "מה זה מחיאות כפיים?", a: "בלשונית האירוע אפשר לשלוח 'כל הכבוד' לחברות שהגיעו לאימון או למשחק האחרון — פעם ביום לכל אחת. בפרופיל שלך תראי כמה מחיאות כפיים קיבלת החודש!" },
     { q: "איך מצביעים בסקר?", a: "בלשונית '🗳️ סקר' אפשר להצביע על נושאים שהמנהלת פותחת (למשל איפה לחגוג סוף עונה). ניתן לשנות את הבחירה, והתוצאות מוצגות מיד." },
     { q: "איך מקבלים ברכת יום הולדת?", a: "הוסיפי תאריך לידה בפרופיל שלך, ותקבלי ברכה חמה מהקבוצה ביום ההולדת! 🎉" },
