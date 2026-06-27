@@ -2196,7 +2196,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [chatSeenTs, setChatSeenTs] = useState(() => Number(localStorage.getItem("chatLastSeen_" + player.id) || 0));
   const hasUnreadChat = (chat || []).some(m => m.playerId !== player.id && (m.ts || 0) > chatSeenTs);
 
-  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "chat", label: "💬 צ'אט" }, { key: "games", label: "🏆 משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
+  const tabs = [{ key: "event", label: "📅 אירוע" }, { key: "calendar", label: "🗓️ לוח" }, { key: "chat", label: "💬 צ'אט" }, { key: "games", label: "🏆 תוצאות משחקים" }, { key: "polls", label: "🗳️ סקר" }, { key: "gallery", label: "📸 תמונות מהמשחק" }];
 
   async function sendChat() {
     const t = chatText.trim();
@@ -2651,32 +2651,34 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
         )}
 
         {/* ── GAMES TAB ── */}
-        {tab === "games" && (
+        {tab === "games" && (() => {
+          // תוצאות משחקים = אירועי-משחק (כולל מהארכיון) שיש להם תוצאה. מהחדש לישן.
+          const allEvents = [...(events || []), ...(archive || [])];
+          const results = allEvents.filter(e => e.type === "game" && (e.outcome || e.result))
+            .sort((a, b) => b.date.localeCompare(a.date));
+          return (
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🏆 לוח משחקים</h3>
-            {games.length === 0 && <Empty icon="🏐" text="אין משחקים מתוכננים" />}
-            {[...games].sort((a, b) => a.date.localeCompare(b.date)).map(g => (
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🏆 תוצאות משחקים</h3>
+            {results.length === 0 && <Empty icon="🏐" text="עדיין אין תוצאות משחקים" />}
+            {results.map(g => (
               <div key={g.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 12, color: "#94a3b8" }}>{formatDate(g.date)} • {g.time}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>נגד: {g.opponent}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>נגד: {g.opponent || "—"}</div>
                   <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
                 </div>
                 {g.outcome
                   ? <div style={{ textAlign: "center" }}><OutcomeBadge outcome={g.outcome} result={g.result} size="lg" /></div>
-                  : g.result
-                  ? <div style={{ background: `${pc}15`, borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
+                  : <div style={{ background: `${pc}15`, borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
                       <div style={{ fontSize: 11, color: "#94a3b8" }}>תוצאה</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: pc }}>{g.result}</div>
-                    </div>
-                  : <div style={{ background: `${sc}50`, borderRadius: 10, padding: "8px 12px" }}>
-                      <div style={{ fontSize: 12, color: pc, fontWeight: 700 }}>עתידי</div>
                     </div>
                 }
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
 
         {/* ── POLLS TAB ── */}
         {tab === "polls" && (
@@ -3038,7 +3040,7 @@ function AdminPanel(props) {
   if (showWizard) {
     return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
   }
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["games","🏆 משחקים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
+  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["players","👥 שחקניות"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["gallery","📸 תמונות מהמשחק"],["archive","📊 ארכיון"],["settings","⚙️ הגדרות"]];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -3067,7 +3069,6 @@ function AdminPanel(props) {
       <div style={{ padding: 16 }}>
         {tab === "attendance" && <AdminAttendance {...props} />}
         {tab === "events" && <AdminEvents {...props} />}
-        {tab === "games" && <AdminGames {...props} />}
         {tab === "players" && <AdminPlayers {...props} />}
         {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
         {tab === "polls" && <AdminPolls {...props} />}
@@ -3238,6 +3239,9 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [calSelected, setCalSelected] = useState(null);
+  const [evResult, setEvResult] = useState({});
+  const [evOutcome, setEvOutcome] = useState({});
+  const [evSavedId, setEvSavedId] = useState(null);
 
   async function addEvent() {
     if (!newEv.date) return;
@@ -3521,11 +3525,12 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         <div key={ev.id} style={{ ...S.card, marginBottom: 10, ...(isPast ? { borderColor: "#fdba74", background: "#fffbeb" } : {}) }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{ev.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+              <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{ev.type === "training" ? "🏋️ אימון" : (ev.opponent ? `🏆 משחק נגד ${ev.opponent}` : "🏆 משחק")}</div>
               {isPast && <div style={{ fontSize: 11, fontWeight: 800, color: "#b45309", marginTop: 2 }}>⚠️ עבר — ממתין לארכוב</div>}
               <div style={{ fontWeight: 700, fontSize: 14 }}>{formatDate(ev.date)} • {ev.time}</div>
               <div style={{ color: "#64748b", fontSize: 13 }}>📍 {ev.location}</div>
               {ev.note && <div style={{ color: sc, fontSize: 12, fontWeight: 600 }}>📝 {ev.note}</div>}
+              {ev.outcome && <div style={{ marginTop: 4 }}><OutcomeBadge outcome={ev.outcome} result={ev.result} /></div>}
               {ev.cancelled && <div style={{ display: "inline-block", background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 800, marginTop: 4 }}>❌ בוטל</div>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
@@ -3540,125 +3545,34 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
             </div>
           </div>
+          {ev.type === "game" && !ev.cancelled && isPast && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #fde68a" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: pc, marginBottom: 8 }}>📊 תוצאת המשחק</div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                {[["win", "🟢 ניצחנו", "#16a34a"], ["loss", "🔴 הפסדנו", "#ef4444"], ["draw", "⚪ תיקו", "#64748b"]].map(([val, lbl, c]) => {
+                  const sel = (evOutcome[ev.id] ?? ev.outcome) === val;
+                  return <button key={val} onClick={() => setEvOutcome({ ...evOutcome, [ev.id]: val })}
+                    style={{ flex: 1, padding: "7px 4px", borderRadius: 8, border: sel ? `2px solid ${c}` : "2px solid #e2e8f0", background: sel ? `${c}15` : "white", color: sel ? c : "#94a3b8", cursor: "pointer", fontSize: 12, fontWeight: sel ? 800 : 600 }}>{lbl}</button>;
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={evResult[ev.id] ?? (ev.result || "")} onChange={e => setEvResult({ ...evResult, [ev.id]: e.target.value })}
+                  placeholder="תוצאה (3-1)" style={{ ...S.input, margin: 0, flex: 1 }} />
+                <button onClick={async () => {
+                  await upd.events(events.map(x => x.id === ev.id ? { ...x, result: evResult[ev.id] ?? x.result, outcome: evOutcome[ev.id] ?? x.outcome } : x));
+                  setEvResult(e => { const n = { ...e }; delete n[ev.id]; return n; });
+                  setEvOutcome(e => { const n = { ...e }; delete n[ev.id]; return n; });
+                  setEvSavedId(ev.id); setTimeout(() => setEvSavedId(s => s === ev.id ? null : s), 2000);
+                }} style={{ background: pc, color: "white", border: "none", borderRadius: 8, padding: "0 14px", cursor: "pointer", fontWeight: 700 }}>שמור</button>
+              </div>
+              {evSavedId === ev.id && <div style={{ color: "#16a34a", fontSize: 13, fontWeight: 700, marginTop: 8, textAlign: "center" }}>✓ נשמר</div>}
+            </div>
+          )}
         </div>
         );
       })}
       </>}
       </>}
-    </div>
-  );
-}
-
-// ── ADMIN GAMES ───────────────────────────────────────────────────────────────
-function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
-  const [adding, setAdding] = useState(false);
-  const [newG, setNewG] = useState({ date: "", time: "18:00", opponent: "", location: "", result: null });
-  const [editResult, setEditResult] = useState({});
-  const [editOutcome, setEditOutcome] = useState({});
-  const [savedId, setSavedId] = useState(null);
-  const [editGame, setEditGame] = useState(null); // {id, date, time, opponent, location} — עריכת פרטי משחק
-
-  return (
-    <div>
-      <button onClick={() => setAdding(!adding)} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "10px 16px", cursor: "pointer", fontWeight: 700, marginBottom: 6, fontSize: 13 }}>+ משחק חדש</button>
-      <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 14px", lineHeight: 1.5 }}>
-        לשונית זו מיועדת לתיעוד תוצאות של משחקים שכבר התקיימו. כדי לקבוע משחק עתידי שדורש סימון הגעה — צרי אותו בלשונית "אירועים".
-      </p>
-      {adding && (
-        <div style={{ ...S.card, marginBottom: 14 }}>
-          <Label>תאריך</Label>
-          <input type="date" value={newG.date} min={todayStr()} onChange={e => setNewG({ ...newG, date: e.target.value })} style={S.input} />
-          <Label>שעה</Label>
-          <input type="time" value={newG.time} onChange={e => setNewG({ ...newG, time: e.target.value })} style={S.input} />
-          <Label>שם היריב</Label>
-          <input value={newG.opponent} onChange={e => setNewG({ ...newG, opponent: e.target.value })} placeholder="שם הקבוצה היריבה" style={S.input} />
-          <Label>מיקום</Label>
-          <input value={newG.location} onChange={e => setNewG({ ...newG, location: e.target.value })} placeholder="מיקום" style={S.input} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={async () => {
-              if (!newG.date || !newG.opponent) return;
-              // חסימת תאריך עבר: משחק נקבע מהיום והלאה בלבד (מגן גם מהקלדה ידנית שעוקפת את min).
-              if (newG.date < todayStr()) { notify("לא ניתן לקבוע משחק בתאריך שעבר. בחרי תאריך מהיום והלאה."); return; }
-              await upd.games([...games, { ...newG, id: Date.now() }]); setAdding(false); setNewG({ date: "", time: "18:00", opponent: "", location: "", result: null }); }}
-              style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>הוסף</button>
-            <button onClick={() => setAdding(false)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>ביטול</button>
-          </div>
-        </div>
-      )}
-      {games.length > 0 && (
-        <div style={{ display: "flex", padding: "0 4px", marginBottom: 6 }}>
-          <div style={{ flex: 1, fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>תאריך • שעה • יריב • מיקום</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>תוצאה</div>
-        </div>
-      )}
-      {[...games].sort((a, b) => a.date.localeCompare(b.date)).map(g => (
-        <div key={g.id} style={{ ...S.card, marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 12, color: "#94a3b8" }}>{formatDate(g.date)} • {g.time}</div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>נגד: {g.opponent}</div>
-              <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
-              {g.outcome
-                ? <div style={{ marginTop: 4 }}><OutcomeBadge outcome={g.outcome} result={g.result} /></div>
-                : g.result && <div style={{ color: pc, fontWeight: 700, marginTop: 3 }}>✅ תוצאה: {g.result}</div>}
-            </div>
-            <div style={{ display: "flex", gap: 6, height: "fit-content" }}>
-              <button onClick={() => setEditGame(editGame && editGame.id === g.id ? null : { id: g.id, date: g.date, time: g.time || "18:00", opponent: g.opponent || "", location: g.location || "" })}
-                style={{ background: `${pc}10`, color: pc, border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>✏️</button>
-              <button onClick={() => askConfirm("למחוק משחק זה?", () => upd.games(games.filter(x => x.id !== g.id)))}
-                style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑</button>
-            </div>
-          </div>
-          {editGame && editGame.id === g.id && (
-            <div style={{ background: "#f8fafc", borderRadius: 10, padding: 12, marginBottom: 10 }}>
-              <Label>תאריך</Label>
-              <input type="date" value={editGame.date} min={todayStr()} onChange={e => setEditGame({ ...editGame, date: e.target.value })} style={S.input} />
-              <Label>שעה</Label>
-              <input type="time" value={editGame.time} onChange={e => setEditGame({ ...editGame, time: e.target.value })} style={S.input} />
-              <Label>שם היריב</Label>
-              <input value={editGame.opponent} onChange={e => setEditGame({ ...editGame, opponent: e.target.value })} placeholder="שם הקבוצה היריבה" style={S.input} />
-              <Label>מיקום</Label>
-              <input value={editGame.location} onChange={e => setEditGame({ ...editGame, location: e.target.value })} placeholder="מיקום" style={S.input} />
-              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                <button onClick={async () => {
-                  if (!editGame.date || !editGame.opponent) { notify("יש למלא תאריך ושם יריב."); return; }
-                  if (editGame.date < todayStr()) { notify("לא ניתן לקבוע משחק בתאריך שעבר."); return; }
-                  await upd.games(games.map(x => x.id === g.id ? { ...x, date: editGame.date, time: editGame.time, opponent: editGame.opponent, location: editGame.location } : x));
-                  setEditGame(null);
-                }} style={{ flex: 1, background: pc, color: "white", border: "none", borderRadius: 8, padding: "10px", cursor: "pointer", fontWeight: 700 }}>שמרי שינויים</button>
-                <button onClick={() => setEditGame(null)} style={{ background: "#e2e8f0", color: "#64748b", border: "none", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontWeight: 600 }}>ביטול</button>
-              </div>
-            </div>
-          )}
-          {(() => {
-            const nowHM = `${String(new Date().getHours()).padStart(2,"0")}:${String(new Date().getMinutes()).padStart(2,"0")}`;
-            const gamePast = g.date < todayStr() || (g.date === todayStr() && (g.time || "00:00") <= nowHM);
-            if (!gamePast) {
-              return (
-                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#92400e", textAlign: "center", lineHeight: 1.5 }}>
-                  ⏳ המשחק טרם התקיים. ניתן יהיה להזין תוצאה לאחר מועד המשחק.
-                </div>
-              );
-            }
-            return (<>
-          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-            {[["win", "🟢 ניצחנו", "#16a34a"], ["loss", "🔴 הפסדנו", "#ef4444"], ["draw", "⚪ תיקו", "#64748b"]].map(([val, lbl, c]) => {
-              const sel = (editOutcome[g.id] ?? g.outcome) === val;
-              return <button key={val} onClick={() => setEditOutcome({ ...editOutcome, [g.id]: val })}
-                style={{ flex: 1, padding: "7px 4px", borderRadius: 8, border: sel ? `2px solid ${c}` : "2px solid #e2e8f0", background: sel ? `${c}15` : "white", color: sel ? c : "#94a3b8", cursor: "pointer", fontSize: 12, fontWeight: sel ? 800 : 600 }}>{lbl}</button>;
-            })}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input value={editResult[g.id] ?? (g.result || "")} onChange={e => setEditResult({ ...editResult, [g.id]: e.target.value })}
-              placeholder="תוצאה (3-1)" style={{ ...S.input, margin: 0, flex: 1 }} />
-            <button onClick={async () => { await upd.games(games.map(x => x.id === g.id ? { ...x, result: editResult[g.id] ?? x.result, outcome: editOutcome[g.id] ?? x.outcome } : x)); setEditResult(e => { const n = { ...e }; delete n[g.id]; return n; }); setEditOutcome(e => { const n = { ...e }; delete n[g.id]; return n; }); setSavedId(g.id); setTimeout(() => setSavedId(s => s === g.id ? null : s), 2000); }}
-              style={{ background: pc, color: "white", border: "none", borderRadius: 8, padding: "0 14px", cursor: "pointer", fontWeight: 700 }}>שמור</button>
-          </div>
-          {savedId === g.id && <div style={{ color: "#16a34a", fontSize: 13, fontWeight: 700, marginTop: 8, textAlign: "center" }}>✓ נשמר</div>}
-            </>);
-          })()}
-        </div>
-      ))}
     </div>
   );
 }
