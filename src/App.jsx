@@ -3248,6 +3248,21 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   const [evResult, setEvResult] = useState({});
   const [evOutcome, setEvOutcome] = useState({});
   const [evSavedId, setEvSavedId] = useState(null);
+  const [editId, setEditId] = useState(null);   // id האירוע שבעריכה (מנהל)
+  const [editEv, setEditEv] = useState(null);   // טיוטת השדות הנערכים
+
+  function startEdit(ev) {
+    setEditId(ev.id);
+    setEditEv({ type: ev.type, opponent: ev.opponent || "", date: ev.date, time: ev.time || "16:30", location: ev.location || "", note: ev.note || "" });
+  }
+  async function saveEdit() {
+    if (!editEv.date) { notify("יש לבחור תאריך."); return; }
+    const fields = { ...editEv };
+    if (fields.type !== "game") fields.opponent = ""; // אימון — בלי קבוצה יריבה
+    await upd.events(events.map(e => e.id === editId ? { ...e, ...fields } : e));
+    setEditId(null); setEditEv(null);
+    notify("האירוע עודכן ✔");
+  }
 
   async function addEvent() {
     if (!newEv.date) return;
@@ -3549,10 +3564,38 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                     style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>❌ ביטול</button>}
               {isPast && (ev.type !== "game" || ev.outcome) && <button onClick={() => openArchiveDialog(ev)}
                 style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>🔒 ארכיון</button>}
+              <button onClick={() => (editId === ev.id ? (setEditId(null), setEditEv(null)) : startEdit(ev))}
+                style={{ background: "#eff6ff", color: "#2563eb", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>✏️ עריכה</button>
               <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
                 style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
             </div>
           </div>
+          {editId === ev.id && editEv && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: pc, marginBottom: 8 }}>✏️ עריכת אירוע</div>
+              <Label>סוג אירוע</Label>
+              <select value={editEv.type} onChange={e => setEditEv({ ...editEv, type: e.target.value })} style={S.select}>
+                <option value="training">🏋️ אימון</option>
+                <option value="game">🏆 משחק</option>
+              </select>
+              {editEv.type === "game" && (<>
+                <Label>מול מי (קבוצה יריבה)</Label>
+                <input value={editEv.opponent} onChange={e => setEditEv({ ...editEv, opponent: e.target.value })} placeholder="שם הקבוצה היריבה" style={S.input} />
+              </>)}
+              <Label>תאריך</Label>
+              <input type="date" value={editEv.date} onChange={e => setEditEv({ ...editEv, date: e.target.value })} style={S.input} />
+              <Label>שעה</Label>
+              <input type="time" value={editEv.time} onChange={e => setEditEv({ ...editEv, time: e.target.value })} style={S.input} />
+              <Label>מיקום</Label>
+              <input value={editEv.location} onChange={e => setEditEv({ ...editEv, location: e.target.value })} placeholder="מיקום" style={S.input} />
+              <Label>הערה (אופציונלי)</Label>
+              <input value={editEv.note} onChange={e => setEditEv({ ...editEv, note: e.target.value })} placeholder="הערה (אופציונלי)" style={S.input} />
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button onClick={saveEdit} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור שינויים</button>
+                <button onClick={() => { setEditId(null); setEditEv(null); }} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>ביטול</button>
+              </div>
+            </div>
+          )}
           {ev.type === "game" && !ev.cancelled && isPast && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #fde68a" }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: pc, marginBottom: 8 }}>📊 תוצאת המשחק</div>
