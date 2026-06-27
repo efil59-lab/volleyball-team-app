@@ -3626,6 +3626,17 @@ function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
               </div>
             </div>
           )}
+          {(() => {
+            const nowHM = `${String(new Date().getHours()).padStart(2,"0")}:${String(new Date().getMinutes()).padStart(2,"0")}`;
+            const gamePast = g.date < todayStr() || (g.date === todayStr() && (g.time || "00:00") <= nowHM);
+            if (!gamePast) {
+              return (
+                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#92400e", textAlign: "center", lineHeight: 1.5 }}>
+                  ⏳ המשחק טרם התקיים. ניתן יהיה להזין תוצאה לאחר מועד המשחק.
+                </div>
+              );
+            }
+            return (<>
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             {[["win", "🟢 ניצחנו", "#16a34a"], ["loss", "🔴 הפסדנו", "#ef4444"], ["draw", "⚪ תיקו", "#64748b"]].map(([val, lbl, c]) => {
               const sel = (editOutcome[g.id] ?? g.outcome) === val;
@@ -3640,6 +3651,8 @@ function AdminGames({ games, upd, pc, sc, askConfirm, notify }) {
               style={{ background: pc, color: "white", border: "none", borderRadius: 8, padding: "0 14px", cursor: "pointer", fontWeight: 700 }}>שמור</button>
           </div>
           {savedId === g.id && <div style={{ color: "#16a34a", fontSize: 13, fontWeight: 700, marginTop: 8, textAlign: "center" }}>✓ נשמר</div>}
+            </>);
+          })()}
         </div>
       ))}
     </div>
