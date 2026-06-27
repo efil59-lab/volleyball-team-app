@@ -71,12 +71,11 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 16,
-  versionName: "גרסה 16.0",
+  version: 17,
+  versionName: "גרסה 17.0",
   date: "יוני 2026",
   features: [
-    { icon: "ℹ️", title: "מסך 'אודות' חדש", text: "במסך הבית יש כעת כפתור 'אודות' עם מידע על האפליקציה ומדור שאלות ותשובות (שכחתי סיסמה, איך מסמנים הגעה, ועוד)." },
-    { icon: "🔴", title: "התראת צ'אט", text: "כשיש הודעות חדשות בצ'אט שלא קראת — נקודה אדומה מהבהבת ליד לשונית הצ'אט. נכנסים, וההתראה נעלמת." },
+    { icon: "🗓️", title: "מקרא הלוח לחיץ", text: "בלוח החודשי אפשר עכשיו ללחוץ על כל סוג במקרא (🏋️ אימון · 🏆 משחק · 🎂 יום הולדת · ❌ בוטל) ולראות רשימה של כל האירועים מאותו סוג, ממוינת לפי תאריך. במשחקים שהסתיימו מוצגת גם התוצאה." },
   ],
 };
 
@@ -2190,6 +2189,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [calSelected, setCalSelected] = useState(null); // יום נבחר בלוח (yyyy-mm-dd)
+  const [legendKind, setLegendKind] = useState(null); // סוג אירוע שנבחר במקרא הלוח (פותח מסך כל האירועים מהסוג)
 
   const [chatText, setChatText] = useState("");
   const chatEndRef = useRef(null);
@@ -2612,13 +2612,18 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 </div>
               )}
 
-              {/* מקרא */}
-              <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: "#64748b" }}>🏋️ אימון</span>
-                <span style={{ fontSize: 12, color: "#64748b" }}>🏆 משחק</span>
-                <span style={{ fontSize: 12, color: "#64748b" }}>🎂 יום הולדת</span>
-                <span style={{ fontSize: 12, color: "#64748b" }}>❌ בוטל</span>
+              {/* מקרא — לחיץ: פתיחת רשימת כל האירועים מאותו סוג */}
+              <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+                {[["training", "🏋️ אימון"], ["game", "🏆 משחק"], ["birthday", "🎂 יום הולדת"], ["cancelled", "❌ בוטל"]].map(([k, lbl]) => (
+                  <button key={k} onClick={() => setLegendKind(k)}
+                    style={{ fontSize: 12, color: "#64748b", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontWeight: 600 }}>{lbl}</button>
+                ))}
               </div>
+              <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 8 }}>טיפ: לחצי על סוג כדי לראות את כל האירועים מאותו סוג.</p>
+
+              {legendKind && (
+                <LegendEventsModal kind={legendKind} events={events} archive={archive} players={players} playerProfiles={playerProfiles} pc={pc} onClose={() => setLegendKind(null)} />
+              )}
             </div>
           );
         })()}
@@ -3239,6 +3244,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [calSelected, setCalSelected] = useState(null);
+  const [legendKind, setLegendKind] = useState(null); // סוג אירוע שנבחר במקרא הלוח
   const [evResult, setEvResult] = useState({});
   const [evOutcome, setEvOutcome] = useState({});
   const [evSavedId, setEvSavedId] = useState(null);
@@ -3498,13 +3504,17 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
               );
             })()}
 
-            <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "#64748b" }}>🏋️ אימון</span>
-              <span style={{ fontSize: 12, color: "#64748b" }}>🏆 משחק</span>
-              <span style={{ fontSize: 12, color: "#64748b" }}>🎂 יום הולדת</span>
-              <span style={{ fontSize: 12, color: "#64748b" }}>❌ בוטל</span>
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+              {[["training", "🏋️ אימון"], ["game", "🏆 משחק"], ["birthday", "🎂 יום הולדת"], ["cancelled", "❌ בוטל"]].map(([k, lbl]) => (
+                <button key={k} onClick={() => setLegendKind(k)}
+                  style={{ fontSize: 12, color: "#64748b", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontWeight: 600 }}>{lbl}</button>
+              ))}
             </div>
-            <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: 10 }}>טיפ: לחצי על יום כדי לראות פרטים או להוסיף אירוע.</p>
+            <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: 10 }}>טיפ: לחצי על יום כדי לראות פרטים או להוסיף אירוע · לחצי על סוג במקרא כדי לראות את כל האירועים מאותו סוג.</p>
+
+            {legendKind && (
+              <LegendEventsModal kind={legendKind} events={events} archive={archive} players={players} playerProfiles={playerProfiles} pc={pc} onClose={() => setLegendKind(null)} />
+            )}
           </div>
         );
       })()}
@@ -4385,6 +4395,72 @@ function AboutScreen({ pc, sc, settings, onBack }) {
 
 // ── SHARED ────────────────────────────────────────────────────────────────────
 // תג תוצאה צבעוני — ניצחון/הפסד/תיקו + ציון אופציונלי
+// מסך "כל האירועים מסוג X" — נפתח בלחיצה על פריט במקרא הלוח. משותף למנהל ולשחקנית.
+// kind: "training" | "game" | "birthday" | "cancelled". משחקים נשלפים מהפתוחים + הארכיון (כולל תוצאה).
+function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc, onClose }) {
+  const meta = ({
+    training:  { icon: "🏋️", label: "אימונים" },
+    game:      { icon: "🏆", label: "משחקים" },
+    birthday:  { icon: "🎂", label: "ימי הולדת" },
+    cancelled: { icon: "❌", label: "אירועים שבוטלו" },
+  })[kind] || { icon: "📅", label: "אירועים" };
+
+  // איחוד אירועים פתוחים + ארכיון, ללא כפילויות לפי id (ארכוב מסיר מהפתוחים — מסירים ליתר ביטחון).
+  const seen = new Set();
+  const allEvents = [...(events || []), ...(archive || [])].filter(e => {
+    if (seen.has(e.id)) return false; seen.add(e.id); return true;
+  });
+
+  let rows = [];
+  if (kind === "birthday") {
+    rows = (players || [])
+      .map(p => ({ p, b: (playerProfiles[p.id] || {}).birthday }))
+      .filter(x => x.b)
+      .sort((a, b) => monthDay(a.b).localeCompare(monthDay(b.b))) // לפי יום בשנה
+      .map(({ p, b }) => ({
+        key: "b" + p.id, icon: "🎂", title: p.name,
+        dateLabel: formatShort(b) + (ageFromBirthday(b) != null ? ` · גיל ${ageFromBirthday(b)}` : ""),
+      }));
+  } else {
+    const base = kind === "cancelled"
+      ? allEvents.filter(e => e.cancelled)
+      : allEvents.filter(e => e.type === kind && !e.cancelled);
+    rows = base
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "")) // מהעתידי/חדש לישן
+      .map(ev => ({
+        key: "e" + ev.id, ev,
+        icon: ev.type === "training" ? "🏋️" : "🏆",
+        title: ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק"),
+        dateLabel: formatDate(ev.date) + (ev.time ? ` · ${ev.time}` : ""),
+      }));
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: 18, maxWidth: 360, width: "100%", boxSizing: "border-box", maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 18px 50px rgba(0,0,0,0.25)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexShrink: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{meta.icon} {meta.label} <span style={{ color: "#94a3b8", fontWeight: 600, fontSize: 14 }}>({rows.length})</span></div>
+          <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: 10, width: 32, height: 32, cursor: "pointer", fontSize: 16, color: "#64748b", fontWeight: 800 }}>✕</button>
+        </div>
+        <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+          {rows.length === 0 && <Empty icon={meta.icon} text={`אין ${meta.label} להצגה`} />}
+          {rows.map(r => (
+            <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 10, background: r.ev && r.ev.cancelled ? "#fef2f2" : "#f8fafc", borderRadius: 12, padding: "10px 12px" }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>{r.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: r.ev && r.ev.cancelled ? "line-through" : "none" }}>{r.title}</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>{r.dateLabel}</div>
+                {r.ev && r.ev.outcome && <div style={{ marginTop: 4 }}><OutcomeBadge outcome={r.ev.outcome} result={r.ev.result} /></div>}
+              </div>
+              {r.ev && r.ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>בוטל</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OutcomeBadge({ outcome, result, size }) {
   const map = { win: { lbl: "ניצחון", c: "#16a34a", bg: "#dcfce7" }, loss: { lbl: "הפסד", c: "#ef4444", bg: "#fee2e2" }, draw: { lbl: "תיקו", c: "#64748b", bg: "#f1f5f9" } };
   const o = map[outcome];
