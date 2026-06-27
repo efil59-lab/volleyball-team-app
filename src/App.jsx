@@ -2203,7 +2203,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     if (!t) return;
     setChatText("");
     const id = `${player.id}_${Date.now()}`;
-    const msg = { id, playerId: player.id, name: player.name, text: t, ts: Date.now() };
+    const msg = { id, playerId: player.id, name: player.name, text: t, ts: Date.now(), uid: (auth.currentUser && auth.currentUser.uid) || null };
     try {
       // כל הודעה = מסמך נפרד (id כשם המסמך) — אין דריסה, אין אובדן בשליחה במקביל.
       await setDoc(doc(db, "teams", CURRENT_TEAM, "chat", id), msg);
@@ -2214,13 +2214,15 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       notify("ההודעה לא נשלחה. ייתכן שצריך להיכנס מחדש — צאי ובחרי את שמך עם הסיסמה.");
     }
   }
-  async function deleteChatMsg(id) {
+  async function deleteChatMsg(m) {
+    const docId = (m && (m._docId || m.id));
+    if (!docId) return;
     try {
-      const m = (chat || []).find(x => x.id === id);
-      const docId = (m && m._docId) || id; // הודעות חדשות: _docId === id
-      await deleteDoc(doc(db, "teams", CURRENT_TEAM, "chat", docId));
+      await deleteDoc(doc(db, "teams", CURRENT_TEAM, "chat", String(docId)));
+      // ה-listener (onSnapshot) יסיר את ההודעה מהתצוגה אוטומטית.
     } catch (err) {
       console.error("שגיאה במחיקת הודעה:", err);
+      notify("לא ניתן היה למחוק את ההודעה. נסי שוב, או צאי והיכנסי מחדש.");
     }
   }
   useEffect(() => {
@@ -2640,7 +2642,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     {!mine && <div style={{ fontSize: 11, color: pc, fontWeight: 700, marginBottom: 2 }}>{m.name}</div>}
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexDirection: mine ? "row" : "row-reverse" }}>
                       <div style={{ background: mine ? pc : "white", color: mine ? "white" : "#1e293b", borderRadius: 14, padding: "8px 12px", fontSize: 14, lineHeight: 1.4, overflowWrap: "anywhere", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>{m.text}</div>
-                      {mine && <button onClick={() => deleteChatMsg(m.id)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", fontSize: 13, padding: 2 }}>🗑</button>}
+                      {mine && <button onClick={() => deleteChatMsg(m)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", fontSize: 13, padding: 2 }}>🗑</button>}
                     </div>
                     <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 2, textAlign: mine ? "left" : "right" }}>{new Date(m.ts).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
@@ -3911,6 +3913,8 @@ function NotifCard({ notif, typeLabel, typeColor, onToggle, onEdit, onDelete, pc
 function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
+  const [showVoters, setShowVoters] = useState({}); // pollId -> bool: הצגת שמות המצביעות
+  const nameOf = id => (players.find(p => p.id === id) || {}).name || "—";
 
   function setOpt(i, val) {
     setOptions(opts => opts.map((o, idx) => idx === i ? val : o));
@@ -3971,17 +3975,29 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
             {poll.options.map((opt, i) => {
               const pct = total > 0 ? Math.round((counts[i] / total) * 100) : 0;
               const isWinner = total > 0 && counts[i] === maxCount;
+              const voters = Object.entries(votes).filter(([, idx]) => idx === i).map(([pid]) => nameOf(pid));
               return (
-                <div key={i} style={{ position: "relative", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", marginBottom: 6, overflow: "hidden" }}>
-                  <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: `${pct}%`, background: isWinner ? `${sc}55` : "#f1f5f9", zIndex: 0 }} />
-                  <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, fontWeight: isWinner ? 800 : 600, color: "#1e293b" }}>{isWinner && total > 0 ? "🏆 " : ""}{opt}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: pc }}>{pct}% ({counts[i]})</span>
+                <div key={i} style={{ marginBottom: 6 }}>
+                  <div style={{ position: "relative", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: `${pct}%`, background: isWinner ? `${sc}55` : "#f1f5f9", zIndex: 0 }} />
+                    <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 13, fontWeight: isWinner ? 800 : 600, color: "#1e293b" }}>{isWinner && total > 0 ? "🏆 " : ""}{opt}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: pc }}>{pct}% ({counts[i]})</span>
+                    </div>
                   </div>
+                  {showVoters[poll.id] && (
+                    <div style={{ fontSize: 11, color: "#64748b", padding: "4px 10px 0", lineHeight: 1.6 }}>
+                      {counts[i] > 0 ? `👤 ${voters.join(" · ")}` : <span style={{ color: "#cbd5e1" }}>— אין מצביעות —</span>}
+                    </div>
+                  )}
                 </div>
               );
             })}
-            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <button onClick={() => setShowVoters(s => ({ ...s, [poll.id]: !s[poll.id] }))} disabled={total === 0}
+                style={{ padding: "5px 10px", background: showVoters[poll.id] ? `${pc}15` : "#f1f5f9", color: total === 0 ? "#cbd5e1" : pc, border: "none", borderRadius: 7, cursor: total === 0 ? "default" : "pointer", fontSize: 11, fontWeight: 600 }}>
+                {showVoters[poll.id] ? "🙈 הסתר מצביעות" : "👁️ מי הצביעה"}
+              </button>
               <button onClick={() => toggleActive(poll.id)} style={{ padding: "5px 10px", background: poll.active === false ? "#f0fdf4" : "#fef3c7", color: poll.active === false ? "#16a34a" : "#92400e", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                 {poll.active === false ? "🔔 הפעל" : "🔇 סגור סקר"}
               </button>
