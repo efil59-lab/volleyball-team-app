@@ -2527,13 +2527,15 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           const firstDay = new Date(y, m, 1).getDay(); // 0=ראשון
           const daysInMonth = new Date(y, m + 1, 0).getDate();
           const today = todayStr();
+          // אירועים ללוח = פתוחים + מאורכבים (כדי שאירוע שהסתיים/אורכב ימשיך להופיע), ללא כפילויות
+          const calEvents = (() => { const seen = new Set(); return [...(events || []), ...(archive || [])].filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }); })();
           const pad = n => String(n).padStart(2, "0");
           const dateStr = d => `${y}-${pad(m + 1)}-${pad(d)}`;
 
           // נתונים ליום: אירועים (לא מבוטלים / מבוטלים) + ימי הולדת
           const dayInfo = d => {
             const ds = dateStr(d);
-            const evs = (events || []).filter(e => e.date === ds);
+            const evs = calEvents.filter(e => e.date === ds);
             const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === `${pad(m + 1)}-${pad(d)}`; });
             return { ds, evs, bdays };
           };
@@ -2546,7 +2548,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
 
           const selInfo = calSelected ? (() => {
-            const evs = (events || []).filter(e => e.date === calSelected);
+            const evs = calEvents.filter(e => e.date === calSelected);
             const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === calSelected.slice(5); });
             return { evs, bdays };
           })() : null;
@@ -3474,7 +3476,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
         const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
         const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
-        const dayEvents = ds => (events || []).filter(e => e.date === ds);
+        const calEvents = (() => { const seen = new Set(); return [...(events || []), ...(archive || [])].filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }); })();
+        const dayEvents = ds => calEvents.filter(e => e.date === ds);
         const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
         const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
