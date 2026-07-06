@@ -5,11 +5,17 @@ import "./styles/tokens.css";
 import "./styles/index.css";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { logError } from "./lib/errorLog";
 
-// לכידת שגיאות גלובליות שנופלות מחוץ ל-React (Promise שנדחה, שגיאת רשת א-סינכרונית).
-// כרגע — לוג ל-console עם הקשר. נקודת חיבור עתידית לניטור אמיתי (Sentry/Firestore).
+// לכידת שגיאות גלובליות שנופלות מחוץ ל-React (Promise שנדחה, שגיאה בטיפול אירוע).
+// מדווח ל-console + ל-ניטור (errorLogs ב-Firestore, נצפה בסופר-אדמין).
 window.addEventListener("unhandledrejection", (e) => {
-  console.error("🔴 Unhandled promise rejection:", e.reason);
+  const r = e.reason;
+  console.error("🔴 Unhandled promise rejection:", r);
+  logError("promise", (r && r.message) || r, r && r.stack);
+});
+window.addEventListener("error", (e) => {
+  logError("window", e.message, e.error && e.error.stack);
 });
 
 ReactDOM.createRoot(document.getElementById("root")).render(

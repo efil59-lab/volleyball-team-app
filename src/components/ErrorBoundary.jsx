@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { logError } from "../lib/errorLog";
 
 // גבול-שגיאה: תופס קריסת רינדור בכל מקום בעץ ומציג מסך "טעני מחדש" ידידותי
 // במקום מסך לבן ריק (שלמשתמשת לא-טכנית = "האפליקציה מתה"). מדווח ל-console עם הקשר.
@@ -18,6 +19,7 @@ export default class ErrorBoundary extends Component {
   componentDidCatch(error, info) {
     lastAppError = { message: String(error?.message || error), stack: (info?.componentStack || "").slice(0, 2000), ts: Date.now() };
     console.error("🔴 App crash caught by ErrorBoundary:", error, info?.componentStack);
+    logError("boundary", error?.message || error, error?.stack || info?.componentStack);
   }
 
   render() {

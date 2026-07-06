@@ -9,6 +9,24 @@ import {
   syncTeamIndex, deleteJoinRequest, loadJoinRequests, listAllTeams, setTeamStatus,
   adminDeleteTeamRemote,
 } from "../lib/db";
+import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
+
+// זיהוי מכשיר/דפדפן מתוך userAgent — לתצוגה נוחה בלוג השגיאות.
+function deviceOf(ua) {
+  if (!ua) return "לא ידוע";
+  const os = /iPhone|iPad|iPod/i.test(ua) ? "iOS" : /Android/i.test(ua) ? "Android" : /Windows/i.test(ua) ? "Windows" : /Mac/i.test(ua) ? "Mac" : "אחר";
+  const br = /Edg/i.test(ua) ? "Edge" : /Chrome/i.test(ua) ? "Chrome" : /Firefox/i.test(ua) ? "Firefox" : /Safari/i.test(ua) ? "Safari" : "";
+  return [os, br].filter(Boolean).join(" · ");
+}
+// זמן יחסי קצר בעברית.
+function agoOf(ts) {
+  if (!ts) return "";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "עכשיו";
+  const m = Math.floor(s / 60); if (m < 60) return `לפני ${m} דק'`;
+  const h = Math.floor(m / 60); if (h < 24) return `לפני ${h} שע'`;
+  return `לפני ${Math.floor(h / 24)} ימים`;
+}
 
 // ── SUPER ADMIN ──────────────────────────────────────────────────────────────
 // כניסה דרך לחיצה ארוכה על הלוגו במסך הבית. הרשאה: רק בעל המוצר (Google), לעתיד הרב-קבוצתי.
@@ -27,6 +45,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [requests, setRequests] = useState(null); // בקשות הצטרפות ממתינות
   const [reqBusy, setReqBusy] = useState(null);
+  const [errors, setErrors] = useState(null);     // לוג שגיאות (null = טוען)
+  const [errBusy, setErrBusy] = useState(false);
+  const [expandedErr, setExpandedErr] = useState(null);
 
   // יוצר קבוצה ריקה + הזמנה למייל. משותף ל"כלי ידני" ול"אישור בקשה".
   async function createTeamForEmail(email) {
@@ -90,7 +111,18 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     const list = await listAllTeams();
     setTeams(list);
   }
-  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); } }, [isOwner]);
+  async function refreshErrors() {
+    setErrBusy(true);
+    setErrors(await loadErrorLogs(100));
+    setErrBusy(false);
+  }
+  async function clearErrors() {
+    setErrBusy(true);
+    await clearErrorLogs();
+    setErrors([]);
+    setErrBusy(false);
+  }
+  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); refreshErrors(); } }, [isOwner]);
 
   async function act(teamId, status) {
     setBusyId(teamId);
@@ -149,6 +181,39 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
         </a>
+
+        {/* ── לוג שגיאות (ניטור) — רק הסופר-אדמין רואה ── */}
+        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: errors && errors.length > 0 ? "2px solid #ef4444" : "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>{errors && errors.length > 0 ? "🔴" : "🟢"}</span>
+            <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14 }}>
+              שגיאות באפליקציה{errors ? ` (${errors.length})` : ""}
+            </span>
+            <button onClick={refreshErrors} disabled={errBusy} style={{ marginRight: "auto", background: "transparent", border: "none", color: pc, cursor: errBusy ? "default" : "pointer", fontSize: 12, fontWeight: 600 }}>↻ רענן</button>
+            {errors && errors.length > 0 && (
+              <button onClick={clearErrors} disabled={errBusy} style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, padding: "4px 10px", cursor: errBusy ? "default" : "pointer", fontSize: 11, fontWeight: 700 }}>נקה הכל</button>
+            )}
+          </div>
+          {errors === null && <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>טוען…</p>}
+          {errors && errors.length === 0 && <p style={{ fontSize: 12.5, color: "#16a34a", margin: 0, fontWeight: 600 }}>אין שגיאות — הכל תקין ✓</p>}
+          {errors && errors.map(e => (
+            <div key={e.id} style={{ borderTop: "1px solid #f1f5f9", paddingTop: 9, marginTop: 9 }}>
+              <div onClick={() => setExpandedErr(expandedErr === e.id ? null : e.id)} style={{ cursor: "pointer" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#b91c1c", wordBreak: "break-word", lineHeight: 1.4 }}>{e.message}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <span>{e.source === "boundary" ? "קריסת מסך" : e.source === "promise" ? "שגיאה א-סינכרונית" : "שגיאה כללית"}</span>
+                  <span>· {deviceOf(e.userAgent)}</span>
+                  <span>· {e.teamId || "—"}</span>
+                  <span>· {agoOf(e.ts)}</span>
+                  {e.anon && <span style={{ color: "#cbd5e1" }}>· אורחת</span>}
+                </div>
+              </div>
+              {expandedErr === e.id && e.stack && (
+                <pre style={{ fontSize: 10, color: "#64748b", background: "#f8fafc", borderRadius: 8, padding: 8, marginTop: 6, overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 180 }}>{e.stack}</pre>
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* בקשות הצטרפות ממתינות — מנהלות שנכנסו עם Google ומחכות לאישור */}
         {requests && requests.length > 0 && (
