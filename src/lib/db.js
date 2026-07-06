@@ -1,5 +1,5 @@
 import { db, functions } from "../firebase";
-import { doc, getDoc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, KEYS, DEFAULT_SETTINGS } from "./constants";
 
@@ -334,6 +334,49 @@ async function resolveAdminTeam(user, allowRequest) {
   await syncTeamIndex(teamId);
   return teamId;
 }
+// ── שלב 3: תיקון נכונות — סקרים/מחיאות/התראות מ-מסמך-יחיד ל-subcollection ─────
+// הבאג הישן: כל השלושה נשמרו כמסמך יחיד (מערך/מפה) עם read-modify-write. שתי
+// שחקניות שכותבות במקביל דורסות זו את זו (last-write-wins) — בדיוק כמו שהיה בצ'אט.
+// המבנה החדש: מסמך-פר-פריט. כל כתיבה נוגעת רק במסמך/שדה שלה, בלי דריסה.
+// הקריאה נעשית ב-App דרך onSnapshot (זמן-אמת), כמו הצ'אט והנוכחות.
+
+// polls: teams/{t}/polls/{pollId} — כל סקר מסמך נפרד; ההצבעה = עדכון שדה בודד.
+// updateDoc על נתיב-שדה votes.{playerId} משנה רק את הקול הזה — קולות מקבילים לא מתנגשים.
+async function pollVote(pollId, playerId, optionIdx) {
+  try { await updateDoc(doc(db, "teams", CURRENT_TEAM, "polls", String(pollId)), { ["votes." + playerId]: optionIdx }); }
+  catch (e) { console.error("pollVote:", e); throw e; }
+}
+async function pollUpsert(poll) { // יצירה/עדכון סקר (מנהלת)
+  try { await setDoc(doc(db, "teams", CURRENT_TEAM, "polls", String(poll.id)), poll); }
+  catch (e) { console.error("pollUpsert:", e); throw e; }
+}
+async function pollSetActive(pollId, active) {
+  try { await updateDoc(doc(db, "teams", CURRENT_TEAM, "polls", String(pollId)), { active }); }
+  catch (e) { console.error("pollSetActive:", e); throw e; }
+}
+async function pollDelete(pollId) {
+  try { await deleteDoc(doc(db, "teams", CURRENT_TEAM, "polls", String(pollId))); }
+  catch (e) { console.error("pollDelete:", e); throw e; }
+}
+
+// applause: teams/{t}/applause/{id} — מסמך לכל מחיאה (append). setDoc על id ייחודי לא דורס כלום.
+async function applauseAdd(entry) {
+  try { await setDoc(doc(db, "teams", CURRENT_TEAM, "applause", String(entry.id)), entry); }
+  catch (e) { console.error("applauseAdd:", e); throw e; }
+}
+
+// personalNotifs: teams/{t}/personalNotifs/{playerId} = { items: [...] }.
+// הוספה חוצת-שחקניות (מחיאה/ברכה לנמענת) = arrayUnion — הוספה אטומית בלי לדרוס פריטים אחרים.
+async function personalNotifAdd(playerId, notif) {
+  try { await setDoc(doc(db, "teams", CURRENT_TEAM, "personalNotifs", String(playerId)), { items: arrayUnion(notif) }, { merge: true }); }
+  catch (e) { console.error("personalNotifAdd:", e); throw e; }
+}
+// סימון כנקרא — הבעלים בלבד כותב את המסמך שלו (התנגשות עצמית נדירה, סיכון נמוך).
+async function personalNotifSetItems(playerId, items) {
+  try { await setDoc(doc(db, "teams", CURRENT_TEAM, "personalNotifs", String(playerId)), { items }, { merge: true }); }
+  catch (e) { console.error("personalNotifSetItems:", e); throw e; }
+}
+
 export {
   CURRENT_TEAM, TEAM_FROM_URL, setCurrentTeam, load, save,
   groupAttendanceByPlayer, loadAttendanceSplit, saveAttendanceSplit,
@@ -343,4 +386,5 @@ export {
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, seedNewTeam, generateTeamId, resolveAdminTeam,
+  pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 };

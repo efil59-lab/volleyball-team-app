@@ -72,11 +72,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       setEntryPopups(popups);
       // Mark applause + birthday notifs as seen
       if (myNotifs.length > 0) {
-        const updated = {
-          ...personalNotifs,
-          [player.id]: (personalNotifs[player.id] || []).map(n => (n.type === "applause" || n.type === "birthday") ? { ...n, seen: true } : n),
-        };
-        upd.personalNotifs(updated);
+        const items = (personalNotifs[player.id] || []).map(n => (n.type === "applause" || n.type === "birthday") ? { ...n, seen: true } : n);
+        upd.personalNotifSetItems(player.id, items);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,8 +88,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     const key = `bdayGreetSent_${player.id}_${celebrantId}_${todayStr()}`;
     if (!localStorage.getItem(key)) {
       const notif = { id: `bday_${player.id}_${Date.now()}`, type: "birthday", fromName: player.name, seen: false, date: todayStr() };
-      const updated = { ...personalNotifs, [celebrantId]: [...(personalNotifs[celebrantId] || []), notif] };
-      await upd.personalNotifs(updated);
+      await upd.personalNotifAdd(celebrantId, notif);
       localStorage.setItem(key, "1");
     }
     dismissTopPopup();
@@ -126,20 +122,14 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   async function sendApplause(toPlayer) {
     if (toPlayer.id === player.id) return;
     if (alreadyApplaudedToday(applause, player.id, toPlayer.id)) return;
-    // Record applause
-    const newApplause = [...applause, {
+    // מחיאה = מסמך נפרד (applause/{id}) + התראה אישית לנמענת (arrayUnion) — בלי דריסת כתיבות מקבילות.
+    await upd.applauseAdd({
       id: Date.now(), fromId: player.id, fromName: player.name,
       toId: toPlayer.id, toName: toPlayer.name, date: todayStr(),
-    }];
-    await upd.applause(newApplause);
-    // Add personal notification for the recipient
-    const recipNotifs = personalNotifs[toPlayer.id] || [];
-    await upd.personalNotifs({
-      ...personalNotifs,
-      [toPlayer.id]: [...recipNotifs, {
-        id: Date.now() + 1, type: "applause", fromName: player.name,
-        seen: false, createdAt: new Date().toISOString(),
-      }],
+    });
+    await upd.personalNotifAdd(toPlayer.id, {
+      id: Date.now() + 1, type: "applause", fromName: player.name,
+      seen: false, createdAt: new Date().toISOString(),
     });
   }
 
@@ -797,14 +787,11 @@ function PlayerPolls({ polls, player, players, upd, pc, sc }) {
   const [showVoters, setShowVoters] = useState({}); // pollId -> bool: הצגת שמות המצביעות
   const nameOf = id => ((players || []).find(p => String(p.id) === String(id)) || {}).name || "—";
 
+  // הצבעה = עדכון שדה בודד (votes.{playerId}) על מסמך הסקר. קול אחד לשחקנית; הצבעה חוזרת מחליפה.
+  // כתיבה ברמת-שדה → קולות מקבילים של שחקניות שונות לא מתנגשים. ה-state מתעדכן מה-listener.
   async function vote(pollId, optionIdx) {
-    const updated = polls.map(poll => {
-      if (poll.id !== pollId) return poll;
-      const votes = { ...(poll.votes || {}) };
-      votes[player.id] = optionIdx; // one vote per player; re-voting replaces
-      return { ...poll, votes };
-    });
-    await upd.polls(updated);
+    try { await upd.pollVote(pollId, player.id, optionIdx); }
+    catch (e) { console.error("vote failed:", e); }
   }
 
   if (activePolls.length === 0) return <Empty icon="🗳️" text="אין סקרים פעילים כרגע" />;

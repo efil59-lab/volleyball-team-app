@@ -8,6 +8,7 @@ import {
   CURRENT_TEAM, TEAM_FROM_URL, setCurrentTeam, load, save,
   loadAttendanceSplit, saveAttendanceSplit, loadProfilesSplit, saveProfilesSplit,
   resolveAdminTeam,
+  pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 } from "./lib/db";
 import { isIOS } from "./lib/utils";
 import { Confirm } from "./components/shared";
@@ -39,6 +40,9 @@ export default function App() {
   const [chat, setChat] = useState([]);
   const chatUnsubRef = useRef(null);
   const attUnsubRef = useRef(null);
+  const pollsUnsubRef = useRef(null);
+  const applauseUnsubRef = useRef(null);
+  const pnUnsubRef = useRef(null);
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -72,15 +76,25 @@ export default function App() {
     setPlayers(p); setEvents(e); setAttendance(a); setNotifications(n);
     setSettings({ ...DEFAULT_SETTINGS, ...s });
     setArchive(ar); setGames(g); setGallery(gal); setPlayerProfiles(pp);
-    const [ap, pl, pn] = await Promise.all([
-      load(KEYS.applause, []),
-      load(KEYS.polls, []),
-      load(KEYS.personalNotifs, {}),
-    ]);
-    setApplause(ap); setPolls(pl); setPersonalNotifs(pn);
     // meta של הקבוצה (status/בעלות) — לשער הכניסה. חסר status ⇒ "active" (קבוצה ותיקה, לא נועלים)
     const m = await load(KEYS.meta, null);
     setTeamMeta(m);
+    // ── שלב 3: סקרים/מחיאות/התראות בזמן-אמת (subcollection, מסמך-פר-פריט) ──────
+    // מחליף את מודל המסמך-היחיד שאיבד כתיבות מקבילות (last-write-wins). כל listener
+    // בונה מחדש את אותה צורה בזיכרון (מערך/מפה) כך שה-UI לא משתנה. התחלה נקייה
+    // (כמו הצ'אט) — המסמכים הישנים data/{polls,applause,personalNotifs} נשמרים כגיבוי.
+    if (pollsUnsubRef.current) pollsUnsubRef.current();
+    pollsUnsubRef.current = onSnapshot(collection(db, "teams", CURRENT_TEAM, "polls"),
+      snap => setPolls(snap.docs.map(d => d.data()).sort((a, b) => (a.id || 0) - (b.id || 0))),
+      err => console.error("polls onSnapshot:", err));
+    if (applauseUnsubRef.current) applauseUnsubRef.current();
+    applauseUnsubRef.current = onSnapshot(collection(db, "teams", CURRENT_TEAM, "applause"),
+      snap => setApplause(snap.docs.map(d => d.data())),
+      err => console.error("applause onSnapshot:", err));
+    if (pnUnsubRef.current) pnUnsubRef.current();
+    pnUnsubRef.current = onSnapshot(collection(db, "teams", CURRENT_TEAM, "personalNotifs"),
+      snap => { const map = {}; snap.forEach(d => { map[d.id] = d.data().items || []; }); setPersonalNotifs(map); },
+      err => console.error("personalNotifs onSnapshot:", err));
     // צ'אט בזמן אמת — subcollection (כל הודעה = מסמך נפרד). אין דריסה, אין אובדן הודעות.
     // מוגבל ל-200 האחרונות; ממוין לפי ts. הפורמט זהה למערך הישן כך שה-UI לא משתנה.
     if (chatUnsubRef.current) chatUnsubRef.current();
@@ -114,8 +128,10 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // ניקוי מנוי הצ'אט בעת יציאה
-  useEffect(() => () => { if (chatUnsubRef.current) chatUnsubRef.current(); if (attUnsubRef.current) attUnsubRef.current(); }, []);
+  // ניקוי כל המנויים בזמן-אמת בעת יציאה
+  useEffect(() => () => {
+    [chatUnsubRef, attUnsubRef, pollsUnsubRef, applauseUnsubRef, pnUnsubRef].forEach(r => { if (r.current) r.current(); });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -296,9 +312,9 @@ export default function App() {
     games: async v => { setGames(v); await save(KEYS.games, v); },
     gallery: async v => { setGallery(v); await save(KEYS.gallery, v); },
     playerProfiles: async v => { setPlayerProfiles(v); await saveProfilesSplit(playerProfiles, v); },
-    applause: async v => { setApplause(v); await save(KEYS.applause, v); },
-    polls: async v => { setPolls(v); await save(KEYS.polls, v); },
-    personalNotifs: async v => { setPersonalNotifs(v); await save(KEYS.personalNotifs, v); },
+    // שלב 3 — כתיבות ממוקדות (בלי read-modify-write). ה-state מתעדכן מה-listeners.
+    pollVote, pollUpsert, pollSetActive, pollDelete,
+    applauseAdd, personalNotifAdd, personalNotifSetItems,
     installVersion: async v => { setSettings(s => ({ ...s, installVersion: v })); await save(KEYS.installVersion, v); },
   };
 

@@ -1095,12 +1095,13 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
     const clean = options.map(o => o.trim()).filter(Boolean);
     if (!question.trim() || clean.length < 2) return;
     const poll = { id: Date.now(), question: question.trim(), options: clean, votes: {}, active: true, createdAt: new Date().toISOString() };
-    await upd.polls([...(polls || []), poll]);
+    await upd.pollUpsert(poll); // מסמך נפרד polls/{id} — לא דורס סקרים אחרים
     setQuestion(""); setOptions(["", ""]);
   }
 
   async function toggleActive(id) {
-    await upd.polls(polls.map(p => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
+    const cur = (polls || []).find(p => p.id === id);
+    await upd.pollSetActive(id, cur?.active === false ? true : false);
   }
 
   const sorted = [...(polls || [])].reverse();
@@ -1170,7 +1171,7 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
               <button onClick={() => toggleActive(poll.id)} style={{ padding: "5px 10px", background: poll.active === false ? "#f0fdf4" : "#fef3c7", color: poll.active === false ? "#16a34a" : "#92400e", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                 {poll.active === false ? "🔔 הפעל" : "🔇 סגור סקר"}
               </button>
-              <button onClick={() => askConfirm("למחוק סקר זה?", () => upd.polls(polls.filter(p => p.id !== poll.id)))} style={{ padding: "5px 10px", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
+              <button onClick={() => askConfirm("למחוק סקר זה?", () => upd.pollDelete(poll.id))} style={{ padding: "5px 10px", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
             </div>
           </div>
         );
