@@ -371,7 +371,10 @@ export default function App() {
   return (
     <div style={{ direction: "rtl", minHeight: "100vh", background: "#f1f5f9" }}>
       <style>{`
-        @keyframes screenFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        /* מעבר-מסך = דעיכת-שקיפות בלבד. חשוב: אין transform! transform על ההורה יוצר
+           containing-block שגורם ל-position:fixed (התפריט התחתון) להיתלות בתוכן במקום
+           בחלון — ואז צריך לגלול כדי לראות את התפריט. opacity לבד לא יוצר את הבעיה. */
+        @keyframes screenFade { from { opacity: 0; } to { opacity: 1; } }
         .screen-fade { animation: screenFade 0.28s ease both; }
         @media (prefers-reduced-motion: reduce) {
           .screen-fade { animation: none !important; }

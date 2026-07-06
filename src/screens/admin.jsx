@@ -230,7 +230,7 @@ function AdminPanel(props) {
         </div>
       )}
       <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />
-      <div style={{ padding: "16px 16px 96px" }}>
+      <div style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
         {tab === "attendance" && <AdminAttendance {...props} />}
         {tab === "events" && <AdminEvents {...props} />}
         {tab === "players" && <AdminPlayers {...props} />}
