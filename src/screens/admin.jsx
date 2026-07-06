@@ -9,7 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote } from "../lib/db";
 import { loadExcelJS } from "../lib/images";
-import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge } from "../components/shared";
+import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
 
 // ── ADMIN GALLERY (מחיקה גורפת למנהל) ─────────────────────────────────────────
 function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
@@ -199,7 +199,19 @@ function AdminPanel(props) {
   if (showWizard) {
     return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
   }
-  const tabs = [["attendance","📋 נוכחות"],["events","📅 אירועים"],["notifications","💬 הודעות"],["polls","🗳️ סקר"],["players","👥 שחקניות"],["archive","📊 סטטיסטיקה"],["gallery","📸 תמונות מהמשחק"],["settings","⚙️ הגדרות"]];
+  // ניווט תחתון: 4 ראשיים + "עוד" (סקר, סטטיסטיקה, תמונות, הגדרות)
+  const navItems = [
+    { key: "attendance", icon: "📋", label: "נוכחות" },
+    { key: "events", icon: "📅", label: "אירועים" },
+    { key: "players", icon: "👥", label: "שחקניות" },
+    { key: "notifications", icon: "💬", label: "הודעות" },
+  ];
+  const navMore = [
+    { key: "polls", icon: "🗳️", label: "סקר" },
+    { key: "archive", icon: "📊", label: "סטטיסטיקה" },
+    { key: "gallery", icon: "📸", label: "תמונות מהמשחק" },
+    { key: "settings", icon: "⚙️", label: "הגדרות" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -217,15 +229,8 @@ function AdminPanel(props) {
           </div>
         </div>
       )}
-      <div style={{ display: "flex", overflowX: "auto", background: "white", borderBottom: "2px solid #e2e8f0" }}>
-        {tabs.map(([key, label]) => (
-          <button key={key} onClick={(e) => { setTab(key); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
-            style={{ padding: "10px 11px", border: "none", background: "transparent", color: tab === key ? pc : "#64748b", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap", fontWeight: tab === key ? 700 : 500, borderBottom: tab === key ? `3px solid ${sc}` : "3px solid transparent" }}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <div style={{ padding: 16 }}>
+      <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />
+      <div style={{ padding: "16px 16px 96px" }}>
         {tab === "attendance" && <AdminAttendance {...props} />}
         {tab === "events" && <AdminEvents {...props} />}
         {tab === "players" && <AdminPlayers {...props} />}

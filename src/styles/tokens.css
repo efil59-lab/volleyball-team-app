@@ -23,8 +23,8 @@
   --color-warn: #f59e0b;
   --color-warn-bg: #fef9c3;
 
-  /* טיפוגרפיה */
-  --font-family: "Segoe UI", Tahoma, sans-serif;
+  /* טיפוגרפיה — Heebo: פונט עברי, נטען מקומית (fontsource) */
+  --font-family: "Heebo Variable", "Segoe UI", Tahoma, sans-serif;
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;

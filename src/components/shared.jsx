@@ -229,4 +229,57 @@ function Collapsible({ title, count, defaultOpen = false, accent = "#1e293b", ch
     </div>
   );
 }
-export { Confirm, AttModal, PurchaseBanner, NotifTicker, LegendEventsModal, OutcomeBadge, Empty, Label, Collapsible };
+// ── ניווט תחתון (מובייל-ראשון) — מחליף את שורת הטאבים העליונה הצפופה ──────────
+// items: הטאבים הראשיים [{key, icon, label, badge?}]. moreItems: השאר, נפתחים בגיליון "עוד".
+// כשטאב מתוך "עוד" פעיל — המשבצת האחרונה מציגה אותו (אייקון+שם) במקום "עוד".
+function BottomNav({ items, moreItems = [], active, onChange, pc }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const activeMoreItem = moreItems.find(m => m.key === active) || null;
+
+  function Slot({ icon, label, isActive, badge, onClick }) {
+    return (
+      <button onClick={onClick}
+        style={{ flex: 1, minWidth: 0, padding: "7px 2px 6px", background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <span style={{ position: "relative", fontSize: 21, lineHeight: "27px", background: isActive ? `${pc}14` : "transparent", borderRadius: 14, padding: "1px 13px", transition: "background 0.2s" }}>
+          {icon}
+          {badge && <span style={{ position: "absolute", top: 1, left: 6, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", border: "1.5px solid white", animation: "navDotPulse 1s ease-in-out infinite" }} />}
+        </span>
+        <span style={{ fontSize: 11.5, fontWeight: isActive ? 800 : 600, color: isActive ? pc : "#64748b", whiteSpace: "nowrap", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <style>{`@keyframes navDotPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.4); } }`}</style>
+      {moreOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 240 }} onClick={() => setMoreOpen(false)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "white", borderRadius: "20px 20px 0 0", padding: "14px 14px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", boxShadow: "0 -10px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "#e2e8f0", margin: "0 auto 12px" }} />
+            {moreItems.map(m => (
+              <button key={m.key} onClick={() => { onChange(m.key); setMoreOpen(false); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "13px 12px", background: active === m.key ? `${pc}0d` : "transparent", border: "none", borderRadius: 12, cursor: "pointer", textAlign: "right" }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
+                <span style={{ fontSize: 15, fontWeight: active === m.key ? 800 : 600, color: active === m.key ? pc : "#334155" }}>{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 230, background: "white", borderTop: "1px solid #e2e8f0", boxShadow: "0 -4px 16px rgba(0,0,0,0.07)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {items.map(it => (
+          <Slot key={it.key} icon={it.icon} label={it.label} badge={it.badge} isActive={active === it.key && !moreOpen}
+            onClick={() => { setMoreOpen(false); onChange(it.key); }} />
+        ))}
+        {moreItems.length > 0 && (
+          <Slot icon={activeMoreItem ? activeMoreItem.icon : "⊞"} label={activeMoreItem ? activeMoreItem.label : "עוד"}
+            badge={moreItems.some(m => m.badge)} isActive={!!activeMoreItem || moreOpen}
+            onClick={() => setMoreOpen(v => !v)} />
+        )}
+      </nav>
+    </>
+  );
+}
+
+export { Confirm, AttModal, PurchaseBanner, NotifTicker, LegendEventsModal, OutcomeBadge, Empty, Label, Collapsible, BottomNav };

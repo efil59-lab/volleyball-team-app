@@ -6,7 +6,7 @@ import { PurchaseBanner } from "../components/shared";
 // ── INSTALL SCREEN ───────────────────────────────────────────────────────────
 function InstallScreen({ pc, sc, onDone, installVersion }) {
   return (
-    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
+    <div style={{ direction: "rtl", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
       <div style={{ fontSize: 72, marginBottom: 16 }}>📲</div>
       <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 10px", textAlign: "center" }}>התקיני את האפליקציה!</h2>
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, textAlign: "center", lineHeight: 1.7, margin: "0 0 32px" }}>
@@ -33,7 +33,7 @@ function InstallScreen({ pc, sc, onDone, installVersion }) {
 // ── WHAT'S NEW SCREEN ─────────────────────────────────────────────────────────
 function WhatsNewScreen({ pc, sc, onDone }) {
   return (
-    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: `linear-gradient(170deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(170deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ background: "white", borderRadius: 24, padding: "30px 24px", maxWidth: 360, width: "100%", boxShadow: "0 24px 70px rgba(0,0,0,0.3)" }}>
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <div style={{ fontSize: 56 }}>✨</div>
@@ -66,7 +66,7 @@ function WhatsNewScreen({ pc, sc, onDone }) {
 function LockedTeamScreen({ pc, sc, settings, onAdmin }) {
   const teamName = settings?.teamName || "הקבוצה";
   return (
-    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+    <div style={{ direction: "rtl", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
       <div style={{ fontSize: 64, marginBottom: 8 }}>🔒</div>
       <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 6px" }}>{teamName}</h2>
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>הקבוצה עדיין לא פעילה</p>

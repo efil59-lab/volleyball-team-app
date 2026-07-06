@@ -353,7 +353,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
+    <div style={{ direction: "rtl", minHeight: "100vh", background: "#f1f5f9" }}>
       <style>{`
         @keyframes screenFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .screen-fade { animation: screenFade 0.28s ease both; }

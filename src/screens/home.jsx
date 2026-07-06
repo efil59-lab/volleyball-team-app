@@ -9,7 +9,7 @@ import { uploadProfilePhoto } from "../lib/images";
 import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
+function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, upd, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
@@ -52,9 +52,16 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   if (me) {
     const myStatus = nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).status : null;
     const bdayOthers = players.filter(p => p.id !== me.id && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
-    const rsvp = myStatus === "coming" ? { bg: "#16a34a", c: "white", t: "✓ אישרת הגעה — להחלפה הקישי" }
-      : myStatus === "notcoming" ? { bg: "#ef4444", c: "white", t: "✗ סימנת שלא תגיעי — להחלפה הקישי" }
-      : { bg: sc, c: pc, t: "טרם אישרת הגעה — אשרי עכשיו ←" };
+    // אישור הגעה בלחיצה אחת מהמסך הראשי. דורש חיבור אמיתי (מייל) — אחרת עוברים דרך
+    // מסך הסיסמה כרגיל (onSelectPlayer), כדי לא להיחסם בכללי ה-Firestore.
+    async function quickRSVP(status) {
+      const authed = auth.currentUser && !auth.currentUser.isAnonymous;
+      if (!authed || !nextEvent) { onSelectPlayer(me); return; }
+      const key = `${nextEvent.id}_${me.id}`;
+      const cur = attendance[key] || {};
+      if (cur.status === status) return; // כבר מסומן — אין מה לכתוב
+      await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+    }
     return (
       <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
         {header}
@@ -68,15 +75,36 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
 
         <div style={{ padding: "12px 16px 0" }}>
           {nextEvent ? (
-            <button onClick={() => onSelectPlayer(me)} style={{ width: "100%", textAlign: "right", background: pc, border: "none", borderRadius: 18, padding: 16, cursor: "pointer", boxShadow: `0 6px 20px ${pc}40` }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "4px 11px", fontSize: 12, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</span>
-                <span style={{ background: sc, color: pc, borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</span>
+            <div style={{ background: pc, borderRadius: 18, padding: 16, boxShadow: `0 6px 20px ${pc}40` }}>
+              <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "4px 11px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</span>
+                  <span style={{ background: sc, color: pc, borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</span>
+                </div>
+                <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginBottom: 4, lineHeight: 1.3 }}>{formatDate(nextEvent.date)} · {nextEvent.time}</div>
+                <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 14, marginBottom: 12 }}>📍 {nextEvent.location}</div>
+              </button>
+              {/* אישור הגעה בלחיצה אחת — נשמר מיד; הכפתור הפעיל מסומן במילוי מלא */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => quickRSVP("coming")}
+                  style={{ flex: 1, padding: "13px 6px", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 15, fontWeight: 800,
+                    background: myStatus === "coming" ? "#22c55e" : "rgba(255,255,255,0.94)", color: myStatus === "coming" ? "white" : "#16a34a",
+                    boxShadow: myStatus === "coming" ? "0 0 0 3px rgba(255,255,255,0.6)" : "none", transition: "all 0.15s" }}>
+                  {myStatus === "coming" ? "✓ מגיעה" : "✅ מגיעה"}
+                </button>
+                <button onClick={() => quickRSVP("notcoming")}
+                  style={{ flex: 1, padding: "13px 6px", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 15, fontWeight: 800,
+                    background: myStatus === "notcoming" ? "#ef4444" : "rgba(255,255,255,0.94)", color: myStatus === "notcoming" ? "white" : "#dc2626",
+                    boxShadow: myStatus === "notcoming" ? "0 0 0 3px rgba(255,255,255,0.6)" : "none", transition: "all 0.15s" }}>
+                  {myStatus === "notcoming" ? "✗ לא מגיעה" : "❌ לא מגיעה"}
+                </button>
               </div>
-              <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginBottom: 4, lineHeight: 1.3 }}>{formatDate(nextEvent.date)} · {nextEvent.time}</div>
-              <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, marginBottom: 12 }}>📍 {nextEvent.location}</div>
-              <div style={{ background: rsvp.bg, color: rsvp.c, borderRadius: 10, padding: 10, textAlign: "center", fontSize: 14, fontWeight: 800 }}>{rsvp.t}</div>
-            </button>
+              <div style={{ textAlign: "center", marginTop: 10 }}>
+                <button onClick={() => onSelectPlayer(me)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.85)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
+                  {myStatus ? "נשמר ✓ · מי עוד מגיעה? להוספת הערה ולרשימות ←" : "מי עוד מגיעה? לרשימות המלאות ←"}
+                </button>
+              </div>
+            </div>
           ) : (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
           )}

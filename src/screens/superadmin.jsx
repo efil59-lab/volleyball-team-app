@@ -137,7 +137,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   }
 
   return (
-    <div style={{ direction: "rtl", fontFamily: "'Segoe UI', Tahoma, sans-serif", minHeight: "100vh", background: "#f1f5f9" }}>
+    <div style={{ direction: "rtl", minHeight: "100vh", background: "#f1f5f9" }}>
       <div style={{ background: pc, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← יציאה</button>
         <div style={{ fontSize: 32 }}>👑</div>
