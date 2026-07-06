@@ -4,10 +4,19 @@ import "@fontsource-variable/heebo"; // פונט עברי — קובץ אחד ל
 import "./styles/tokens.css";
 import "./styles/index.css";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
+
+// לכידת שגיאות גלובליות שנופלות מחוץ ל-React (Promise שנדחה, שגיאת רשת א-סינכרונית).
+// כרגע — לוג ל-console עם הקשר. נקודת חיבור עתידית לניטור אמיתי (Sentry/Firestore).
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("🔴 Unhandled promise rejection:", e.reason);
+});
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
 
