@@ -7,7 +7,8 @@ import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay,
   isBirthdayToday, isBirthdayTomorrow, ageFromBirthday,
 } from "../lib/utils";
-import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote } from "../lib/db";
+import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, notifyTeamPushRemote } from "../lib/db";
+import ReminderCard from "../components/ReminderCard";
 import { loadExcelJS } from "../lib/images";
 import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
 
@@ -469,6 +470,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
     // 2) הודעת ביטול בדף הבית (קדימות אדומה, תוקף עד סוף יום האירוע)
     const notif = { id: Date.now(), type: "cancel", text: txt, active: true, createdAt: new Date().toISOString(), expiresOn: ev.date, eventId: ev.id };
     await upd.notifications([...(notifications || []), notif]);
+    // 2.5) התראת דחיפה מיידית לכל מי שהפעילה תזכורות (גם כשהאפליקציה סגורה)
+    notifyTeamPushRemote("❌ " + (ev.type === "training" ? "האימון" : "המשחק") + " בוטל", txt.split("\n").join(" · "));
     // 3) שיתוף ידני לוואטסאפ
     setWaCopied(false);
     setWaShare(txt);
@@ -1441,6 +1444,9 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
   }
   return (
     <div>
+      {/* 🔔 תזכורות למנהלת: סיכום הגעה בבוקר כל אירוע */}
+      <ReminderCard role="admin" playerId={null} pc={pc} notify={notify} />
+
       <div style={{ ...S.card, border: `2px solid ${pc}`, background: `${pc}08` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 20 }}>🔗</span>

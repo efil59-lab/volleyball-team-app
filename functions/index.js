@@ -160,3 +160,185 @@ exports.adminDeleteTeam = onCall(async (request) => {
 
   return { ok: true, deletedAccounts };
 });
+// ═══════════════════════════════════════════════════════════════════════════════
+// שלב 4 — תזכורות אמיתיות (Web Push) + מייל תקציר שגיאות
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const { onSchedule } = require("firebase-functions/scheduler");
+
+const TZ = "Asia/Jerusalem";
+
+// תאריך YYYY-MM-DD בשעון ישראל, עם היסט ימים אופציונלי
+function ilDate(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return d.toLocaleDateString("en-CA", { timeZone: TZ });
+}
+
+async function getTeamValue(teamId, key, fallback) {
+  const snap = await db.doc(`teams/${teamId}/data/${key}`).get();
+  return snap.exists ? (snap.data().value ?? fallback) : fallback;
+}
+
+// כל טוקני הדחיפה של קבוצה: [{token, role, playerId, ref}]
+async function getTeamPushTokens(teamId) {
+  const snap = await db.collection(`teams/${teamId}/pushTokens`).get();
+  return snap.docs.map((d) => ({ ...d.data(), token: d.id, ref: d.ref }));
+}
+
+// שליחת push לרשימת טוקנים + ניקוי טוקנים מתים (מכשיר שהוחלף/הרשאה שבוטלה).
+async function sendPush(tokenDocs, { title, body, url, tag }) {
+  if (!tokenDocs.length) return { sent: 0 };
+  const messages = tokenDocs.map((t) => ({
+    token: t.token,
+    webpush: {
+      notification: { title, body, icon: "/logo192.png", badge: "/logo192.png", dir: "rtl", lang: "he", tag: tag || undefined },
+      fcmOptions: url ? { link: url } : undefined,
+      headers: { TTL: "86400", Urgency: "high" },
+    },
+  }));
+  const res = await admin.messaging().sendEach(messages);
+  let sent = 0;
+  await Promise.all(res.responses.map(async (r, i) => {
+    if (r.success) { sent++; return; }
+    const code = r.error && r.error.code;
+    if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-argument") {
+      await tokenDocs[i].ref.delete().catch(() => {}); // טוקן מת — מנקים
+    }
+  }));
+  return { sent };
+}
+
+// אירועים פתוחים (לא מבוטלים) של קבוצה בתאריך נתון
+async function eventsOn(teamId, dateStr) {
+  const events = await getTeamValue(teamId, "events", []);
+  return (Array.isArray(events) ? events : []).filter((e) => e.date === dateStr && e.open !== false && !e.cancelled);
+}
+
+// שחקניות שטרם ענו לאירוע (אין להן status ב-attendance/{pid}[eventId])
+async function nonResponders(teamId, eventId) {
+  const players = await getTeamValue(teamId, "players", []);
+  const att = await db.collection(`teams/${teamId}/attendance`).get();
+  const answered = new Set();
+  att.forEach((d) => {
+    const rec = (d.data() || {})[String(eventId)];
+    if (rec && rec.status) answered.add(String(d.id));
+  });
+  return { players, missing: players.filter((p) => !answered.has(String(p.id))), answeredCount: answered.size };
+}
+
+function evLabel(ev) {
+  return ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק");
+}
+
+// רשימת הקבוצות הפעילות (מתוך teamIndex)
+async function activeTeams() {
+  const snap = await db.collection("teamIndex").get();
+  return snap.docs.map((d) => d.data()).filter((t) => (t.status || "active") === "active").map((t) => t.teamId);
+}
+
+// גרעין משותף לשתי התזכורות המתוזמנות. when: "evening" (אירועי מחר) | "morning" (אירועי היום).
+async function runReminders(when) {
+  const dateStr = when === "evening" ? ilDate(1) : ilDate(0);
+  const dayWord = when === "evening" ? "מחר" : "היום";
+  const teams = await activeTeams();
+  let total = 0;
+  for (const teamId of teams) {
+    try {
+      const events = await eventsOn(teamId, dateStr);
+      if (!events.length) continue;
+      const tokens = await getTeamPushTokens(teamId);
+      if (!tokens.length) continue;
+      const url = `/?team=${teamId}`;
+      for (const ev of events) {
+        const { players, missing, answeredCount } = await nonResponders(teamId, ev.id);
+        // תזכורת לשחקניות שטרם ענו — לכל אחת לפי הטוקנים שלה
+        const missingIds = new Set(missing.map((p) => String(p.id)));
+        const playerTokens = tokens.filter((t) => t.role === "player" && missingIds.has(String(t.playerId)));
+        const r1 = await sendPush(playerTokens, {
+          title: `🏐 ${dayWord} ${evLabel(ev)} ב-${ev.time}`,
+          body: "טרם אישרת הגעה — לחצי לאישור מהיר ✅",
+          url, tag: `reminder_${teamId}_${ev.id}_${when}`,
+        });
+        total += r1.sent;
+        // בבוקר האירוע — גם סיכום למנהלת
+        if (when === "morning") {
+          const adminTokens = tokens.filter((t) => t.role === "admin");
+          const r2 = await sendPush(adminTokens, {
+            title: `📋 ${evLabel(ev)} ${dayWord} ב-${ev.time}`,
+            body: `${answeredCount} ענו · ${missing.length} טרם ענו (מתוך ${players.length})`,
+            url, tag: `summary_${teamId}_${ev.id}`,
+          });
+          total += r2.sent;
+        }
+      }
+    } catch (e) { console.error(`reminders(${when}) team=${teamId}:`, e); }
+  }
+  console.log(`reminders(${when}) date=${dateStr} sent=${total}`);
+}
+
+// 19:00 — תזכורת ערב-לפני לאירועי מחר, למי שטרם אישרה
+exports.eventRemindersEvening = onSchedule({ schedule: "0 19 * * *", timeZone: TZ }, () => runReminders("evening"));
+// 08:00 — תזכורת בוקר-האירוע למי שטרם אישרה + סיכום הגעה למנהלת
+exports.eventRemindersMorning = onSchedule({ schedule: "0 8 * * *", timeZone: TZ }, () => runReminders("morning"));
+
+// ── התראת דחיפה מיידית לכל הקבוצה (מנהלת בלבד) — משמשת לביטול אימון/משחק ──
+exports.notifyTeamPush = onCall(async (request) => {
+  const { teamId, title, body, url } = request.data || {};
+  if (!teamId || !title) throw new HttpsError("invalid-argument", "חסר teamId או title");
+  await assertAdmin(request.auth, teamId);
+  const tokens = await getTeamPushTokens(teamId);
+  const { sent } = await sendPush(tokens, {
+    title: String(title).slice(0, 100),
+    body: String(body || "").slice(0, 300),
+    url: url || `/?team=${teamId}`,
+    tag: `notify_${teamId}_${Date.now()}`,
+  });
+  return { ok: true, sent };
+});
+
+// ── מייל תקציר שגיאות לבעל המוצר — כל שעה, רק אם יש שגיאות חדשות ──
+// דורש RESEND_API_KEY ב-functions/.env (לא ב-git). בלעדיו — יוצא בשקט.
+exports.errorDigest = onSchedule({ schedule: "0 * * * *", timeZone: TZ }, async () => {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) { console.log("errorDigest: RESEND_API_KEY not set - skipping"); return; }
+  // סמן התקדמות: קוראים רק שגיאות חדשות מאז הריצה הקודמת
+  const cursorRef = db.doc("system/errorDigest");
+  const cursorSnap = await cursorRef.get();
+  const lastTs = cursorSnap.exists ? (cursorSnap.data().lastTs || 0) : 0;
+  const snap = await db.collection("errorLogs").where("ts", ">", lastTs).orderBy("ts", "desc").limit(200).get();
+  if (snap.empty) return;
+  const rows = snap.docs.map((d) => d.data());
+  // קיבוץ לפי הודעה — באג אחד שקרה 50 פעם = שורה אחת עם מונה
+  const groups = new Map();
+  for (const r of rows) {
+    const k = `${r.source}|${r.message}`;
+    const g = groups.get(k) || { ...r, count: 0, teams: new Set() };
+    g.count++; g.teams.add(r.teamId || "?");
+    groups.set(k, g);
+  }
+  const srcLabel = { boundary: "קריסת מסך", promise: "א-סינכרונית", window: "כללית", probe: "בדיקה" };
+  const items = [...groups.values()].sort((a, b) => b.count - a.count).map((g) =>
+    `<li style="margin-bottom:10px"><b style="color:#b91c1c">${escapeHtml(g.message)}</b><br/>` +
+    `<span style="color:#64748b;font-size:13px">${srcLabel[g.source] || g.source} · ${g.count} פעמים · קבוצות: ${[...g.teams].join(", ")}</span></li>`
+  ).join("");
+  const html = `<div dir="rtl" style="font-family:Arial,sans-serif">` +
+    `<h2>🏐 ${rows.length} שגיאות חדשות באפליקציית הכדורשת</h2><ul>${items}</ul>` +
+    `<p style="color:#94a3b8;font-size:12px">פירוט מלא: לחיצה ארוכה על הלוגו ← סופר-אדמין ← שגיאות באפליקציה</p></div>`;
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      from: "Volleyball App <onboarding@resend.dev>",
+      to: [SUPER_ADMIN_EMAIL],
+      subject: `🔴 ${rows.length} שגיאות חדשות — אפליקציית כדורשת`,
+      html,
+    }),
+  });
+  if (!resp.ok) { console.error("errorDigest resend failed:", resp.status, await resp.text()); return; }
+  await cursorRef.set({ lastTs: rows[0].ts, updatedAt: new Date().toISOString() });
+  console.log(`errorDigest: emailed ${rows.length} errors (${groups.size} groups)`);
+});
+
+function escapeHtml(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}

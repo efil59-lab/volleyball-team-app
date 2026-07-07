@@ -26,12 +26,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-// PWA — ללא Service Worker: מבטיח שכל משתמשת מקבלת תמיד את הקוד העדכני.
-// ההתקנה למסך הבית עדיין עובדת (תלויה ב-manifest, לא ב-SW).
-// ה-unregister מנקה SW ישן שנשאר ממכשירים מתקופת CRA.
+// PWA — שלב 4: Service Worker דחיפה-בלבד (sw.js). אין בו fetch/cache בכלל,
+// כך שהקוד תמיד מגיע עדכני מהשרת (הסיבה שה-SW הקודם בוטל). הרישום באותו scope
+// מחליף אוטומטית כל SW ישן שנשאר ממכשירים מתקופת CRA.
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .getRegistrations()
-    .then((regs) => regs.forEach((r) => r.unregister()))
-    .catch(() => {});
+  navigator.serviceWorker.register("/sw.js").catch((e) => console.error("SW register:", e));
 }

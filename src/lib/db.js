@@ -213,6 +213,7 @@ async function bindPlayerMembership(teamId, uid, player) {
 const callResetFn = httpsCallable(functions, "adminResetPlayerPassword");
 const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
 const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
+const callNotifyPushFn = httpsCallable(functions, "notifyTeamPush");
 async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
   return res.data; // { ok, tempPassword }
@@ -224,6 +225,11 @@ async function adminDeletePlayerRemote(teamId, playerId) {
 async function adminDeleteTeamRemote(teamId) {
   const res = await callDeleteTeamFn({ teamId });
   return res.data; // { ok }
+}
+// התראת דחיפה מיידית לכל הקבוצה (למשל ביטול אימון). fire-and-forget — כשל לא עוצר את הזרימה.
+async function notifyTeamPushRemote(title, body) {
+  try { await callNotifyPushFn({ teamId: CURRENT_TEAM, title, body, url: "/?team=" + CURRENT_TEAM }); }
+  catch (e) { console.error("notifyTeamPushRemote:", e); }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
 async function syncTeamIndex(teamId) {
@@ -384,7 +390,7 @@ export {
   loadUserTeam, saveUserTeam, inviteKey, loadInvite, saveInvite,
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
-  adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote,
+  adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 };

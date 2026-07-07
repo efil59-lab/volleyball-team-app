@@ -6,6 +6,9 @@ const SUPER_ADMIN_EMAIL = "efil59@gmail.com"; // בעל המוצר — גישה 
 // פרטי יצירת קשר למסך "פתיחת קבוצה" (מנהלת חדשה ללא הזמנה). ⚠️ אפי — מלא כאן את מספר הוואטסאפ שלך:
 const OWNER_CONTACT_EMAIL = "efil59@gmail.com";
 const OWNER_CONTACT_WHATSAPP = ""; // לדוגמה: "972501234567" (קוד מדינה ללא +). ריק = לא יוצג כפתור וואטסאפ.
+// מפתח Web Push ציבורי (VAPID) — נוצר ב-Firebase Console ← Cloud Messaging ← Web Push certificates.
+// ציבורי בעיצובו (מוטמע בכל אתר). ריק = כפתור התזכורות מוסתר (הפיצ'ר כבוי).
+const VAPID_PUBLIC_KEY = "";
 
 const KEYS = {
   players: "players",
@@ -38,13 +41,13 @@ const DEFAULT_SETTINGS = {
 
 // "מה חדש" — מתעדכן עם כל גרסה. version עולה ב-1 בכל שחרור פיצ'רים.
 const WHATS_NEW = {
-  version: 19,
-  versionName: "גרסה 19.0",
+  version: 20,
+  versionName: "גרסה 20.0",
   date: "יולי 2026",
   features: [
-    { icon: "✅", title: "אישור הגעה בלחיצה אחת", text: "ישר מהמסך הראשי! על כרטיס האימון/משחק הקרוב יש עכשיו כפתורי 'מגיעה' ו'לא מגיעה' — לוחצים פעם אחת וזה נשמר." },
+    { icon: "🔔", title: "תזכורות אמיתיות לטלפון!", text: "מעכשיו אפשר לקבל תזכורת לפני כל אימון ומשחק — גם כשהאפליקציה סגורה. בלשונית 'נוכחות' לחצי 'הפעילי 🔔'. אם ביטלו אימון — תקבלי התראה מיד." },
+    { icon: "✅", title: "אישור הגעה בלחיצה אחת", text: "ישר מהמסך הראשי! על כרטיס האימון/משחק הקרוב יש כפתורי 'מגיעה' ו'לא מגיעה' — לוחצים פעם אחת וזה נשמר." },
     { icon: "📱", title: "תפריט חדש למטה", text: "הטאבים עברו לתחתית המסך — קרוב לאגודל ונוח יותר. מה שלא נכנס נמצא בכפתור 'עוד'." },
-    { icon: "🎨", title: "מראה חדש", text: "פונט עברי חדש וקריא יותר בכל האפליקציה, ושדות גדולים ונוחים יותר." },
   ],
 };
 
@@ -72,4 +75,4 @@ const DEFAULT_GAMES = [
   { id: 1, date: "2026-05-20", time: "18:00", opponent: "מכבי תל אביב", location: "אולם עירוני", result: null },
   { id: 2, date: "2026-06-03", time: "19:00", opponent: "הפועל ירושלים", location: "אולם ספורט הבנק הבינלאומי", result: null },
 ];
-export { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, SUPER_ADMIN_EMAIL, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP, KEYS, DEFAULT_SETTINGS, WHATS_NEW, DEFAULT_PLAYERS, DEFAULT_EVENTS, DEFAULT_GAMES };
+export { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, SUPER_ADMIN_EMAIL, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP, VAPID_PUBLIC_KEY, KEYS, DEFAULT_SETTINGS, WHATS_NEW, DEFAULT_PLAYERS, DEFAULT_EVENTS, DEFAULT_GAMES };

@@ -10,6 +10,7 @@ import {
 import { CURRENT_TEAM } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
 import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
+import ReminderCard from "../components/ReminderCard";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
 function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
@@ -492,6 +493,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 )}
               </>
             )}
+
+            {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
+            <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} />
 
             {/* 📊 Personal stats — based on archived (verified) events only */}
                 {(() => {
