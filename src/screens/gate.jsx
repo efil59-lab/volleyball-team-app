@@ -4,27 +4,55 @@ import { isGoogleUser } from "../lib/auth";
 import { PurchaseBanner } from "../components/shared";
 
 // ── INSTALL SCREEN ───────────────────────────────────────────────────────────
+// מוצג בכל כניסה מהדפדפן עד שמתקינות (standalone). באנדרואיד/כרום יש כפתור
+// התקנה אמיתי בלחיצה אחת (beforeinstallprompt שנלכד ב-main.jsx); באייפון — הוראות.
 function InstallScreen({ pc, sc, onDone, installVersion }) {
+  const [installing, setInstalling] = useState(false);
+  const canOneClick = !!window.__installPrompt;
+
+  async function oneClickInstall() {
+    const ev = window.__installPrompt;
+    if (!ev) return;
+    setInstalling(true);
+    try {
+      ev.prompt();
+      const choice = await ev.userChoice;
+      if (choice && choice.outcome === "accepted") {
+        window.__installPrompt = null;
+        onDone(installVersion); // הותקן — ממשיכים; בפתיחה הבאה מהאייקון המסך לא יופיע
+        return;
+      }
+    } catch { /* ignore */ }
+    setInstalling(false);
+  }
+
   return (
     <div style={{ direction: "rtl", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
       <div style={{ fontSize: 72, marginBottom: 16 }}>📲</div>
       <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 10px", textAlign: "center" }}>התקיני את האפליקציה!</h2>
-      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, textAlign: "center", lineHeight: 1.7, margin: "0 0 32px" }}>
-        כדי לפתוח את האפליקציה מהר יותר ישירות מהמסך הבית:
+      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, textAlign: "center", lineHeight: 1.7, margin: "0 0 18px", maxWidth: 320 }}>
+        פתיחה מהירה מהמסך הבית — <strong style={{ color: sc }}>וחובה כדי לקבל תזכורות 🔔 לאימונים ולמשחקים</strong>
       </p>
-      <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 16, padding: "18px 22px", width: "100%", maxWidth: 320, marginBottom: 28 }}>
-        <div style={{ color: "white", fontSize: 14, lineHeight: 2 }}>
-          <div>📱 <strong>אנדרואיד (Chrome):</strong></div>
-          <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>תפריט ⋮ ← הוסף למסך הבית</div>
-          <div style={{ marginTop: 10 }}>🍎 <strong>אייפון (Safari):</strong></div>
-          <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>כפתור שיתוף ↑ ← הוסף למסך הבית</div>
+      {canOneClick ? (
+        <button onClick={oneClickInstall} disabled={installing}
+          style={{ background: sc, color: pc, border: "none", borderRadius: 14, padding: "16px 40px", fontSize: 17, fontWeight: 800, cursor: installing ? "default" : "pointer", marginBottom: 18, width: "100%", maxWidth: 320, boxShadow: "0 6px 24px rgba(0,0,0,0.3)" }}>
+          {installing ? "מתקינה…" : "⚡ התקיני עכשיו בלחיצה אחת"}
+        </button>
+      ) : (
+        <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 16, padding: "18px 22px", width: "100%", maxWidth: 320, marginBottom: 20 }}>
+          <div style={{ color: "white", fontSize: 14, lineHeight: 2 }}>
+            <div>🍎 <strong>אייפון (Safari):</strong></div>
+            <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>כפתור שיתוף ↑ ← הוסף למסך הבית</div>
+            <div style={{ marginTop: 10 }}>📱 <strong>אנדרואיד (Chrome):</strong></div>
+            <div style={{ paddingRight: 22, color: "rgba(255,255,255,0.85)" }}>תפריט ⋮ ← הוסף למסך הבית</div>
+          </div>
         </div>
-      </div>
-      <button onClick={() => onDone(installVersion)} style={{ background: sc, color: pc, border: "none", borderRadius: 14, padding: "14px 40px", fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 14, width: "100%", maxWidth: 320 }}>
-        הבנתי! נמשיך 🏐
-      </button>
-      <button onClick={() => onDone(installVersion)} style={{ background: "transparent", color: "rgba(255,255,255,0.7)", border: "none", fontSize: 13, cursor: "pointer", padding: 8 }}>
-        דלג
+      )}
+      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, textAlign: "center", margin: "0 0 14px", maxWidth: 300, lineHeight: 1.6 }}>
+        אחרי ההתקנה — פתחי את האפליקציה מהאייקון 🏐 במסך הבית, והתזכורת הזו תיעלם.
+      </p>
+      <button onClick={() => onDone(installVersion)} style={{ background: "transparent", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 12, fontSize: 13, cursor: "pointer", padding: "10px 24px", fontWeight: 600 }}>
+        אמשיך בדפדפן בינתיים ←
       </button>
     </div>
   );

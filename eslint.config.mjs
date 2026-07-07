@@ -10,7 +10,7 @@ export default [
       ecmaVersion: "latest",
       sourceType: "module",
       parserOptions: { ecmaFeatures: { jsx: true } },
-      globals: { ...globals.browser },
+      globals: { ...globals.browser, __BUILD_ID__: "readonly" },
     },
     settings: { react: { version: "detect" } },
     rules: {

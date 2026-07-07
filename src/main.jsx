@@ -32,3 +32,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch((e) => console.error("SW register:", e));
 }
+
+// אנדרואיד/כרום: לוכדים את אירוע ההתקנה כדי שמסך ההתקנה יוכל להציע
+// כפתור "התקיני עכשיו" אמיתי (לחיצה אחת) במקום הוראות ידניות.
+window.__installPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  window.__installPrompt = e;
+});
+window.addEventListener("appinstalled", () => { window.__installPrompt = null; });

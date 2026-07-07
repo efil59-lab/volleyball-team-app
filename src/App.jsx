@@ -49,6 +49,27 @@ export default function App() {
   const [googleLoginError, setGoogleLoginError] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [teamMeta, setTeamMeta] = useState(null); // meta של הקבוצה הנוכחית (status/בעלות) — לשער הכניסה
+  const [updateReady, setUpdateReady] = useState(false); // גרסה חדשה זמינה בשרת → באנר רענון
+
+  // ── באנר "יש עדכון": משווים את מזהה ה-build המוטמע מול /version.json בשרת ─────
+  // נבדק בכל חזרה לאפליקציה (focus) וכל 5 דקות. אין SW-cache, אז רענון = קוד חדש מיד.
+  useEffect(() => {
+    if (import.meta.env.DEV) return; // בפיתוח אין version.json
+    let stop = false;
+    async function check() {
+      try {
+        const r = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
+        if (!r.ok) return;
+        const v = await r.json();
+        if (!stop && v.id && v.id !== __BUILD_ID__) setUpdateReady(true);
+      } catch { /* אופליין/שגיאת רשת — ננסה שוב בפעם הבאה */ }
+    }
+    const onVisible = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const iv = setInterval(check, 5 * 60 * 1000);
+    const t0 = setTimeout(check, 15 * 1000); // בדיקה ראשונה קצת אחרי הטעינה
+    return () => { stop = true; document.removeEventListener("visibilitychange", onVisible); clearInterval(iv); clearTimeout(t0); };
+  }, []);
 
   // ── שלב מעבר לאבטחה: bootstrap של Auth מתבצע באפקט המאוחד למטה ────────────────
   // קודם פותרים redirect של Google, ורק אם אין משתמש כלל — מתחברים אנונימית.
@@ -198,16 +219,17 @@ export default function App() {
 
       // 4) זרימה רגילה
       const td = await loadTeamData();
-      const installVer = await load(KEYS.installVersion, 1);
-      const seenVer = parseInt(localStorage.getItem("installSeenVer") || "0");
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
+      // מסך התקנה: מוצג בכל כניסה מהדפדפן — עד שמתקינות למסך הבית (ואז standalone=true
+      // והוא נעלם מעצמו). ההתקנה קריטית: בלעדיה אין תזכורות push באייפון.
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
       // שחקנית שהמכשיר זוכר → קפיצה ישירה לעמוד שלה — אך ורק אם היא כבר מחוברת עם מייל (לא אנונימית).
       // אם היא אנונימית (הטוקן פג/נפלה ל-anon) → לא קופצים; היא תעבור דרך מסך הבית→כניסה כדי להתחבר נכון,
       // אחרת תישאר אנונימית ותיחסם בצ'אט/קריאת נוכחות (permission-denied).
       const authedWithEmail = auth.currentUser && !auth.currentUser.isAnonymous;
       const remembered = authedWithEmail ? (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1") : null;
       setTimeout(() => {
-        if (seenVer < installVer) setShowInstall(true);
+        if (!isStandalone) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
         else if (remembered) { setCurrentPlayer(remembered); setScreen(s => s === "splash" ? "player" : s); }
         else setScreen(s => s === "splash" ? "home" : s);
@@ -384,6 +406,16 @@ export default function App() {
       {confirm && <Confirm msg={confirm.msg} icon={confirm.icon} okLabel={confirm.okLabel} tone={confirm.tone}
         onOk={() => { if (confirm.onOk) confirm.onOk(); setConfirm(null); }}
         onCancel={confirm.notice ? undefined : () => setConfirm(null)} />}
+
+      {/* באנר "יש עדכון" — כמו ב-televizia: מוצג כשנפרסה גרסה חדשה; לחיצה = רענון לקוד החדש */}
+      {updateReady && (
+        <button onClick={() => window.location.reload()}
+          style={{ position: "fixed", top: 10, left: 12, right: 12, zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            background: pc, color: "white", border: `2px solid ${sc}`, borderRadius: 14, padding: "12px 16px", cursor: "pointer",
+            fontSize: 14, fontWeight: 800, boxShadow: "0 8px 30px rgba(0,0,0,0.35)" }}>
+          <span style={{ fontSize: 18 }}>🚀</span> יש גרסה חדשה! לחצי כאן לעדכון
+        </button>
+      )}
 
       <div key={screen} className="screen-fade">
         {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => {
