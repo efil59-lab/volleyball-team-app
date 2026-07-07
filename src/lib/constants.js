@@ -8,7 +8,7 @@ const OWNER_CONTACT_EMAIL = "efil59@gmail.com";
 const OWNER_CONTACT_WHATSAPP = ""; // לדוגמה: "972501234567" (קוד מדינה ללא +). ריק = לא יוצג כפתור וואטסאפ.
 // מפתח Web Push ציבורי (VAPID) — נוצר ב-Firebase Console ← Cloud Messaging ← Web Push certificates.
 // ציבורי בעיצובו (מוטמע בכל אתר). ריק = כפתור התזכורות מוסתר (הפיצ'ר כבוי).
-const VAPID_PUBLIC_KEY = "";
+const VAPID_PUBLIC_KEY = "BFR1srx9sLjwoIACSvzHrZxJioEdOUyOfOwq3Tm57x1ZRpEq3LSmst1uIv2dpQa8Hx8gyJC0UTRpdM19ESC_I7w";
 
 const KEYS = {
   players: "players",
