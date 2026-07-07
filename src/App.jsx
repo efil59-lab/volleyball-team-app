@@ -18,6 +18,7 @@ import { HomeScreen, OnboardScreen } from "./screens/home";
 import { PlayerScreen } from "./screens/player";
 import { AdminPanel } from "./screens/admin";
 import { HelpScreen, AboutScreen } from "./screens/info";
+import { LegalScreen } from "./screens/legal";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
@@ -373,12 +374,15 @@ export default function App() {
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
+  if (screen === "privacy" || screen === "terms") return <LegalScreen kind={screen} pc={pc} sc={sc} onBack={() => setScreen(TEAM_FROM_URL ? "home" : "landing")} />;
   if (screen === "landing") return <LandingScreen pc={pc} sc={sc}
     onAdminLogin={() => setScreen("admin-login")}
     onPurchase={() => setScreen("purchase")}
+    onLegal={(k) => setScreen(k)}
     onEnterBibleumi={async () => { setCurrentTeam(DEFAULT_TEAM); await loadTeamData(); setScreen("home"); }} />;
   if (screen === "purchase") return <PurchaseScreen pc={pc} sc={sc} authUser={authUser}
     onGoogle={() => handleGoogleLogin(true)} onContinue={() => continueAsAdmin(true)}
+    onLegal={(k) => setScreen(k)}
     onBack={() => setScreen(TEAM_FROM_URL ? "home" : "landing")} />;
   if (screen === "not-registered") return <NotRegisteredScreen pc={pc} sc={sc} authUser={authUser}
     onPurchase={() => setScreen("purchase")} onLogout={handleAdminLogout}

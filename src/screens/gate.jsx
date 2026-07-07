@@ -177,7 +177,7 @@ function NoInviteScreen({ pc, sc, authUser, onLogout, onBack }) {
 }
 
 // ── מסך רכישה (מנהלת חדשה שרוצה לפתוח קבוצה) — מסביר, ורק באישור מפורש שולח בקשה ──
-function PurchaseScreen({ pc, sc, authUser, onGoogle, onContinue, onBack }) {
+function PurchaseScreen({ pc, sc, authUser, onGoogle, onContinue, onBack, onLegal }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const alreadyGoogle = isGoogleUser(authUser);
@@ -220,6 +220,12 @@ function PurchaseScreen({ pc, sc, authUser, onGoogle, onContinue, onBack }) {
           </button>
         )}
         <button onClick={onBack} style={{ width: "100%", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>חזרה</button>
+        <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", margin: "12px 0 0", lineHeight: 1.5 }}>
+          בהרשמה את מסכימה ל
+          <button onClick={() => onLegal && onLegal("terms")} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, textDecoration: "underline", padding: 0 }}>תנאי השימוש</button>
+          {" "}ול
+          <button onClick={() => onLegal && onLegal("privacy")} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 11, textDecoration: "underline", padding: 0 }}>מדיניות הפרטיות</button>
+        </p>
       </div>
     </div>
   );
@@ -248,32 +254,103 @@ function NotRegisteredScreen({ pc, sc, authUser, onPurchase, onLogout, onBack })
   );
 }
 
-// ── LANDING (שער ראשי — כניסה לכתובת חשופה בלי ?team=) ────────────────────────
-function LandingScreen({ pc, sc, onAdminLogin, onPurchase, onEnterBibleumi }) {
+// ── LANDING — דף נחיתה מוכר (שלב 5ג): החלון-ראווה לפייסבוק/ממה-נט ─────────────
+// כתובת חשופה (בלי ?team=) מגיעה לכאן. מטרת הדף: להמיר מנהלת מתעניינת לניסיון-חינם.
+function LandingScreen({ pc, sc, onAdminLogin, onPurchase, onEnterBibleumi, onLegal }) {
+  const FEATURES = [
+    ["✅", "אישור הגעה בלחיצה", "כל שחקנית מסמנת מגיעה/לא — ורואים מיד מי מגיעה לאימון"],
+    ["🔔", "תזכורות לטלפון", "מי ששכחה לאשר מקבלת תזכורת אוטומטית — גם כשהאפליקציה סגורה"],
+    ["📊", "סטטיסטיקות הגעה", "אחוזי הגעה, דירוג קבוצתי וייצוא לאקסל"],
+    ["💬", "צ'אט קבוצתי", "שיחת קבוצה מובנית, עם התראה על הודעות חדשות"],
+    ["🗳️", "סקרים", "איפה חוגגות סוף עונה? שאלה אחת וכולן עונות"],
+    ["📸", "גלריית תמונות", "התמונות מהמשחקים — במקום אחד, לא הולכות לאיבוד"],
+    ["🗓️", "לוח חודשי", "אימונים, משחקים וימי הולדת במבט אחד"],
+    ["❌", "ביטול בלחיצה", "אימון בוטל? כל הקבוצה מקבלת התראה מיידית לטלפון"],
+  ];
+  const STEPS = [
+    ["1", "פותחים ניסיון חינם", "התחברות עם Google — בלי כרטיס אשראי, בלי טפסים"],
+    ["2", "מוסיפים את השחקניות", "אשף קצר: שם הקבוצה + שמות הבנות"],
+    ["3", "משתפים קישור בוואטסאפ", "כל שחקנית נכנסת, בוחרת את שמה — וזהו, הקבוצה באוויר"],
+  ];
+  const cta = (label) => (
+    <button onClick={onPurchase}
+      style={{ width: "100%", maxWidth: 340, background: sc, color: pc, border: "none", borderRadius: 14, padding: "16px 24px", fontSize: 17, fontWeight: 900, cursor: "pointer", boxShadow: "0 8px 30px rgba(0,0,0,0.25)" }}>
+      {label}
+    </button>
+  );
+
   return (
-    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}dd)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <div style={{ fontSize: 60 }}>🏐</div>
-        <h1 style={{ color: "white", fontSize: 26, fontWeight: 800, margin: "10px 0 6px" }}>אפליקציית כדורשת</h1>
-        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 1.6, maxWidth: 320, margin: "0 auto" }}>
-          ניהול קבוצה במקום אחד: וידוא הגעה, סטטיסטיקות, צ'אט קבוצתי, תזכורות ועוד.
+    <div style={{ direction: "rtl", minHeight: "100vh", background: "#f8fafc" }}>
+      {/* ── Hero ── */}
+      <div style={{ background: `linear-gradient(165deg, ${pc} 0%, ${pc}dd 70%, ${pc}bb 100%)`, padding: "44px 22px 38px", textAlign: "center" }}>
+        <div style={{ fontSize: 64, marginBottom: 4 }}>🏐</div>
+        <h1 style={{ color: "white", fontSize: 28, fontWeight: 900, margin: "0 0 10px", lineHeight: 1.25 }}>אפליקציה לקבוצת הכדורשת שלך</h1>
+        <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 15.5, lineHeight: 1.65, maxWidth: 340, margin: "0 auto 22px" }}>
+          די לרדוף אחרי "מי מגיעה היום?" בוואטסאפ.<br />
+          אישורי הגעה, תזכורות אוטומטיות, צ'אט וסטטיסטיקות — הכל במקום אחד.
+        </p>
+        {cta(`🎁 נסי חינם ${TRIAL_DAYS} יום`)}
+        <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 12.5, margin: "12px 0 0" }}>בלי כרטיס אשראי · ההקמה לוקחת 2 דקות</p>
+      </div>
+
+      {/* ── Features ── */}
+      <div style={{ padding: "30px 18px 8px", maxWidth: 640, margin: "0 auto" }}>
+        <h2 style={{ fontSize: 20, fontWeight: 900, color: "#1e293b", textAlign: "center", margin: "0 0 18px" }}>כל מה שקבוצה צריכה 👇</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+          {FEATURES.map(([ic, title, txt]) => (
+            <div key={title} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 12px" }}>
+              <div style={{ fontSize: 26 }}>{ic}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: pc, margin: "6px 0 3px" }}>{title}</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{txt}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── How it works ── */}
+      <div style={{ padding: "28px 18px 8px", maxWidth: 640, margin: "0 auto" }}>
+        <h2 style={{ fontSize: 20, fontWeight: 900, color: "#1e293b", textAlign: "center", margin: "0 0 18px" }}>איך מתחילים?</h2>
+        {STEPS.map(([n, title, txt]) => (
+          <div key={n} style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: sc, color: pc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>{n}</div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1e293b" }}>{title}</div>
+              <div style={{ fontSize: 12.5, color: "#64748b", lineHeight: 1.55, marginTop: 2 }}>{txt}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Pricing ── */}
+      <div style={{ padding: "28px 18px", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ background: `linear-gradient(165deg, ${pc}, ${pc}dd)`, borderRadius: 20, padding: "26px 22px", textAlign: "center", boxShadow: "0 14px 44px rgba(26,35,126,0.35)" }}>
+          <div style={{ display: "inline-block", background: sc, color: pc, borderRadius: 20, padding: "5px 16px", fontSize: 13, fontWeight: 900, marginBottom: 12 }}>🎁 {TRIAL_DAYS} יום חינם</div>
+          <div style={{ color: "white", fontSize: 32, fontWeight: 900, lineHeight: 1 }}>₪39<span style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}> לחודש לקבוצה</span></div>
+          <div style={{ margin: "16px 0 18px", textAlign: "right", display: "inline-block" }}>
+            {["כל הפיצ'רים, בלי הגבלת שחקניות", "תזכורות אוטומטיות לכל הקבוצה", "תשלום פשוט בביט — בלי כרטיס אשראי", "אפשר להפסיק בכל עת"].map(t => (
+              <div key={t} style={{ color: "rgba(255,255,255,0.92)", fontSize: 13.5, lineHeight: 2 }}>✓ {t}</div>
+            ))}
+          </div>
+          {cta("התחילי עכשיו — חינם ←")}
+        </div>
+        <p style={{ fontSize: 12.5, color: "#64748b", textAlign: "center", margin: "16px 0 0", lineHeight: 1.6 }}>
+          🏐 נבנתה יחד עם קבוצת כדורשת אמיתית — ומשמשת אותה בכל אימון ומשחק.
         </p>
       </div>
 
-      <div style={{ background: "white", borderRadius: 20, padding: "24px 22px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
-        <button onClick={onAdminLogin} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: "pointer", marginBottom: 12 }}>
-          🔑 כניסת מנהל/ת
-        </button>
-
-        <button onClick={onEnterBibleumi} style={{ width: "100%", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
-          כניסה לקבוצת הבינלאומי ←
-        </button>
-
-        <PurchaseBanner pc={pc} sc={sc} onClick={onPurchase} />
-
-        <p style={{ fontSize: 11.5, color: "#94a3b8", textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
-          שחקנית בקבוצה אחרת? היכנסי דרך הקישור שקיבלת מהמנהלת שלך.
-        </p>
+      {/* ── Footer ── */}
+      <div style={{ borderTop: "1px solid #e2e8f0", padding: "20px 18px 30px", textAlign: "center" }}>
+        <button onClick={onAdminLogin} style={{ background: "transparent", border: "none", color: pc, cursor: "pointer", fontSize: 13.5, fontWeight: 700, padding: 6 }}>🔑 כניסת מנהלת קיימת</button>
+        <span style={{ color: "#cbd5e1" }}> · </span>
+        <button onClick={onEnterBibleumi} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13.5, fontWeight: 600, padding: 6 }}>כניסה לקבוצת הבינלאומי</button>
+        <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "10px 0 12px", lineHeight: 1.5 }}>שחקנית בקבוצה אחרת? היכנסי דרך הקישור שקיבלת מהמנהלת שלך.</p>
+        <div style={{ fontSize: 12, color: "#94a3b8" }}>
+          <button onClick={() => onLegal && onLegal("privacy")} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 4 }}>מדיניות פרטיות</button>
+          ·
+          <button onClick={() => onLegal && onLegal("terms")} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 4 }}>תנאי שימוש</button>
+          ·
+          <a href="mailto:efil59@gmail.com" style={{ color: "#94a3b8", fontSize: 12, padding: 4 }}>יצירת קשר</a>
+        </div>
       </div>
     </div>
   );

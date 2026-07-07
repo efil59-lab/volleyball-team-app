@@ -377,6 +377,9 @@ exports.debugPush = onRequest(async (req, res) => {
     out.playersTotal = players.length;
     out.missing = missing.map((p) => ({ id: p.id, name: p.name }));
   }
+  if (req.query.backup === "1") {
+    out.backup = await runDailyBackup();
+  }
   if (req.query.send === "1" && tokens.length) {
     out.testSend = await sendPush(tokens, { title: "🏐 בדיקת התראות", body: "אם את רואה את זה — התזכורות עובדות! 🎉", url: "/?team=" + teamId, tag: "test_" + Date.now() });
   }
@@ -420,3 +423,59 @@ exports.notifyNewTeam = onCall(async (request) => {
   console.log("notifyNewTeam:", teamId, meta.ownerEmail);
   return { ok: true };
 });
+
+// ── שלב 5: גיבוי יומי — snapshot JSON מלא של כל קבוצה ל-Cloud Storage ─────────
+// נשמר תחת backups/YYYY-MM-DD/{teamId}.json בדלי ברירת-המחדל של הפרויקט (פרטי —
+// נגיש רק לבעלי הפרויקט). שחזור = הורדת הקובץ מהקונסולה וכתיבה חזרה. שמירה: 30 יום.
+const BACKUP_SUBS = ["attendance", "profiles", "secrets", "members", "polls", "applause", "personalNotifs", "pushTokens"];
+
+async function runDailyBackup() {
+  const bucket = admin.storage().bucket();
+  const date = ilDate(0);
+  const teamsSnap = await db.collection("teamIndex").get();
+  const teamIds = teamsSnap.docs.map((d) => d.id);
+  let teams = 0;
+  for (const teamId of teamIds) {
+    try {
+      const dump = { teamId, backedUpAt: new Date().toISOString(), data: {}, sub: {} };
+      const dataSnap = await db.collection(`teams/${teamId}/data`).get();
+      dataSnap.forEach((d) => { dump.data[d.id] = d.data(); });
+      for (const c of BACKUP_SUBS) {
+        const s = await db.collection(`teams/${teamId}/${c}`).get();
+        dump.sub[c] = {};
+        s.forEach((d) => { dump.sub[c][d.id] = d.data(); });
+      }
+      // צ'אט: 300 ההודעות האחרונות מספיקות לגיבוי
+      const chat = await db.collection(`teams/${teamId}/chat`).orderBy("ts", "desc").limit(300).get();
+      dump.sub.chat = {};
+      chat.forEach((d) => { dump.sub.chat[d.id] = d.data(); });
+      await bucket.file(`backups/${date}/${teamId}.json`).save(JSON.stringify(dump), { contentType: "application/json" });
+      teams++;
+    } catch (e) { console.error("backup team " + teamId + ":", e); }
+  }
+  // אוספים גלובליים
+  try {
+    const g = { backedUpAt: new Date().toISOString() };
+    for (const coll of ["users", "invites", "teamIndex", "joinRequests", "errorLogs"]) {
+      const s = await db.collection(coll).limit(500).get();
+      g[coll] = {};
+      s.forEach((d) => { g[coll][d.id] = d.data(); });
+    }
+    await bucket.file(`backups/${date}/_global.json`).save(JSON.stringify(g), { contentType: "application/json" });
+  } catch (e) { console.error("backup globals:", e); }
+  // שמירת 30 יום — מוחקים תיקיות ישנות
+  let pruned = 0;
+  try {
+    const cutoff = ilDate(-30);
+    const [files] = await bucket.getFiles({ prefix: "backups/" });
+    for (const f of files) {
+      const m = f.name.match(/^backups\/(\d{4}-\d{2}-\d{2})\//);
+      if (m && m[1] < cutoff) { await f.delete().catch(() => {}); pruned++; }
+    }
+  } catch (e) { console.error("backup prune:", e); }
+  console.log(`dailyBackup date=${date} teams=${teams} pruned=${pruned}`);
+  return { date, teams, pruned };
+}
+
+// 03:00 לפנות בוקר שעון ישראל, כל יום
+exports.dailyBackup = onSchedule({ schedule: "0 3 * * *", timeZone: TZ, memory: "512MiB", timeoutSeconds: 300 }, runDailyBackup);
