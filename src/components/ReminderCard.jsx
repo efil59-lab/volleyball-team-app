@@ -55,8 +55,13 @@ export default function ReminderCard({ role, playerId, pc, notify }) {
     );
   }
 
-  // חסום: הסבר פשוט, צעד-צעד, עם "בדקי שוב" למי שתיקנה את ההגדרה
+  // חסום: הסבר צעד-צעד המותאם למצב המכשיר — אפליקציה מותקנת (אין שורת כתובת/מנעול!)
+  // מול דפדפן רגיל. עם "בדקי שוב" למי שתיקנה את ההגדרה.
   if (support === "denied" && !on) {
+    const standalone = (() => {
+      try { return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; }
+      catch { return false; }
+    })();
     return (
       <div style={{ ...S.card }}>
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
@@ -65,14 +70,30 @@ export default function ReminderCard({ role, playerId, pc, notify }) {
             ההתראות חסומות במכשיר הזה — ככה פותחים אותן:
           </div>
         </div>
-        <ol style={{ fontSize: 13, color: "#475569", lineHeight: 1.8, margin: "0 0 12px", paddingRight: 22 }}>
-          <li>לחצי על סמל <b>🔒 המנעול</b> (או ⓘ) ליד הכתובת למעלה</li>
-          <li>בחרי <b>הרשאות ← התראות ← אפשרי</b></li>
-          <li>חזרי לכאן ולחצי "בדקי שוב"</li>
-        </ol>
-        <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 10px", lineHeight: 1.5 }}>
-          לא רואה מנעול? תפריט הדפדפן (⋮ או ⋯) ← הגדרות ← הרשאות אתרים ← התראות ← אפשרי לאתר הזה.
-        </p>
+        {standalone ? (
+          <>
+            <ol style={{ fontSize: 13, color: "#475569", lineHeight: 1.8, margin: "0 0 8px", paddingRight: 22 }}>
+              <li>פתחי את <b>הדפדפן</b> בטלפון (כרום / אדג' — זה שממנו התקנת)</li>
+              <li>תפריט <b>⋮ או ⋯</b> ← <b>הגדרות</b> ← <b>הרשאות אתרים</b> (Site permissions) ← <b>התראות</b></li>
+              <li>מצאי ברשימה את <b style={{ direction: "ltr", unicodeBidi: "embed" }}>{window.location.hostname}</b> ← <b>אפשרי</b></li>
+              <li>חזרי לכאן ולחצי "בדקי שוב"</li>
+            </ol>
+            <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 10px", lineHeight: 1.5 }}>
+              עדיין לא עובד? ודאי גם בהגדרות הטלפון ← אפליקציות ← הדפדפן שלך ← התראות — מופעל.
+            </p>
+          </>
+        ) : (
+          <>
+            <ol style={{ fontSize: 13, color: "#475569", lineHeight: 1.8, margin: "0 0 8px", paddingRight: 22 }}>
+              <li>לחצי על סמל <b>🔒 המנעול</b> (או ⓘ) ליד הכתובת למעלה</li>
+              <li>בחרי <b>הרשאות ← התראות ← אפשרי</b></li>
+              <li>חזרי לכאן ולחצי "בדקי שוב"</li>
+            </ol>
+            <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 10px", lineHeight: 1.5 }}>
+              לא רואה מנעול? תפריט הדפדפן (⋮ או ⋯) ← הגדרות ← הרשאות אתרים ← התראות ← אפשרי לאתר הזה.
+            </p>
+          </>
+        )}
         <button onClick={() => setRecheck(x => x + 1)}
           style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 800, background: pc, color: "white" }}>
           ✓ פתחתי — בדקי שוב
