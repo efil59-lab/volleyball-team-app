@@ -241,8 +241,10 @@ async function remindTeam(teamId, when) {
   const dateStr = when === "evening" ? ilDate(1) : ilDate(0);
   const dayWord = when === "evening" ? "מחר" : "היום";
   const events = await eventsOn(teamId, dateStr);
-  if (!events.length) return 0;
   const tokens = await getTeamPushTokens(teamId);
+  console.log("remindTeam " + teamId + " " + when + " date=" + dateStr + " events=" + events.length + " tokens=" + tokens.length +
+    " roles=[" + tokens.map((t) => t.role + ":" + t.playerId).join(",") + "]");
+  if (!events.length) return 0;
   if (!tokens.length) return 0;
   const url = "/?team=" + teamId;
   let total = 0;
@@ -357,3 +359,23 @@ exports.errorDigest = onSchedule({ schedule: "0 * * * *", timeZone: TZ }, async 
 function escapeHtml(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+// ── זמני: אבחון push (יוסר אחרי ייצוב) ──
+const { onRequest } = require("firebase-functions/https");
+exports.debugPush = onRequest(async (req, res) => {
+  // המפתח ב-functions/.env (לא ב-git — הריפו ציבורי). בלי מפתח מוגדר — חסום תמיד.
+  if (!process.env.DEBUG_PUSH_KEY || req.query.key !== process.env.DEBUG_PUSH_KEY) { res.status(403).send("no"); return; }
+  const teamId = req.query.team || "bibleumi";
+  const tokens = await getTeamPushTokens(teamId);
+  const evs = await eventsOn(teamId, ilDate(1));
+  const out = { now_il_hour: ilHour(), tokens: tokens.map((t) => ({ role: t.role, playerId: t.playerId, ua: (t.ua || "").slice(0, 60), updatedAt: t.updatedAt })), tomorrowEvents: evs.map((e) => ({ id: e.id, type: e.type, date: e.date, time: e.time, open: e.open, cancelled: !!e.cancelled })) };
+  if (evs.length) {
+    const { players, missing } = await nonResponders(teamId, evs[0].id);
+    out.playersTotal = players.length;
+    out.missing = missing.map((p) => ({ id: p.id, name: p.name }));
+  }
+  if (req.query.send === "1" && tokens.length) {
+    out.testSend = await sendPush(tokens, { title: "🏐 בדיקת התראות", body: "אם את רואה את זה — התזכורות עובדות! 🎉", url: "/?team=" + teamId, tag: "test_" + Date.now() });
+  }
+  res.json(out);
+});
