@@ -1447,6 +1447,40 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
       {/* 🔔 תזכורות למנהלת: סיכום הגעה בבוקר כל אירוע */}
       <ReminderCard role="admin" playerId={null} pc={pc} notify={notify} />
 
+      {/* ⏰ שליטה בתזכורות האוטומטיות של הקבוצה (ברירת מחדל: פעיל, 19:00 ערב-לפני, 10:00 בוקר-האירוע) */}
+      <div style={S.card}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <span style={{ fontSize: 20 }}>⏰</span>
+          <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14, flex: 1 }}>תזכורות אוטומטיות לקבוצה</span>
+          <button onClick={() => handleChange("remindersEnabled", s.remindersEnabled === false ? true : false)}
+            style={{ border: "none", borderRadius: 20, padding: "6px 14px", cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+              background: s.remindersEnabled === false ? "#f1f5f9" : "#dcfce7", color: s.remindersEnabled === false ? "#64748b" : "#16a34a" }}>
+            {s.remindersEnabled === false ? "🔕 כבוי" : "🔔 פעיל"}
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px", lineHeight: 1.5 }}>
+          תזכורת נשלחת רק למי שהפעילה התראות וטרם אישרה הגעה. את מקבלת סיכום הגעה בתזכורת הבוקר.
+        </p>
+        {s.remindersEnabled !== false && (
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <Label>ערב לפני האירוע</Label>
+              <select value={Number.isFinite(Number(s.reminderEveningHour)) ? Number(s.reminderEveningHour) : 19}
+                onChange={e => handleChange("reminderEveningHour", Number(e.target.value))} style={{ ...S.select, marginBottom: 0 }}>
+                {[16, 17, 18, 19, 20, 21, 22].map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Label>בבוקר האירוע</Label>
+              <select value={Number.isFinite(Number(s.reminderMorningHour)) ? Number(s.reminderMorningHour) : 10}
+                onChange={e => handleChange("reminderMorningHour", Number(e.target.value))} style={{ ...S.select, marginBottom: 0 }}>
+                {[6, 7, 8, 9, 10, 11, 12, 13, 14].map(h => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div style={{ ...S.card, border: `2px solid ${pc}`, background: `${pc}08` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 20 }}>🔗</span>

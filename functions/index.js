@@ -236,50 +236,64 @@ async function activeTeams() {
   return snap.docs.map((d) => d.data()).filter((t) => (t.status || "active") === "active").map((t) => t.teamId);
 }
 
-// גרעין משותף לשתי התזכורות המתוזמנות. when: "evening" (אירועי מחר) | "morning" (אירועי היום).
-async function runReminders(when) {
+// גרעין התזכורות לקבוצה אחת. when: "evening" (אירועי מחר) | "morning" (אירועי היום).
+async function remindTeam(teamId, when) {
   const dateStr = when === "evening" ? ilDate(1) : ilDate(0);
   const dayWord = when === "evening" ? "מחר" : "היום";
+  const events = await eventsOn(teamId, dateStr);
+  if (!events.length) return 0;
+  const tokens = await getTeamPushTokens(teamId);
+  if (!tokens.length) return 0;
+  const url = "/?team=" + teamId;
+  let total = 0;
+  for (const ev of events) {
+    const { players, missing, answeredCount } = await nonResponders(teamId, ev.id);
+    // תזכורת לשחקניות שטרם ענו — לכל אחת לפי הטוקנים שלה
+    const missingIds = new Set(missing.map((p) => String(p.id)));
+    const playerTokens = tokens.filter((t) => t.role === "player" && missingIds.has(String(t.playerId)));
+    const r1 = await sendPush(playerTokens, {
+      title: "🏐 " + dayWord + " " + evLabel(ev) + " ב-" + ev.time,
+      body: "טרם אישרת הגעה — לחצי לאישור מהיר ✅",
+      url, tag: "reminder_" + teamId + "_" + ev.id + "_" + when,
+    });
+    total += r1.sent;
+    // בבוקר האירוע — גם סיכום למנהלת
+    if (when === "morning") {
+      const adminTokens = tokens.filter((t) => t.role === "admin");
+      const r2 = await sendPush(adminTokens, {
+        title: "📋 " + evLabel(ev) + " " + dayWord + " ב-" + ev.time,
+        body: answeredCount + " ענו · " + missing.length + " טרם ענו (מתוך " + players.length + ")",
+        url, tag: "summary_" + teamId + "_" + ev.id,
+      });
+      total += r2.sent;
+    }
+  }
+  return total;
+}
+
+// השעה הנוכחית בישראל (0-23)
+function ilHour() {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(new Date()));
+}
+
+// רץ כל שעה ובודק לכל קבוצה אם זו שעת התזכורת שלה (לפי ההגדרות שלה).
+// ברירות מחדל: ערב-לפני 19:00 · בוקר-האירוע 10:00 · פעיל. המנהלת שולטת בטאב ההגדרות.
+exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ }, async () => {
+  const hour = ilHour();
   const teams = await activeTeams();
   let total = 0;
   for (const teamId of teams) {
     try {
-      const events = await eventsOn(teamId, dateStr);
-      if (!events.length) continue;
-      const tokens = await getTeamPushTokens(teamId);
-      if (!tokens.length) continue;
-      const url = `/?team=${teamId}`;
-      for (const ev of events) {
-        const { players, missing, answeredCount } = await nonResponders(teamId, ev.id);
-        // תזכורת לשחקניות שטרם ענו — לכל אחת לפי הטוקנים שלה
-        const missingIds = new Set(missing.map((p) => String(p.id)));
-        const playerTokens = tokens.filter((t) => t.role === "player" && missingIds.has(String(t.playerId)));
-        const r1 = await sendPush(playerTokens, {
-          title: `🏐 ${dayWord} ${evLabel(ev)} ב-${ev.time}`,
-          body: "טרם אישרת הגעה — לחצי לאישור מהיר ✅",
-          url, tag: `reminder_${teamId}_${ev.id}_${when}`,
-        });
-        total += r1.sent;
-        // בבוקר האירוע — גם סיכום למנהלת
-        if (when === "morning") {
-          const adminTokens = tokens.filter((t) => t.role === "admin");
-          const r2 = await sendPush(adminTokens, {
-            title: `📋 ${evLabel(ev)} ${dayWord} ב-${ev.time}`,
-            body: `${answeredCount} ענו · ${missing.length} טרם ענו (מתוך ${players.length})`,
-            url, tag: `summary_${teamId}_${ev.id}`,
-          });
-          total += r2.sent;
-        }
-      }
-    } catch (e) { console.error(`reminders(${when}) team=${teamId}:`, e); }
+      const st = (await getTeamValue(teamId, "settings", {})) || {};
+      if (st.remindersEnabled === false) continue; // המנהלת כיבתה — מדלגים
+      const eveningHour = Number.isFinite(Number(st.reminderEveningHour)) ? Number(st.reminderEveningHour) : 19;
+      const morningHour = Number.isFinite(Number(st.reminderMorningHour)) ? Number(st.reminderMorningHour) : 10;
+      if (hour === eveningHour) total += await remindTeam(teamId, "evening");
+      if (hour === morningHour) total += await remindTeam(teamId, "morning");
+    } catch (e) { console.error("remindersHourly team=" + teamId + ":", e); }
   }
-  console.log(`reminders(${when}) date=${dateStr} sent=${total}`);
-}
-
-// 19:00 — תזכורת ערב-לפני לאירועי מחר, למי שטרם אישרה
-exports.eventRemindersEvening = onSchedule({ schedule: "0 19 * * *", timeZone: TZ }, () => runReminders("evening"));
-// 08:00 — תזכורת בוקר-האירוע למי שטרם אישרה + סיכום הגעה למנהלת
-exports.eventRemindersMorning = onSchedule({ schedule: "0 8 * * *", timeZone: TZ }, () => runReminders("morning"));
+  console.log("remindersHourly hour=" + hour + " sent=" + total);
+});
 
 // ── התראת דחיפה מיידית לכל הקבוצה (מנהלת בלבד) — משמשת לביטול אימון/משחק ──
 exports.notifyTeamPush = onCall(async (request) => {
