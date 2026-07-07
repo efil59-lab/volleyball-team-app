@@ -301,6 +301,7 @@ exports.notifyTeamPush = onCall(async (request) => {
   if (!teamId || !title) throw new HttpsError("invalid-argument", "חסר teamId או title");
   await assertAdmin(request.auth, teamId);
   const tokens = await getTeamPushTokens(teamId);
+  console.log("notifyTeamPush team=" + teamId + " tokens=" + tokens.length + " title=" + String(title).slice(0, 40));
   const { sent } = await sendPush(tokens, {
     title: String(title).slice(0, 100),
     body: String(body || "").slice(0, 300),
