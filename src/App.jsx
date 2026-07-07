@@ -140,7 +140,7 @@ export default function App() {
         setAttendance(flat);
       },
       err => console.error("attendance onSnapshot:", err));
-    return { players: p, playerProfiles: pp };
+    return { players: p, playerProfiles: pp, meta: m };
   }
 
   // משקיף בלבד על מצב ההזדהות (לא מתחבר — כך אין מרוץ עם ה-redirect). משמש לאבחון ולכפתור "המשך".
@@ -219,6 +219,13 @@ export default function App() {
 
       // 4) זרימה רגילה
       const td = await loadTeamData();
+      // קבוצת-רפאים: ?team= שמצביע לקבוצה שלא קיימת (נמחקה/מזהה שגוי/pwaTeam ישן).
+      // לכל קבוצה אמיתית יש meta. בלי הבדיקה: מסך ריק עם שם ברירת-מחדל מבלבל.
+      if (CURRENT_TEAM !== DEFAULT_TEAM && !td?.meta) {
+        try { localStorage.removeItem("pwaTeam"); localStorage.removeItem("currentTeamId"); } catch {}
+        setScreen("landing");
+        return;
+      }
       const seenWhatsNew = parseInt(localStorage.getItem("whatsNewSeenVer") || "0");
       // מסך התקנה: מוצג בכל כניסה מהדפדפן — עד שמתקינות למסך הבית (ואז standalone=true
       // והוא נעלם מעצמו). ההתקנה קריטית: בלעדיה אין תזכורות push באייפון.
