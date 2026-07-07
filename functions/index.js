@@ -233,7 +233,10 @@ function evLabel(ev) {
 // רשימת הקבוצות הפעילות (מתוך teamIndex)
 async function activeTeams() {
   const snap = await db.collection("teamIndex").get();
-  return snap.docs.map((d) => d.data()).filter((t) => (t.status || "active") === "active").map((t) => t.teamId);
+  return snap.docs.map((d) => d.data())
+    .filter((t) => (t.status || "active") === "active")
+    .filter((t) => !(t.plan === "trial" && t.trialEndsAt && new Date(t.trialEndsAt).getTime() < Date.now())) // ניסיון שפג — בלי תזכורות
+    .map((t) => t.teamId);
 }
 
 // גרעין התזכורות לקבוצה אחת. when: "evening" (אירועי מחר) | "morning" (אירועי היום).
@@ -378,4 +381,42 @@ exports.debugPush = onRequest(async (req, res) => {
     out.testSend = await sendPush(tokens, { title: "🏐 בדיקת התראות", body: "אם את רואה את זה — התזכורות עובדות! 🎉", url: "/?team=" + teamId, tag: "test_" + Date.now() });
   }
   res.json(out);
+});
+
+// ── שלב 5: התראה לבעל המוצר על קבוצת ניסיון חדשה (הרשמה עצמית) ──────────────
+// נקרא מהקליינט מיד אחרי יצירת קבוצת trial. מאמת שהקוראת היא בעלת הקבוצה,
+// ושולח push לבעל המוצר (הטוקנים שלו רשומים כ-admin בקבוצת הבית) + מייל (אם Resend מוגדר).
+exports.notifyNewTeam = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "נדרשת התחברות");
+  const { teamId } = request.data || {};
+  if (!teamId) throw new HttpsError("invalid-argument", "חסר teamId");
+  const metaSnap = await db.doc(`teams/${teamId}/data/meta`).get();
+  const meta = metaSnap.exists ? (metaSnap.data().value || {}) : {};
+  if (meta.ownerUid !== request.auth.uid) throw new HttpsError("permission-denied", "לא בעלת הקבוצה");
+  const st = await getTeamValue(teamId, "settings", {});
+  const title = "🆕 קבוצת ניסיון חדשה נרשמה!";
+  const body = `${(st && st.teamName) || teamId} · ${meta.ownerEmail || "?"} · קוד ${teamId}`;
+  // push לכל טוקני ה-admin של קבוצת הבית (המכשירים של בעל המוצר)
+  try {
+    const homeTokens = (await getTeamPushTokens("bibleumi")).filter((t) => t.role === "admin");
+    await sendPush(homeTokens, { title, body, url: "/?team=bibleumi", tag: "signup_" + teamId });
+  } catch (e) { console.error("notifyNewTeam push:", e); }
+  // מייל (אם RESEND_API_KEY מוגדר)
+  try {
+    const key = process.env.RESEND_API_KEY;
+    if (key) {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          from: "Volleyball App <onboarding@resend.dev>",
+          to: [SUPER_ADMIN_EMAIL],
+          subject: title,
+          html: `<div dir="rtl" style="font-family:Arial"><h2>${title}</h2><p>${body}</p><p>ניסיון עד: ${meta.trialEndsAt || "?"}</p></div>`,
+        }),
+      });
+    }
+  } catch (e) { console.error("notifyNewTeam mail:", e); }
+  console.log("notifyNewTeam:", teamId, meta.ownerEmail);
+  return { ok: true };
 });

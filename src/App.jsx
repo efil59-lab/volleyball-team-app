@@ -363,10 +363,13 @@ export default function App() {
   const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, notify, teamMeta, addChatLocal };
 
   // ── שער כניסה (מסחור) ────────────────────────────────────────────────────────
-  // קבוצה ללא status נחשבת "active" (ותיקה — לא נועלים). רק "pending" מפורש נועל לשחקניות.
+  // קבוצה ללא status נחשבת "active" (ותיקה — לא נועלים). נעילת שחקניות: pending מפורש,
+  // או קבוצת ניסיון שתוקפה פג (שלב 5). המנהלת עצמה לא ננעלת — היא רואה מסך תשלום בפאנל.
   const teamStatus = teamMeta?.status || "active";
+  const teamPlan = teamMeta?.plan || "free";
+  const trialExpired = teamPlan === "trial" && teamMeta?.trialEndsAt && new Date(teamMeta.trialEndsAt).getTime() < Date.now();
   const isTeamAdmin = !!(authUser && !authUser.isAnonymous && teamMeta && (teamMeta.adminUids || []).includes(authUser.uid));
-  const lockedForPlayers = teamStatus === "pending" && !isTeamAdmin;
+  const lockedForPlayers = (teamStatus === "pending" || trialExpired) && !isTeamAdmin;
 
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
@@ -394,7 +397,7 @@ export default function App() {
 
   // קבוצה pending: השחקניות רואות מסך נעילה. המנהלת (admin-login/admin/superAdmin) ממשיכה רגיל.
   if (lockedForPlayers && (screen === "home" || screen === "onboard" || screen === "player")) {
-    return <LockedTeamScreen pc={pc} sc={sc} settings={settings} onAdmin={() => setScreen("admin-login")} />;
+    return <LockedTeamScreen pc={pc} sc={sc} settings={settings} reason={trialExpired ? "expired" : "pending"} onAdmin={() => setScreen("admin-login")} />;
   }
 
   return (

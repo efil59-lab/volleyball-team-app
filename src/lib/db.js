@@ -1,7 +1,7 @@
 import { db, functions } from "../firebase";
 import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, KEYS, DEFAULT_SETTINGS } from "./constants";
+import { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, KEYS, DEFAULT_SETTINGS, TRIAL_DAYS } from "./constants";
 
 // האם הגיעה קבוצה מפורשת ב-URL (?team=). אם לא — מציגים דף נחיתה (לא מנחשים מ-localStorage ישן).
 let TEAM_FROM_URL = false;
@@ -214,6 +214,7 @@ const callResetFn = httpsCallable(functions, "adminResetPlayerPassword");
 const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
 const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 const callNotifyPushFn = httpsCallable(functions, "notifyTeamPush");
+const callNotifyNewTeamFn = httpsCallable(functions, "notifyNewTeam");
 async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
   return res.data; // { ok, tempPassword }
@@ -243,6 +244,7 @@ async function syncTeamIndex(teamId) {
       ownerEmail: meta.ownerEmail || "",
       status: meta.status || "active",
       plan: meta.plan || "free",
+      trialEndsAt: meta.trialEndsAt || null,
       createdAt: meta.createdAt || "",
       playerCount: Array.isArray(players) ? players.length : 0,
       updatedAt: new Date().toISOString(),
@@ -255,6 +257,19 @@ async function listAllTeams() {
     const snap = await getDocs(collection(db, "teamIndex"));
     return snap.docs.map(d => d.data()).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   } catch (e) { console.error("listAllTeams:", e); return []; }
+}
+// סימון קבוצה כשולמת (plan=paid — נעילת הניסיון לא חלה יותר)
+async function setTeamPaid(teamId) {
+  const meta = await loadTeamKey(teamId, KEYS.meta, {}) || {};
+  await saveTeamKey(teamId, KEYS.meta, { ...meta, plan: "paid", paidAt: new Date().toISOString() });
+  await syncTeamIndex(teamId);
+}
+// הארכת ניסיון ב-N ימים (מהיום או מתאריך הסיום, המאוחר מביניהם)
+async function extendTrial(teamId, days) {
+  const meta = await loadTeamKey(teamId, KEYS.meta, {}) || {};
+  const base = Math.max(Date.now(), new Date(meta.trialEndsAt || 0).getTime());
+  await saveTeamKey(teamId, KEYS.meta, { ...meta, plan: "trial", trialEndsAt: new Date(base + days * 86400000).toISOString() });
+  await syncTeamIndex(teamId);
 }
 async function setTeamStatus(teamId, status) {
   const meta = await loadTeamKey(teamId, KEYS.meta, {}) || {};
@@ -326,10 +341,20 @@ async function resolveAdminTeam(user, allowRequest) {
         return "__PENDING_REQUEST__";
       }
     } else {
-      // משתמש לא-מוכר: רק זרימת רכישה (allowRequest) רושמת בקשה. כניסת-מנהל → מבוי-סתום.
+      // משתמש לא-מוכר: כניסת-מנהל → מבוי-סתום מנומס. זרימת "נסי חינם" (allowRequest) →
+      // שלב 5: יצירת קבוצת ניסיון חיה מיד (self-service) — בלי המתנה לאישור.
+      // הפיקוח עבר לבדיעבד: הסופר-אדמין מקבל התראה על כל הרשמה ויש לו כפתור השהיה.
       if (!allowRequest) return "__NOT_REGISTERED__";
-      await saveJoinRequest(email, user.displayName || "");
-      return "__PENDING_REQUEST__";
+      teamId = await generateTeamId();
+      await seedNewTeam(teamId);
+      await saveTeamKey(teamId, KEYS.meta, {
+        ownerUid: uid, ownerEmail: email, adminUids: [uid],
+        status: "active", plan: "trial",
+        trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+      await saveUserTeam(uid, { teamId, email });
+      try { await callNotifyNewTeamFn({ teamId }); } catch (e) { console.error("notifyNewTeam:", e); }
     }
   }
   // status התחלתי: בינלאומי/מוכרות = active, חדשה = pending. addTeamAdmin שומר status קיים.
@@ -391,6 +416,6 @@ export {
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
-  syncTeamIndex, listAllTeams, setTeamStatus, seedNewTeam, generateTeamId, resolveAdminTeam,
+  syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 };

@@ -7,6 +7,7 @@ import { formatShort } from "../lib/utils";
 import {
   loadInvite, saveInvite, inviteKey, generateTeamId, seedNewTeam, saveTeamKey,
   syncTeamIndex, deleteJoinRequest, loadJoinRequests, listAllTeams, setTeamStatus,
+  setTeamPaid, extendTrial,
   adminDeleteTeamRemote,
 } from "../lib/db";
 import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
@@ -276,6 +277,12 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
 
         {teams && teams.map(t => {
           const pending = (t.status || "active") === "pending";
+          const isTrial = t.plan === "trial";
+          const trialExpired = isTrial && t.trialEndsAt && new Date(t.trialEndsAt).getTime() < Date.now();
+          const planChip = t.plan === "paid" ? { txt: "💰 שולם", bg: "#dcfce7", c: "#166534" }
+            : trialExpired ? { txt: "⏰ ניסיון פג", bg: "#fee2e2", c: "#b91c1c" }
+            : isTrial ? { txt: "🎁 ניסיון עד " + formatShort((t.trialEndsAt || "").split("T")[0]), bg: "#fef9c3", c: "#854d0e" }
+            : null;
           return (
             <div key={t.teamId} style={{ background: "white", borderRadius: 14, padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -283,6 +290,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                 <span style={{ marginRight: "auto", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8, background: pending ? "#fef3c7" : "#dcfce7", color: pending ? "#92400e" : "#166534" }}>
                   {pending ? "⏳ ממתינה" : "✅ פעילה"}
                 </span>
+                {planChip && <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 8, background: planChip.bg, color: planChip.c, whiteSpace: "nowrap" }}>{planChip.txt}</span>}
               </div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, overflowWrap: "anywhere" }}>{t.ownerEmail || "—"}</div>
               <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
@@ -299,6 +307,14 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                     style={{ flex: 1, padding: "9px", background: t.teamId === DEFAULT_TEAM ? "#e2e8f0" : "#fff", color: t.teamId === DEFAULT_TEAM ? "#94a3b8" : "#ef4444", border: `1px solid ${t.teamId === DEFAULT_TEAM ? "#e2e8f0" : "#fecaca"}`, borderRadius: 10, cursor: t.teamId === DEFAULT_TEAM ? "default" : "pointer", fontSize: 13, fontWeight: 700, opacity: busyId === t.teamId ? 0.6 : 1 }}>
                     {t.teamId === DEFAULT_TEAM ? "🔒 הבינלאומי (קבוע)" : (busyId === t.teamId ? "…" : "⏸️ השהה")}
                   </button>
+                )}
+                {t.teamId !== DEFAULT_TEAM && t.plan !== "paid" && (
+                  <button disabled={busyId === t.teamId} onClick={async () => { setBusyId(t.teamId); await setTeamPaid(t.teamId); await refreshTeams(); setBusyId(null); }}
+                    style={{ padding: "9px 12px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>💰 שולם</button>
+                )}
+                {t.teamId !== DEFAULT_TEAM && isTrial && (
+                  <button disabled={busyId === t.teamId} onClick={async () => { setBusyId(t.teamId); await extendTrial(t.teamId, 14); await refreshTeams(); setBusyId(null); }}
+                    style={{ padding: "9px 12px", background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>➕14</button>
                 )}
                 {t.teamId !== DEFAULT_TEAM && (
                   <button disabled={busyId === t.teamId} onClick={() => { setDeleteTarget(t); setConfirmText(""); setDelErr(""); }}

@@ -9,6 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, notifyTeamPushRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
+import PaymentCard from "../components/PaymentCard";
 import { loadExcelJS } from "../lib/images";
 import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
 
@@ -191,6 +192,12 @@ function AdminPanel(props) {
   const [tab, setTab] = useState("attendance");
   const { pc, sc, onBack, onLogout, teamMeta, askConfirm, settings, players, upd } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
+  // שלב 5 — ניסיון: ספירה לאחור ותשלום. המנהלת לא ננעלת; הבנות כן (נאכף ב-App).
+  const isTrial = (teamMeta?.plan || "free") === "trial";
+  const trialEnd = teamMeta?.trialEndsAt ? new Date(teamMeta.trialEndsAt).getTime() : null;
+  const trialDaysLeft = isTrial && trialEnd ? Math.max(0, Math.ceil((trialEnd - Date.now()) / 86400000)) : null;
+  const trialExpired = !!(isTrial && trialEnd && trialEnd < Date.now());
+  const [showPayment, setShowPayment] = useState(trialExpired); // פג — נפתח מיד
   // אשף הקמה למנהלת חדשה: קבוצה שאינה הבינלאומי, טרם הושלם onboarding, ואין עדיין שחקניות.
   // אשף הקמה למנהלת חדשה: מותנה אך ורק בדגל onboardingDone (יציב — לא תלוי במספר שחקניות).
   // הבינלאומי מוחרגת (היא ותיקה ואין לה את הדגל). מנהלת שטרם השלימה רואה אשף; שהשלימה — לא.
@@ -227,6 +234,32 @@ function AdminPanel(props) {
           <span style={{ fontSize: 22 }}>⏳</span>
           <div style={{ fontSize: 12.5, color: "#92400e", fontWeight: 600, lineHeight: 1.45 }}>
             הקבוצה ממתינה לאישור — את/ה יכול/ה להקים הכול, אך <strong>השחקניות עדיין לא רואות אותה</strong>. לאחר ההפעלה — היא תיפתח לכולן.
+          </div>
+        </div>
+      )}
+      {/* שלב 5 — באנר ניסיון: ספירה לאחור (צהוב) או פג-תוקף (אדום). לחיצה פותחת את מסך התשלום. */}
+      {isTrial && !trialExpired && (
+        <button onClick={() => setShowPayment(true)}
+          style={{ width: "100%", background: "linear-gradient(135deg, #fef9c3, #fde68a)", border: "none", borderBottom: "1px solid #fcd34d", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "right" }}>
+          <span style={{ fontSize: 20 }}>🎁</span>
+          <span style={{ fontSize: 12.5, color: "#92400e", fontWeight: 700, flex: 1 }}>
+            תקופת ניסיון — נותרו {trialDaysLeft} ימים. להמשך שימוש ללא הפרעה ←
+          </span>
+        </button>
+      )}
+      {trialExpired && (
+        <button onClick={() => setShowPayment(true)}
+          style={{ width: "100%", background: "linear-gradient(135deg, #fee2e2, #fecaca)", border: "none", borderBottom: "1px solid #fca5a5", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "right" }}>
+          <span style={{ fontSize: 20 }}>⏰</span>
+          <span style={{ fontSize: 12.5, color: "#b91c1c", fontWeight: 800, flex: 1 }}>
+            תקופת הניסיון הסתיימה — השחקניות נעולות. לחידוש ←
+          </span>
+        </button>
+      )}
+      {showPayment && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 950, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowPayment(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 380 }}>
+            <PaymentCard pc={pc} sc={sc} expired={trialExpired} daysLeft={trialDaysLeft} onClose={() => setShowPayment(false)} />
           </div>
         </div>
       )}

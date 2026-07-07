@@ -59,10 +59,10 @@ function PurchaseBanner({ pc, sc, onClick }) {
       style={{ width: "100%", border: `1px dashed ${pc}55`, background: `${pc}0a`, borderRadius: 14, padding: "12px 16px", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 46 }}>
       <span style={{ position: "relative", display: "inline-block", height: 20, lineHeight: "20px" }}>
         <span style={{ opacity: showB ? 0 : 1, transition: "opacity 0.5s", color: pc, fontWeight: 700, fontSize: 14 }}>
-          🏐 מעוניינת באפליקציה לקבוצה שלך?
+          🏐 רוצה אפליקציה כזו לקבוצה שלך?
         </span>
         <span style={{ position: "absolute", inset: 0, opacity: showB ? 1 : 0, transition: "opacity 0.5s", color: pc, fontWeight: 800, fontSize: 14, whiteSpace: "nowrap" }}>
-          לחצי כאן לפרטים ←
+          🎁 נסי חינם 14 יום ←
         </span>
       </span>
     </button>

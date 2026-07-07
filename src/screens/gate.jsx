@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WHATS_NEW, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP } from "../lib/constants";
+import { WHATS_NEW, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP, TRIAL_DAYS, PAYMENT } from "../lib/constants";
 import { isGoogleUser } from "../lib/auth";
 import { PurchaseBanner } from "../components/shared";
 
@@ -91,15 +91,18 @@ function WhatsNewScreen({ pc, sc, onDone }) {
 }
 
 // ── LOCKED TEAM (קבוצה pending — נעולה לשחקניות עד אישור) ─────────────────────
-function LockedTeamScreen({ pc, sc, settings, onAdmin }) {
+function LockedTeamScreen({ pc, sc, settings, onAdmin, reason }) {
   const teamName = settings?.teamName || "הקבוצה";
+  const expired = reason === "expired";
   return (
     <div style={{ direction: "rtl", minHeight: "100vh", background: pc, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
       <div style={{ fontSize: 64, marginBottom: 8 }}>🔒</div>
       <h2 style={{ color: "white", fontSize: 22, fontWeight: 800, margin: "0 0 6px" }}>{teamName}</h2>
-      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>הקבוצה עדיין לא פעילה</p>
+      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>{expired ? "תקופת הניסיון הסתיימה" : "הקבוצה עדיין לא פעילה"}</p>
       <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.6, maxWidth: 320, margin: "0 0 24px" }}>
-        מנהל/ת הקבוצה בתהליך הקמה. ברגע שהקבוצה תופעל — תוכלי להיכנס ולסמן הגעה. נסי שוב מאוחר יותר 🏐
+        {expired
+          ? "המנהלת מטפלת בחידוש המנוי — ברגע שיושלם, הכל יחזור לעבוד כרגיל. נסי שוב מאוחר יותר 🏐"
+          : "מנהל/ת הקבוצה בתהליך הקמה. ברגע שהקבוצה תופעל — תוכלי להיכנס ולסמן הגעה. נסי שוב מאוחר יותר 🏐"}
       </p>
       <button onClick={onAdmin} style={{ padding: "10px 20px", background: "rgba(255,255,255,0.15)", color: "white", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 12, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
         כניסת מנהל/ת
@@ -199,20 +202,21 @@ function PurchaseScreen({ pc, sc, authUser, onGoogle, onContinue, onBack }) {
             </div>
           ))}
         </div>
-        <div style={{ background: "#fef9c3", borderRadius: 10, padding: "10px 14px", margin: "0 0 18px", fontSize: 13, color: "#854d0e", lineHeight: 1.5, textAlign: "center" }}>
-          💳 השירות כרוך בעלות חודשית. הפרטים יימסרו לאחר אישור הבקשה.
+        <div style={{ background: "#dcfce7", border: "1px solid #86efac", borderRadius: 12, padding: "12px 14px", margin: "0 0 14px", fontSize: 13.5, color: "#166534", lineHeight: 1.6, textAlign: "center" }}>
+          🎁 <strong>{TRIAL_DAYS} יום ניסיון חינם</strong> — בלי כרטיס אשראי, בלי התחייבות.<br />
+          הקבוצה נפתחת מיד והבנות יכולות להצטרף עוד היום.
         </div>
-        <p style={{ fontSize: 13, color: "#64748b", textAlign: "center", margin: "0 0 14px", lineHeight: 1.5 }}>
-          כדי לבקש לפתוח קבוצה, התחברי עם חשבון Google שלך. <strong>הבקשה תישלח רק לאחר אישורך במסך הבא.</strong>
+        <p style={{ fontSize: 12.5, color: "#64748b", textAlign: "center", margin: "0 0 14px", lineHeight: 1.5 }}>
+          בתום הניסיון: {PAYMENT.priceText}, בתשלום פשוט בביט.
         </p>
         {err && <div style={{ background: "#fee2e2", color: "#b91c1c", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12, textAlign: "center" }}>{err}</div>}
         {alreadyGoogle ? (
           <button disabled={busy} onClick={() => go(onContinue)} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: busy ? "default" : "pointer", marginBottom: 10 }}>
-            {busy ? "רגע…" : `המשיכי כ-${authUser.email}`}
+            {busy ? "פותחת את הקבוצה…" : `🎁 התחילי ניסיון חינם כ-${authUser.email}`}
           </button>
         ) : (
           <button disabled={busy} onClick={() => go(onGoogle)} style={{ width: "100%", background: pc, color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: busy ? "default" : "pointer", marginBottom: 10 }}>
-            {busy ? "רגע…" : "התחברי עם Google"}
+            {busy ? "פותחת את הקבוצה…" : "🎁 התחילי ניסיון חינם — עם Google"}
           </button>
         )}
         <button onClick={onBack} style={{ width: "100%", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>חזרה</button>
