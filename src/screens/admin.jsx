@@ -10,6 +10,7 @@ import {
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, notifyTeamPushRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
 import PaymentCard from "../components/PaymentCard";
+import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
 import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
 
@@ -1458,6 +1459,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
 function AdminSettings({ settings, upd, pc, sc, notify }) {
   const [s, setS] = useState({ ...settings });
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const teamLink = `${window.location.origin}/?team=${CURRENT_TEAM}`;
   function copyTeamLink() {
     try { navigator.clipboard.writeText(teamLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } catch {}
@@ -1477,6 +1479,18 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
   }
   return (
     <div>
+      {/* 📖 המדריך למנהלת — מסך מלא + הורדת PDF למסירה */}
+      {showGuide && <AdminGuide pc={pc} sc={sc} onClose={() => setShowGuide(false)} />}
+      <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 26, flexShrink: 0 }}>📖</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#1e293b" }}>המדריך למנהלת</div>
+          <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>כל הפונקציות, מסך-מסך + שאלות נפוצות</div>
+        </div>
+        <button onClick={() => setShowGuide(true)} style={{ flexShrink: 0, padding: "9px 14px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, background: pc, color: "white" }}>פתחי</button>
+        <a href="/admin-guide.pdf" target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, padding: "9px 12px", borderRadius: 10, fontSize: 13, fontWeight: 800, background: "#f1f5f9", color: "#475569", textDecoration: "none" }}>PDF ⬇</a>
+      </div>
+
       {/* 🔔 תזכורות למנהלת: סיכום הגעה בבוקר כל אירוע */}
       <ReminderCard role="admin" playerId={null} pc={pc} notify={notify} />
 
