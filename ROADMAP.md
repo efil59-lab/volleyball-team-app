@@ -195,3 +195,5 @@
 - **תקציב:** Firebase Blaze + Budget Alert ₪25/חודש (~$0 כרגע). Vercel Hobby (לא מסחרי)
 - **מנהלים:** efil59@gmail.com (super-admin) · miri.levi1962@gmail.com
 - **תוכנית מפורטת:** `MULTITENANT_PLAN.md`
+
+<!-- token-auth check de7a760 -->
