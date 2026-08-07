@@ -215,12 +215,12 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const navItems = [
     { key: "event", icon: "📋", label: "נוכחות" },
     { key: "calendar", icon: "🗓️", label: "לוח" },
+    { key: "games", icon: "🏆", label: "תוצאות" },
     { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
-    { key: "gallery", icon: "📸", label: "תמונות" },
   ];
   const navMore = [
-    { key: "games", icon: "🏆", label: "תוצאות משחקים" },
     { key: "polls", icon: "🗳️", label: "סקר" },
+    { key: "gallery", icon: "📸", label: "תמונות" },
   ];
 
   async function sendChat() {
