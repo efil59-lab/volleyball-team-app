@@ -361,6 +361,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               placeholder="example@email.com" style={S.input} />
             <Label>🎂 תאריך לידה</Label>
             <input type="date" value={editBirthday} onChange={e => setEditBirthday(e.target.value)} style={S.input} />
+            {/* תזכורות — כאן זה המקום הקבוע לניהול (הכרטיס בלשונית נוכחות נעלם אחרי ההפעלה) */}
+            <div style={{ marginTop: 6, marginBottom: 12 }}>
+              <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} />
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={async () => {
                 const updated = { ...playerProfiles, [player.id]: { ...prof, phone: editPhone, whatsapp: editWhatsapp, email: editEmail, birthday: editBirthday } };
@@ -495,7 +499,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             )}
 
             {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
-            <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} />
+            <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />
 
             {/* 📊 Personal stats — based on archived (verified) events only */}
                 {(() => {

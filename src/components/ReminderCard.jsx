@@ -7,7 +7,7 @@ import { pushSupport, pushEnabledLocally, enablePush, disablePush } from "../lib
 // למנהלת: גם סיכום הגעה בבוקר האירוע. מוצג רק כשהפיצ'ר מוגדר (VAPID קיים).
 // הזרימה: לחיצה על "הפעילי" ← מסך-הכנה ("הטלפון ישאל — לחצי אפשר") ← השאלה של
 // הדפדפן. ההכנה קריטית: בלי הסבר, חלק מהמשתמשות דוחות את השאלה ונחסמות.
-export default function ReminderCard({ role, playerId, pc, notify }) {
+export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn }) {
   const who = role === "admin" ? "admin" : `p${playerId}`;
   const [busy, setBusy] = useState(false);
   const [on, setOn] = useState(() => pushEnabledLocally(who));
@@ -16,6 +16,7 @@ export default function ReminderCard({ role, playerId, pc, notify }) {
   const support = pushSupport();
 
   if (support === "no-vapid" || support === "unsupported") return null; // הפיצ'ר כבוי/לא נתמך — לא מציקים
+  if (on && hideWhenOn) return null; // כבר פעיל → אין מה להציג (הביטול זמין בעריכת פרופיל)
 
   const label = role === "admin"
     ? "תזכורות למנהלת: סיכום הגעה בבוקר כל אימון/משחק, ישירות לטלפון."
