@@ -11,6 +11,7 @@ import {
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 } from "./lib/db";
 import { isIOS } from "./lib/utils";
+import { trackScreen } from "./lib/analytics";
 import { Confirm } from "./components/shared";
 import { InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin } from "./screens/gate";
 import { SuperAdminScreen } from "./screens/superadmin";
@@ -51,6 +52,9 @@ export default function App() {
   const [authUser, setAuthUser] = useState(null);
   const [teamMeta, setTeamMeta] = useState(null); // meta של הקבוצה הנוכחית (status/בעלות) — לשער הכניסה
   const [updateReady, setUpdateReady] = useState(false); // גרסה חדשה זמינה בשרת → באנר רענון
+
+  // מעקב מסכים (GA4) — רק שם המסך, בלי שום פרט מזהה. no-op אם GA כבוי.
+  useEffect(() => { trackScreen(screen); }, [screen]);
 
   // ── באנר "יש עדכון": משווים את מזהה ה-build המוטמע מול /version.json בשרת ─────
   // נבדק בכל חזרה לאפליקציה (focus) וכל 5 דקות. אין SW-cache, אז רענון = קוד חדש מיד.

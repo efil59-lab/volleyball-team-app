@@ -6,9 +6,12 @@ import "./styles/index.css";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { logError } from "./lib/errorLog";
+import { initAnalytics } from "./lib/analytics";
 
 // לכידת שגיאות גלובליות שנופלות מחוץ ל-React (Promise שנדחה, שגיאה בטיפול אירוע).
 // מדווח ל-console + ל-ניטור (errorLogs ב-Firestore, נצפה בסופר-אדמין).
+initAnalytics(); // ללא GA_MEASUREMENT_ID — no-op מוחלט (בלי סקריפט, בלי עוגיות)
+
 window.addEventListener("unhandledrejection", (e) => {
   const r = e.reason;
   console.error("🔴 Unhandled promise rejection:", r);

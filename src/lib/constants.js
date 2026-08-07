@@ -13,6 +13,10 @@ const PAYMENT = {
   bitPhone: "052-4473685",           // ביט של אפי
 };
 
+// Google Analytics 4 — מזהה מדידה (G-XXXXXXXXXX) מ-analytics.google.com.
+// ריק = כבוי לחלוטין (לא נטען סקריפט, לא נשמרות עוגיות) — ברירת מחדל בטוחה לפרטיות.
+const GA_MEASUREMENT_ID = "";
+
 // מפתח Web Push ציבורי (VAPID) — נוצר ב-Firebase Console ← Cloud Messaging ← Web Push certificates.
 // ציבורי בעיצובו (מוטמע בכל אתר). ריק = כפתור התזכורות מוסתר (הפיצ'ר כבוי).
 const VAPID_PUBLIC_KEY = "BFR1srx9sLjwoIACSvzHrZxJioEdOUyOfOwq3Tm57x1ZRpEq3LSmst1uIv2dpQa8Hx8gyJC0UTRpdM19ESC_I7w";
@@ -82,4 +86,4 @@ const DEFAULT_GAMES = [
   { id: 1, date: "2026-05-20", time: "18:00", opponent: "מכבי תל אביב", location: "אולם עירוני", result: null },
   { id: 2, date: "2026-06-03", time: "19:00", opponent: "הפועל ירושלים", location: "אולם ספורט הבנק הבינלאומי", result: null },
 ];
-export { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, SUPER_ADMIN_EMAIL, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP, VAPID_PUBLIC_KEY, TRIAL_DAYS, PAYMENT, KEYS, DEFAULT_SETTINGS, WHATS_NEW, DEFAULT_PLAYERS, DEFAULT_EVENTS, DEFAULT_GAMES };
+export { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, SUPER_ADMIN_EMAIL, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP, VAPID_PUBLIC_KEY, GA_MEASUREMENT_ID, TRIAL_DAYS, PAYMENT, KEYS, DEFAULT_SETTINGS, WHATS_NEW, DEFAULT_PLAYERS, DEFAULT_EVENTS, DEFAULT_GAMES };

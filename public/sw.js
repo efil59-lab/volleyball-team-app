@@ -15,7 +15,9 @@ self.addEventListener("push", (e) => {
   e.waitUntil(self.registration.showNotification(title, {
     body: n.body || "",
     icon: n.icon || "/logo192.png",
-    badge: "/logo192.png",
+    // badge = הסמלון הקטן בשורת הסטטוס של אנדרואיד. חייב להיות צללית מונוכרום
+    // על רקע שקוף — אנדרואיד משתמש רק בערוץ האלפא. לוגו צבעוני מלא => ריבוע לבן.
+    badge: n.badge || "/badge-96.png",
     dir: "rtl",
     lang: "he",
     tag: n.tag || undefined,        // tag זהה = החלפת התראה קיימת (בלי הצטברות)

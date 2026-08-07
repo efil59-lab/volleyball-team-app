@@ -191,7 +191,7 @@ async function sendPush(tokenDocs, { title, body, url, tag }) {
   const messages = tokenDocs.map((t) => ({
     token: t.token,
     webpush: {
-      notification: { title, body, icon: "/logo192.png", badge: "/logo192.png", dir: "rtl", lang: "he", tag: tag || undefined },
+      notification: { title, body, icon: "/logo192.png", badge: "/badge-96.png", dir: "rtl", lang: "he", tag: tag || undefined },
       fcmOptions: url ? { link: url } : undefined,
       headers: { TTL: "86400", Urgency: "high" },
     },
