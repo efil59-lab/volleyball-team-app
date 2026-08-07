@@ -41,7 +41,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
 
   const adminLink = (
     <div style={{ padding: "8px 0 24px" }}>
-      <div style={{ padding: "0 0 14px" }}><PurchaseBanner pc={pc} sc={sc} onClick={onPurchase} /></div>
+      {/* באנר "רוצה אפליקציה כזו?" — המנהלת יכולה להשתיק אותו בהגדרות (hidePromoBanner) */}
+      {!settings.hidePromoBanner && <div style={{ padding: "0 0 14px" }}><PurchaseBanner pc={pc} sc={sc} onClick={onPurchase} /></div>}
       <div style={{ textAlign: "center" }}>
         <button onClick={onAdmin} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>🔐 כניסת מנהל</button>
       </div>
