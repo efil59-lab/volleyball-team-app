@@ -1491,22 +1491,6 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
         <a href="/admin-guide.pdf" target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, padding: "9px 12px", borderRadius: 10, fontSize: 13, fontWeight: 800, background: "#f1f5f9", color: "#475569", textDecoration: "none" }}>PDF ⬇</a>
       </div>
 
-      {/* 📣 באנר הפרסומת בדף הבית של השחקניות — ניתן להשתקה */}
-      <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 26, flexShrink: 0 }}>{s.hidePromoBanner ? "🔕" : "📣"}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#1e293b" }}>באנר "רוצה אפליקציה כזו?"</div>
-          <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, marginTop: 2 }}>
-            {s.hidePromoBanner ? "מוסתר — השחקניות לא רואות אותו." : "מוצג לשחקניות בתחתית דף הבית."}
-          </div>
-        </div>
-        <button onClick={() => handleChange("hidePromoBanner", !s.hidePromoBanner)}
-          style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800,
-            background: s.hidePromoBanner ? pc : "#f1f5f9", color: s.hidePromoBanner ? "white" : "#64748b" }}>
-          {s.hidePromoBanner ? "הצגה" : "השתקה"}
-        </button>
-      </div>
-
       {/* 🔔 תזכורות למנהלת: סיכום הגעה בבוקר כל אירוע */}
       <ReminderCard role="admin" playerId={null} pc={pc} notify={notify} />
 

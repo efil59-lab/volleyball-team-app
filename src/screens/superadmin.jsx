@@ -7,7 +7,7 @@ import { formatShort } from "../lib/utils";
 import {
   loadInvite, saveInvite, inviteKey, generateTeamId, seedNewTeam, saveTeamKey,
   syncTeamIndex, deleteJoinRequest, loadJoinRequests, listAllTeams, setTeamStatus,
-  setTeamPaid, extendTrial,
+  setTeamPaid, extendTrial, setTeamPromoHidden,
   adminDeleteTeamRemote,
 } from "../lib/db";
 import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
@@ -308,6 +308,12 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                     {t.teamId === DEFAULT_TEAM ? "🔒 הבינלאומי (קבוע)" : (busyId === t.teamId ? "…" : "⏸️ השהה")}
                   </button>
                 )}
+                <button disabled={busyId === t.teamId}
+                  title={t.hidePromoBanner ? "הפרסומת מוסתרת בקבוצה זו — לחצי להצגה" : "הפרסומת מוצגת לשחקניות — לחצי להשתקה"}
+                  onClick={async () => { setBusyId(t.teamId); await setTeamPromoHidden(t.teamId, !t.hidePromoBanner); await refreshTeams(); setBusyId(null); }}
+                  style={{ padding: "9px 12px", background: t.hidePromoBanner ? "#f1f5f9" : "#e0e7ff", color: t.hidePromoBanner ? "#94a3b8" : "#3730a3", border: "1px solid " + (t.hidePromoBanner ? "#e2e8f0" : "#c7d2fe"), borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>
+                  {t.hidePromoBanner ? "🔕 פרסומת" : "📣 פרסומת"}
+                </button>
                 {t.teamId !== DEFAULT_TEAM && t.plan !== "paid" && (
                   <button disabled={busyId === t.teamId} onClick={async () => { setBusyId(t.teamId); await setTeamPaid(t.teamId); await refreshTeams(); setBusyId(null); }}
                     style={{ padding: "9px 12px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>💰 שולם</button>

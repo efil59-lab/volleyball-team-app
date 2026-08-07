@@ -245,6 +245,7 @@ async function syncTeamIndex(teamId) {
       status: meta.status || "active",
       plan: meta.plan || "free",
       trialEndsAt: meta.trialEndsAt || null,
+      hidePromoBanner: !!st.hidePromoBanner,
       createdAt: meta.createdAt || "",
       playerCount: Array.isArray(players) ? players.length : 0,
       updatedAt: new Date().toISOString(),
@@ -269,6 +270,13 @@ async function extendTrial(teamId, days) {
   const meta = await loadTeamKey(teamId, KEYS.meta, {}) || {};
   const base = Math.max(Date.now(), new Date(meta.trialEndsAt || 0).getTime());
   await saveTeamKey(teamId, KEYS.meta, { ...meta, plan: "trial", trialEndsAt: new Date(base + days * 86400000).toISOString() });
+  await syncTeamIndex(teamId);
+}
+// סופר-אדמין: הצגה/השתקה של באנר הפרסומת בדף הבית של קבוצה מסוימת.
+// נשמר ב-settings של אותה קבוצה (hidePromoBanner) — HomeScreen מכבד את הדגל.
+async function setTeamPromoHidden(teamId, hidden) {
+  const st = await loadTeamKey(teamId, KEYS.settings, {}) || {};
+  await saveTeamKey(teamId, KEYS.settings, { ...st, hidePromoBanner: !!hidden });
   await syncTeamIndex(teamId);
 }
 async function setTeamStatus(teamId, status) {
@@ -416,6 +424,6 @@ export {
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
-  syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, seedNewTeam, generateTeamId, resolveAdminTeam,
+  syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 };
