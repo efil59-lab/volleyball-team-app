@@ -9,7 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
-import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
+import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import ReminderCard from "../components/ReminderCard";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
@@ -273,7 +273,13 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const myApplauseCount = applauseThisMonth(applause, player.id);
 
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div className="app-shell" style={{ minHeight: "100vh" }}>
+      {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
+          ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
+      <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
+        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />
+      {/* מתחת ל-900px display:contents — הפריסה במובייל זהה לחלוטין לקודמתה */}
+      <div className="app-main">
       <style>{`@keyframes chatDotPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.45); } }`}</style>
       {/* Entry popups: self birthday, others' birthday (send greeting), applause, received greetings */}
       {entryPopups.length > 0 && (() => {
@@ -379,7 +385,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
       <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />
 
-      <div style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+      <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
         {/* ── EVENT TAB ── */}
         {tab === "event" && (
           <>
@@ -785,6 +791,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           attendance={attendance} eventId={nextEvent.id}
           onClose={() => setAttModal(null)} pc={pc} sc={sc} />
       )}
+      </div>
     </div>
   );
 }

@@ -19,3 +19,113 @@ select,
 textarea {
   font-family: inherit;
 }
+
+/* ── סרגל צד לדסקטופ (≥900px) ──────────────────────────────────────────────────
+   מתחת ל-900px שום כלל כאן לא חל: הסרגל display:none ו-.app-main הוא
+   display:contents — כלומר הפריסה במובייל זהה בדיוק לזו שהייתה לפני השינוי.
+   מעל 900px מסך השחקנית ופאנל המנהלת הופכים לשורה ב-RTL: הסרגל הוא הילד
+   הראשון ולכן נוחת מימין, הניווט התחתון נעלם, והתוכן שומר על רוחב קריא. */
+.side { display: none; }
+.app-main { display: contents; }
+
+@media (min-width: 900px) {
+  .app-shell {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .app-main {
+    display: block;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 900px ולא 720px: הפאנל מציג טבלאות נוכחות/סטטיסטיקה רחבות ורשימות שחקניות */
+  .tab-body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding-bottom: 32px !important; /* הריפוד התחתון קיים רק כדי לפנות את הניווט התחתון */
+  }
+
+  .bottom-nav { display: none !important; }
+
+  /* באנר "יש עדכון" — מתכווץ למרכז כדי לא לרוץ מתחת לסרגל שברוחב 232px */
+  .update-bar {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    width: calc(100% - 24px);
+    max-width: 420px;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+    width: 232px;
+    padding: 18px 14px;
+    background: var(--color-surface);
+    border-left: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .side-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 18px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: right;
+    color: var(--color-text);
+  }
+  .side-logo { font-size: 30px; line-height: 1; flex-shrink: 0; }
+  .side-name {
+    font-size: var(--text-md);
+    font-weight: 800;
+    line-height: 1.25;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  .side-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-md);
+    font-weight: 600;
+    color: var(--color-text);
+    text-align: right;
+    transition: background 0.2s;
+  }
+  .side-item:hover { background: var(--color-bg); }
+  .side-ico { font-size: 19px; line-height: 1; }
+  .side-item.on {
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+    color: var(--color-primary);
+    font-weight: 800;
+  }
+  .side-item.on:hover {
+    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  }
+  .side-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-danger);
+    margin-inline-start: auto;
+  }
+}

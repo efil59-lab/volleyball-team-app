@@ -267,7 +267,7 @@ function BottomNav({ items, moreItems = [], active, onChange, pc }) {
           </div>
         </div>
       )}
-      <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 230, background: "white", borderTop: "1px solid #e2e8f0", boxShadow: "0 -4px 16px rgba(0,0,0,0.07)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav className="bottom-nav" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 230, background: "white", borderTop: "1px solid #e2e8f0", boxShadow: "0 -4px 16px rgba(0,0,0,0.07)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)" }}>
         {items.map(it => (
           <Slot key={it.key} icon={it.icon} label={it.label} badge={it.badge} isActive={active === it.key && !moreOpen}
             onClick={() => { setMoreOpen(false); onChange(it.key); }} />
@@ -282,4 +282,30 @@ function BottomNav({ items, moreItems = [], active, onChange, pc }) {
   );
 }
 
-export { Confirm, AttModal, PurchaseBanner, NotifTicker, LegendEventsModal, OutcomeBadge, Empty, Label, Collapsible, BottomNav };
+// ── סרגל צד למסך רחב (≥900px) ────────────────────────────────────────────────
+// מעל 900px הניווט התחתון מוחלף בסרגל צד קבוע מימין (ראה styles/index.css).
+// הסרגל מציג בדיוק את אותם טאבים כמו BottomNav — כולל אלה שבמובייל מוסתרים
+// בגיליון "עוד" — עם אותן תוויות, אותם אייקונים ואותה קריאת ניווט (onChange).
+// מתחת ל-900px הוא display:none מוחלט, כך שבמובייל שום דבר לא משתנה.
+function SideRail({ items, moreItems = [], active, onChange, pc, teamName, onHome }) {
+  const all = [...items, ...moreItems];
+  return (
+    // --color-primary נדרס מקומית לצבע הקבוצה, כדי שגוון הטאב הפעיל יתאים לכל קבוצה
+    <aside className="side" style={{ "--color-primary": pc }}>
+      <button className="side-brand" onClick={() => onHome && onHome()} title="חזרה למסך הבית">
+        <span className="side-logo">🏐</span>
+        <span className="side-name">{teamName || "הקבוצה שלי"}</span>
+      </button>
+      {all.map(it => (
+        <button key={it.key} className={"side-item" + (active === it.key ? " on" : "")}
+          onClick={() => onChange(it.key)}>
+          <span className="side-ico">{it.icon}</span>
+          <span className="side-label">{it.label}</span>
+          {it.badge && <span className="side-dot" />}
+        </button>
+      ))}
+    </aside>
+  );
+}
+
+export { Confirm, AttModal, PurchaseBanner, NotifTicker, LegendEventsModal, OutcomeBadge, Empty, Label, Collapsible, BottomNav, SideRail };

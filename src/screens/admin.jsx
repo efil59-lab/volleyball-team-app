@@ -12,7 +12,7 @@ import ReminderCard from "../components/ReminderCard";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
-import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav } from "../components/shared";
+import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 
 // ── ADMIN GALLERY (מחיקה גורפת למנהל) ─────────────────────────────────────────
 function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
@@ -223,7 +223,13 @@ function AdminPanel(props) {
   ];
 
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div className="app-shell" style={{ minHeight: "100vh" }}>
+      {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
+          ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
+      <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
+        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />
+      {/* מתחת ל-900px display:contents — הפריסה במובייל זהה לחלוטין לקודמתה */}
+      <div className="app-main">
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         {onLogout && <button onClick={() => askConfirm ? askConfirm("להתנתק מחשבון המנהל?", onLogout) : onLogout()} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתק</button>}
@@ -265,7 +271,7 @@ function AdminPanel(props) {
         </div>
       )}
       <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />
-      <div style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+      <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
         {tab === "attendance" && <AdminAttendance {...props} />}
         {tab === "events" && <AdminEvents {...props} />}
         {tab === "players" && <AdminPlayers {...props} />}
@@ -274,6 +280,7 @@ function AdminPanel(props) {
         {tab === "gallery" && <AdminGallery {...props} />}
         {tab === "archive" && <ArchiveStats {...props} />}
         {tab === "settings" && <AdminSettings {...props} />}
+      </div>
       </div>
     </div>
   );

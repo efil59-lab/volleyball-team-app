@@ -427,7 +427,7 @@ export default function App() {
 
       {/* באנר "יש עדכון" — כמו ב-televizia: מוצג כשנפרסה גרסה חדשה; לחיצה = רענון לקוד החדש */}
       {updateReady && (
-        <button onClick={() => window.location.reload()}
+        <button onClick={() => window.location.reload()} className="update-bar"
           style={{ position: "fixed", top: 10, left: 12, right: 12, zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
             background: pc, color: "white", border: `2px solid ${sc}`, borderRadius: 14, padding: "12px 16px", cursor: "pointer",
             fontSize: 14, fontWeight: 800, boxShadow: "0 8px 30px rgba(0,0,0,0.35)" }}>
