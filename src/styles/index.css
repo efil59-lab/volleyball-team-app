@@ -28,7 +28,7 @@ textarea {
 .side { display: none; }
 .app-main { display: contents; }
 
-@media (min-width: 900px) {
+@media (min-width: 720px) and (min-height: 640px) {
   .app-shell {
     display: flex;
     flex-direction: row;
