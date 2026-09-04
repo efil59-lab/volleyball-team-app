@@ -215,6 +215,21 @@ const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
 const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 const callNotifyPushFn = httpsCallable(functions, "notifyTeamPush");
 const callNotifyNewTeamFn = httpsCallable(functions, "notifyNewTeam");
+const callNotifyPlayerJoinedFn = httpsCallable(functions, "notifyPlayerJoined");
+const callResetActivityFn = httpsCallable(functions, "adminResetTeamActivity");
+// Clears attendance, the archive and game results for one team; keeps players,
+// accounts, profiles, events, settings and photos. Super-admin only (enforced
+// on the server). Returns what it actually removed.
+async function adminResetTeamActivityRemote(teamId) {
+  const res = await callResetActivityFn({ teamId });
+  return res.data; // { ok, archived, attendanceDocs, results }
+}
+// Fire-and-forget: a failed notification must never break a player finishing
+// her signup. The server decides who to notify and what name to show, and it
+// keeps its own once-per-player marker, so calling twice is harmless.
+async function notifyPlayerJoinedRemote(teamId, playerId) {
+  try { await callNotifyPlayerJoinedFn({ teamId, playerId }); } catch (e) { console.error("notifyPlayerJoined:", e); }
+}
 async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
   return res.data; // { ok, tempPassword }
@@ -424,6 +439,8 @@ export {
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
+  notifyPlayerJoinedRemote,
+  adminResetTeamActivityRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 };

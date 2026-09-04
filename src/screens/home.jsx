@@ -3,7 +3,7 @@ import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
 import { getNextEvent, formatDate, formatShort, countdownLabel, todayStr, isBirthdayToday } from "../lib/utils";
-import { CURRENT_TEAM, bindPlayerMembership } from "../lib/db";
+import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
 import { uploadProfilePhoto } from "../lib/images";
 import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
@@ -280,6 +280,11 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
       [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true }
     };
     await upd.playerProfiles(updated);
+    // Tell the team's admins that someone joined. After the profile write, so
+    // the notification never arrives before the name it mentions exists — and
+    // not awaited, because a push that fails must not leave a player staring
+    // at a stuck signup screen.
+    notifyPlayerJoinedRemote(CURRENT_TEAM, player.id);
     onDone();
   }
 

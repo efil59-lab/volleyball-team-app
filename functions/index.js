@@ -424,6 +424,89 @@ exports.notifyNewTeam = onCall(async (request) => {
   return { ok: true };
 });
 
+// ── איפוס פעילות קבוצה: נוכחות + ארכיון + תוצאות משחקים ─────────────────────
+// למעבר מבדיקות לשימוש אמיתי. מוחק את מה שנצבר, ומשאיר את מה שבנית: שחקניות,
+// חשבונותיהן, פרופילים, אירועים עתידיים, הגדרות, תמונות והודעות.
+//
+// שלושה מקומות, כי הנוכחות חיה בשלושה:
+//   attendance/{playerId}  — אישורי ההגעה החיים
+//   data/archive           — אירועים שאורכבו, ובתוכם צילום הנוכחות שמזין את הסטטיסטיקה
+//   data/events            — outcome+result על משחקים שעדיין לא אורכבו
+//
+// הגיבוי היומי (dailyBackup) שומר snapshot מלא כל לילה ל-Cloud Storage, כך
+// שהפעולה הזו הפיכה — בניגוד למחיקת קבוצה. מחזיר ספירה של מה שנמחק בפועל.
+exports.adminResetTeamActivity = onCall(async (request) => {
+  const { teamId } = request.data || {};
+  if (!teamId) throw new HttpsError("invalid-argument", "חסר teamId");
+  const email = ((request.auth && request.auth.token && request.auth.token.email) || "").toLowerCase();
+  if (email !== SUPER_ADMIN_EMAIL) throw new HttpsError("permission-denied", "פעולה לבעל המוצר בלבד");
+
+  const archive = await getTeamValue(teamId, "archive", []);
+  const events = await getTeamValue(teamId, "events", []);
+  const attSnap = await db.collection(`teams/${teamId}/attendance`).get();
+
+  const cleared = {
+    archived: archive.length,
+    attendanceDocs: attSnap.size,
+    results: events.filter((e) => e.outcome || e.result).length,
+  };
+
+  await Promise.all(attSnap.docs.map((d) => d.ref.delete()));
+  await db.doc(`teams/${teamId}/data/archive`).set({ value: [] });
+  // strip the result off the events, keep the events themselves
+  const stripped = events.map(({ outcome, result, ...rest }) => rest);
+  await db.doc(`teams/${teamId}/data/events`).set({ value: stripped });
+
+  // the join-notification markers too, so a re-run of the test notifies again
+  const markers = await db.collection(`teams/${teamId}/data`).get();
+  await Promise.all(
+    markers.docs.filter((d) => d.id.startsWith("joinNotified_")).map((d) => d.ref.delete())
+  );
+
+  console.log("adminResetTeamActivity:", teamId, JSON.stringify(cleared));
+  return { ok: true, ...cleared };
+});
+
+// ── שחקנית סיימה הרשמה ונכנסה בפעם הראשונה → push למנהלת הקבוצה ─────────────
+// נקרא פעם אחת, מיד אחרי completeSetup בצד הלקוח. השרת הוא זה שמחליט למי
+// לשלוח (מנהלות הקבוצה) ואיזה שם להציג — הלקוח לא יכול לזייף אף אחד מהם.
+//
+// ההגנה מפני קריאה חוזרת יושבת כאן ולא בלקוח: מסמך-סימון פר-שחקנית. בלי זה
+// כל רענון בזמן ההרשמה, או שחקנית שנכנסת מחדש אחרי מחיקת האפליקציה, היו
+// מקפיצים התראה נוספת.
+exports.notifyPlayerJoined = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "נדרשת התחברות");
+  const { teamId, playerId } = request.data || {};
+  if (!teamId || playerId === undefined) throw new HttpsError("invalid-argument", "חסר teamId/playerId");
+  const pid = Number(playerId);
+
+  // הקוראת חייבת להיות אותה שחקנית — נבדק מול מסמך החברות שנכתב בכניסה.
+  const mem = await db.doc(`teams/${teamId}/members/${request.auth.uid}`).get();
+  if (!mem.exists || Number(mem.data().playerId) !== pid)
+    throw new HttpsError("permission-denied", "לא השחקנית הזו");
+
+  const marker = db.doc(`teams/${teamId}/data/joinNotified_${pid}`);
+  if ((await marker.get()).exists) return { ok: true, skipped: "already-sent" };
+  await marker.set({ value: { at: new Date().toISOString() } });
+
+  const players = await getTeamValue(teamId, "players", []);
+  const name = (players.find((p) => Number(p.id) === pid) || {}).name || "שחקנית";
+  const st = await getTeamValue(teamId, "settings", {});
+  const total = players.length;
+
+  const title = "👋 שחקנית חדשה נכנסה לראשונה";
+  const body = `${name} השלימה הרשמה ל${(st && st.teamName) || teamId} · ${total} שחקניות בקבוצה`;
+  try {
+    const admins = (await getTeamPushTokens(teamId)).filter((t) => t.role === "admin");
+    const r = await sendPush(admins, { title, body, url: `/?team=${teamId}`, tag: "join_" + pid });
+    console.log("notifyPlayerJoined:", teamId, pid, name, "sent=" + r.sent, "admins=" + admins.length);
+    return { ok: true, sent: r.sent };
+  } catch (e) {
+    console.error("notifyPlayerJoined push:", e);
+    return { ok: true, sent: 0 };
+  }
+});
+
 // ── שלב 5: גיבוי יומי — snapshot JSON מלא של כל קבוצה ל-Cloud Storage ─────────
 // נשמר תחת backups/YYYY-MM-DD/{teamId}.json בדלי ברירת-המחדל של הפרויקט (פרטי —
 // נגיש רק לבעלי הפרויקט). שחזור = הורדת הקובץ מהקונסולה וכתיבה חזרה. שמירה: 30 יום.

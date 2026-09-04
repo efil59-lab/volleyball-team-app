@@ -8,7 +8,7 @@ import {
   loadInvite, saveInvite, inviteKey, generateTeamId, seedNewTeam, saveTeamKey,
   syncTeamIndex, deleteJoinRequest, loadJoinRequests, listAllTeams, setTeamStatus,
   setTeamPaid, extendTrial, setTeamPromoHidden,
-  adminDeleteTeamRemote,
+  adminDeleteTeamRemote, adminResetTeamActivityRemote,
 } from "../lib/db";
 import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
 
@@ -41,6 +41,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [confirmText, setConfirmText] = useState("");
   const [delErr, setDelErr] = useState("");
+  const [resetTarget, setResetTarget] = useState(null); // הקבוצה שממתינה לאישור איפוס
+  const [resetDone, setResetDone] = useState(null);   // { teamName, archived, attendanceDocs, results }
+  const [resetErr, setResetErr] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState(null); // { teamId, email } | { error }
   const [inviteBusy, setInviteBusy] = useState(false);
@@ -141,6 +144,22 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
       await refreshTeams();
     } catch (e) {
       setDelErr(e.message || "המחיקה נכשלה");
+    }
+    setBusyId(null);
+  }
+
+  // איפוס פעילות: מוחק נוכחות, ארכיון ותוצאות משחקים — משאיר שחקניות ואירועים.
+  // אין כאן הקלדת-שם כמו במחיקת קבוצה, כי זה לא אותו סדר גודל: הגיבוי הלילי
+  // שומר snapshot מלא, והנתונים שנמחקים נצברים מחדש מעצמם.
+  async function doReset() {
+    if (!resetTarget) return;
+    setBusyId(resetTarget.teamId); setResetErr("");
+    try {
+      const r = await adminResetTeamActivityRemote(resetTarget.teamId);
+      setResetDone({ teamName: resetTarget.teamName || resetTarget.teamId, ...r });
+      setResetTarget(null);
+    } catch (e) {
+      setResetErr(e.message || "האיפוס נכשל");
     }
     setBusyId(null);
   }
@@ -322,6 +341,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                   <button disabled={busyId === t.teamId} onClick={async () => { setBusyId(t.teamId); await extendTrial(t.teamId, 14); await refreshTeams(); setBusyId(null); }}
                     style={{ padding: "9px 12px", background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>➕14</button>
                 )}
+                <button disabled={busyId === t.teamId} onClick={() => { setResetTarget(t); setResetErr(""); }}
+                  title="איפוס נוכחות, ארכיון ותוצאות משחקים — השחקניות והאירועים נשארים"
+                  style={{ padding: "9px 12px", background: "#fff7ed", color: "#c2410c", border: "1px solid #fed7aa", borderRadius: 10, cursor: busyId === t.teamId ? "default" : "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>♻️ איפוס</button>
                 {t.teamId !== DEFAULT_TEAM && (
                   <button disabled={busyId === t.teamId} onClick={() => { setDeleteTarget(t); setConfirmText(""); setDelErr(""); }}
                     style={{ padding: "9px 12px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, cursor: busyId === t.teamId ? "default" : "pointer", fontSize: 13, fontWeight: 700, opacity: busyId === t.teamId ? 0.6 : 1 }}>🗑</button>
@@ -331,6 +353,64 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           );
         })}
       </div>
+
+      {resetTarget && (() => {
+        const busy = busyId === resetTarget.teamId;
+        const name = resetTarget.teamName || resetTarget.teamId;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}
+            onClick={() => { if (!busy) { setResetTarget(null); setResetErr(""); } }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: 22, width: "100%", maxWidth: 380, boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+              <div style={{ fontSize: 40, textAlign: "center" }}>♻️</div>
+              <h3 style={{ color: "#c2410c", fontSize: 18, fontWeight: 800, textAlign: "center", margin: "8px 0 6px" }}>איפוס פעילות — «{name}»</h3>
+              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 10px", lineHeight: 1.7 }}>
+                מתאים למעבר מבדיקות לשימוש אמיתי.
+              </p>
+              <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#c2410c", marginBottom: 4 }}>יימחק</div>
+                <div style={{ fontSize: 13, color: "#7c2d12", lineHeight: 1.7 }}>
+                  כל אישורי ההגעה · הארכיון והסטטיסטיקה · תוצאות המשחקים
+                </div>
+              </div>
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#166534", marginBottom: 4 }}>יישאר</div>
+                <div style={{ fontSize: 13, color: "#14532d", lineHeight: 1.7 }}>
+                  השחקניות וחשבונותיהן · הפרופילים · האירועים עצמם · ההגדרות · התמונות וההודעות
+                </div>
+              </div>
+              <p style={{ fontSize: 11.5, color: "#64748b", margin: "0 0 12px", textAlign: "center" }}>
+                הגיבוי הלילי שומר snapshot מלא — הפעולה הפיכה.
+              </p>
+              {resetErr && <p style={{ color: "#dc2626", fontSize: 12, margin: "0 0 8px", fontWeight: 600, textAlign: "center" }}>⚠️ {resetErr}</p>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button disabled={busy} onClick={() => { setResetTarget(null); setResetErr(""); }}
+                  style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 700 }}>ביטול</button>
+                <button disabled={busy} onClick={doReset}
+                  style={{ flex: 1, padding: 12, background: busy ? "#fdba74" : "#ea580c", color: "white", border: "none", borderRadius: 12, cursor: busy ? "default" : "pointer", fontSize: 14, fontWeight: 800 }}>
+                  {busy ? "מאפס…" : "♻️ אפס"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {resetDone && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}
+          onClick={() => setResetDone(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: 22, width: "100%", maxWidth: 340, textAlign: "center", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 40 }}>✅</div>
+            <h3 style={{ fontSize: 17, fontWeight: 800, margin: "8px 0 10px" }}>«{resetDone.teamName}» אופסה</h3>
+            <div style={{ fontSize: 13, color: "#475569", lineHeight: 2, textAlign: "start", background: "#f8fafc", borderRadius: 10, padding: "10px 14px" }}>
+              נמחקו <b>{resetDone.attendanceDocs}</b> רשומות נוכחות<br />
+              נמחקו <b>{resetDone.archived}</b> אירועים מהארכיון<br />
+              נוקו <b>{resetDone.results}</b> תוצאות משחקים
+            </div>
+            <button onClick={() => { setResetDone(null); window.location.reload(); }}
+              style={{ width: "100%", marginTop: 14, padding: 12, background: "#0f172a", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>סגור ורענן</button>
+          </div>
+        </div>
+      )}
 
       {deleteTarget && (() => {
         const expected = deleteTarget.teamName || deleteTarget.teamId;
