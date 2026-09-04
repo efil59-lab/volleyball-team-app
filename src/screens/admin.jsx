@@ -7,7 +7,7 @@ import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay,
   isBirthdayToday, isBirthdayTomorrow, ageFromBirthday,
 } from "../lib/utils";
-import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, notifyTeamPushRemote } from "../lib/db";
+import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
@@ -887,6 +887,22 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
     }
   }
 
+  // מחזיר שחקנית למסלול של חדשה: השרת מוחק את חשבון ה-Firebase ואת הפרופיל,
+  // ולכן גם ה-state המקומי חייב לאבד את הפרופיל — אחרת setupDone הישן נשאר
+  // בזיכרון והיא עדיין תראה מסך כניסה במקום מסך ההרשמה.
+  async function resetToSetup(p) {
+    try {
+      await adminResetPlayerToSetupRemote(CURRENT_TEAM, p.id);
+    } catch (e) {
+      notify("האיפוס נכשל: " + (e.message || "שגיאה"));
+      return;
+    }
+    const rest = { ...playerProfiles };
+    delete rest[p.id];
+    await upd.playerProfiles(rest);
+    notify(p.name + " הוחזרה לכניסה ראשונה — שלחי לה את הקישור של הקבוצה");
+  }
+
   async function deletePlayerFull(p) {
     try {
       await adminDeletePlayerRemote(CURRENT_TEAM, p.id);
@@ -965,6 +981,9 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
               <div style={{ display: "flex", gap: 5 }}>
                 <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? תיווצר סיסמה זמנית שתעבירי לה, והיא תבחר סיסמה חדשה בכניסה הבאה.`, () => resetPassword(p))}
                   style={{ background: "#fff7ed", color: "#ea580c", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔑</button>
+                <button title="החזרה לכניסה ראשונה — תבחר סיסמה ותמלא פרטים מחדש"
+                  onClick={() => askConfirm(`להחזיר את ${p.name} לכניסה ראשונה? הסיסמה והפרטים שלה יימחקו, והיא תיכנס עם הקישור של הקבוצה כמו שחקנית חדשה — תבחר סיסמה ותמלא פרטים. השם שלה נשאר ברשימה.`, () => resetToSetup(p))}
+                  style={{ background: "#eef2ff", color: "#4338ca", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>↩️</button>
                 <button onClick={() => expanded === p.id ? setExpanded(null) : startEdit(p)}
                   style={{ background: `${pc}15`, color: pc, border: "none", borderRadius: 7, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️</button>
                 <button onClick={() => askConfirm(`למחוק לצמיתות את ${p.name}? הפעולה תמחק את חשבונה, הפרופיל וכל הנתונים שלה — לא ניתן לשחזר.`, () => deletePlayerFull(p))}

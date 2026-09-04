@@ -70,6 +70,54 @@ exports.adminResetPlayerPassword = onCall(async (request) => {
   return { ok: true, tempPassword };
 });
 
+// ── החזרת שחקנית למצב "כניסה ראשונה" ────────────────────────────────────────
+// היא נשארת ברשימת השחקניות; מה שנמחק הוא כל מה שהופך אותה ל"חוזרת", כך
+// שבפעם הבאה היא תעבור את אותו מסלול כמו כל אחת חדשה: בחירת סיסמה ומילוי פרטים.
+//
+// חשבון ה-Firebase חייב להימחק, לא רק setupDone. emailAuth מנסה קודם ליצור
+// חשבון, ואם הוא כבר קיים היא מנסה להתחבר עם מה שהוקלד — כלומר שחקנית שתקליד
+// סיסמה חדשה תיחסם בהודעה "החשבון כבר קיים" ולא תוכל להיכנס בכלל.
+//
+// שונה מ-adminResetPlayerPassword, שמייצר סיסמה זמנית ומשאיר אותה "חוזרת".
+exports.adminResetPlayerToSetup = onCall(async (request) => {
+  const { teamId, playerId } = request.data || {};
+  if (!teamId || playerId === undefined || playerId === null) {
+    throw new HttpsError("invalid-argument", "חסר teamId או playerId");
+  }
+  await assertAdmin(request.auth, teamId);
+
+  const pid = String(playerId);
+  const pidNum = Number(playerId);
+  let hadAccount = false;
+
+  try {
+    const user = await admin.auth().getUserByEmail(playerEmail(teamId, pid));
+    await admin.auth().deleteUser(user.uid);
+    hadAccount = true;
+  } catch (e) {
+    if (e.code !== "auth/user-not-found") {
+      throw new HttpsError("internal", "שגיאה במחיקת החשבון: " + e.message);
+    }
+  }
+
+  await Promise.all([
+    // הפרופיל נמחק ולא מתעדכן: setupDone הוא רק המתג, והפרטים עצמם (טלפון,
+    // מייל, תמונה) הם מה שהיא אמורה למלא מחדש.
+    db.doc(`teams/${teamId}/profiles/${pid}`).delete().catch(() => {}),
+    db.doc(`teams/${teamId}/secrets/${pid}`).delete().catch(() => {}),
+    // הסימון שכבר הודענו עליה — כדי שהכניסה הבאה תקפיץ push כמו של כל חדשה
+    db.doc(`teams/${teamId}/data/joinNotified_${pid}`).delete().catch(() => {}),
+  ]);
+
+  // כריכת ה-uid הישן חייבת לרדת, אחרת מסמך חברות מצביע על חשבון שכבר לא קיים
+  const memSnap = await db.collection(`teams/${teamId}/members`)
+    .where("playerId", "==", pidNum).get();
+  await Promise.all(memSnap.docs.map((d) => d.ref.delete().catch(() => {})));
+
+  console.log("adminResetPlayerToSetup:", teamId, pid, "hadAccount=" + hadAccount);
+  return { ok: true, hadAccount };
+});
+
 // ── מחיקת שחקנית נקייה: חשבון Firebase + פרופיל/סוד/נוכחות + חברות + רשימה ──
 exports.adminDeletePlayer = onCall(async (request) => {
   const { teamId, playerId } = request.data || {};

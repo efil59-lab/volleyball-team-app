@@ -212,6 +212,7 @@ async function bindPlayerMembership(teamId, uid, player) {
 // ── שלב 5′ חצי ב': קריאה ל-Cloud Functions לניהול חשבונות שחקניות ─────────────
 const callResetFn = httpsCallable(functions, "adminResetPlayerPassword");
 const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
+const callResetToSetupFn = httpsCallable(functions, "adminResetPlayerToSetup");
 const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 const callNotifyPushFn = httpsCallable(functions, "notifyTeamPush");
 const callNotifyNewTeamFn = httpsCallable(functions, "notifyNewTeam");
@@ -234,6 +235,13 @@ async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
   return res.data; // { ok, tempPassword }
 }
+// Sends a player back through first-entry: she picks a password and fills in
+// her details again, exactly like a new player. Her name stays on the list.
+async function adminResetPlayerToSetupRemote(teamId, playerId) {
+  const res = await callResetToSetupFn({ teamId, playerId });
+  return res.data; // { ok, hadAccount }
+}
+
 async function adminDeletePlayerRemote(teamId, playerId) {
   const res = await callDeleteFn({ teamId, playerId });
   return res.data; // { ok }
@@ -440,7 +448,7 @@ export {
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
   notifyPlayerJoinedRemote,
-  adminResetTeamActivityRemote,
+  adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
 };
