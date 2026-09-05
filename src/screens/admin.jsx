@@ -664,6 +664,28 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   }
 
   function openArchiveDialog(ev) { setVerified(false); setArchiveDialog(ev); }
+
+  // כמה זמן עבר מתחילת האירוע — רק לאירוע של היום. אין לנו שעת סיום, רק שעת
+  // התחלה, ולכן אי אפשר לדעת אם האירוע נגמר. אבל אפשר להגיד כמה זמן עבר,
+  // ולתת למנהלת להחליט: ארכוב אינו הפיך, ואירוע שנסגר תוך כדי משאיר את מי
+  // שהגיעה באיחור בלי סימון.
+  function minutesSinceStart(ev) {
+    if (!ev || ev.date !== todayStr()) return null;
+    const [h, m] = String(ev.time || "00:00").split(":").map(Number);
+    const start = new Date(); start.setHours(h || 0, m || 0, 0, 0);
+    const diff = Math.floor((Date.now() - start.getTime()) / 60000);
+    return diff >= 0 ? diff : null;
+  }
+  function sinceLabel(mins) {
+    if (mins < 2) return "ממש עכשיו";
+    if (mins < 60) return `לפני ${mins} דקות`;
+    const h = Math.floor(mins / 60), r = mins % 60;
+    // צורת הזוגי בעברית: "שעתיים", לא "2 שעות"
+    const hw = h === 1 ? "שעה" : h === 2 ? "שעתיים" : `${h} שעות`;
+    if (!r) return `לפני ${hw}`;
+    // המקף ב-"ו-" משמש לפני ספרה בלבד; לפני מילה הוא נכתב מחובר ("ודקה")
+    return `לפני ${hw} ${r === 1 ? "ודקה" : `ו-${r} דקות`}`;
+  }
   async function confirmArchiveDialog() {
     const ev = archiveDialog;
     setArchiveDialog(null);
@@ -734,7 +756,17 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
           <div style={{ background: "white", borderRadius: 16, padding: 18, maxWidth: 340, width: "100%", boxSizing: "border-box", boxShadow: "0 8px 30px rgba(0,0,0,0.2)" }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>ארכוב אירוע</div>
-            <div style={{ fontSize: 14, color: "#64748b", marginBottom: 16 }}>{archiveDialog.type === "training" ? "🏋️ אימון" : "🏆 משחק"} · {formatDate(archiveDialog.date)} · {archiveDialog.time}</div>
+            <div style={{ fontSize: 14, color: "#64748b", marginBottom: 12 }}>{archiveDialog.type === "training" ? "🏋️ אימון" : "🏆 משחק"} · {formatDate(archiveDialog.date)} · {archiveDialog.time}</div>
+            {(() => {
+              const mins = minutesSinceStart(archiveDialog);
+              if (mins === null) return null;
+              return (
+                <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 12.5, color: "#9a3412", lineHeight: 1.55 }}>
+                  ⏱️ ה{archiveDialog.type === "training" ? "אימון" : "משחק"} התחיל <b>{sinceLabel(mins)}</b> — בטוחה שהסתיים?
+                  <div style={{ color: "#c2410c", marginTop: 4 }}>אחרי ארכוב אי אפשר להחזיר את האירוע, ומי שתגיע באיחור לא תסומן.</div>
+                </div>
+              );
+            })()}
             <label style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, cursor: "pointer", marginBottom: 8 }}>
               <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} style={{ width: 20, height: 20, accentColor: "#16a34a", cursor: "pointer", flexShrink: 0, marginTop: 1 }} />
               <span style={{ fontSize: 13, color: "#92400e", fontWeight: 600, lineHeight: 1.4 }}>אימתתי את נתוני ההגעה של השחקניות לאירוע זה</span>
