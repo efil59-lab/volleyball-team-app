@@ -286,7 +286,7 @@ function hasRole(t, r) {
 const rolesOf = (t) => (Array.isArray(t.roles) ? t.roles : (t.role ? [t.role] : []));
 
 // שליחת push לרשימת טוקנים + ניקוי טוקנים מתים (מכשיר שהוחלף/הרשאה שבוטלה).
-async function sendPush(tokenDocs, { title, body, url, tag }) {
+async function sendPush(tokenDocs, { title, body, url, tag, dryRun }) {
   if (!tokenDocs.length) return { sent: 0 };
   const messages = tokenDocs.map((t) => ({
     token: t.token,
@@ -296,16 +296,20 @@ async function sendPush(tokenDocs, { title, body, url, tag }) {
       headers: { TTL: "86400", Urgency: "high" },
     },
   }));
-  const res = await admin.messaging().sendEach(messages);
+  // dryRun: FCM מאמת את הטוקן ומחזיר את אותן שגיאות בדיוק, בלי למסור כלום
+  // למכשיר. זה מה שמאפשר לבדוק אם טוקן של מישהי עדיין חי בלי להקפיץ לה התראה.
+  const res = await admin.messaging().sendEach(messages, !!dryRun);
   let sent = 0;
+  const failures = [];
   await Promise.all(res.responses.map(async (r, i) => {
     if (r.success) { sent++; return; }
-    const code = r.error && r.error.code;
+    const code = (r.error && r.error.code) || "unknown";
+    failures.push({ playerId: tokenDocs[i].playerId ?? null, code });
     if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-argument") {
       await tokenDocs[i].ref.delete().catch(() => {}); // טוקן מת — מנקים
     }
   }));
-  return { sent };
+  return { sent, failed: failures.length, failures };
 }
 
 // אירועים פתוחים (לא מבוטלים) של קבוצה בתאריך נתון
@@ -480,8 +484,23 @@ exports.debugPush = onRequest(async (req, res) => {
   if (req.query.backup === "1") {
     out.backup = await runDailyBackup();
   }
-  if (req.query.send === "1" && tokens.length) {
-    out.testSend = await sendPush(tokens, { title: "🏐 בדיקת התראות", body: "אם את רואה את זה — התזכורות עובדות! 🎉", url: "/?team=" + teamId, tag: "test_" + Date.now() });
+  // ?pid=N מצמצם לשחקנית אחת — בלי זה כל בדיקה מקפיצה התראה לכל הקבוצה,
+  // וזה מחיר גבוה מדי כדי לברר למה טלפון אחד לא מקבל.
+  // ?dry=1 מאמת מול FCM בלי למסור כלום: אומר אם הטוקן חי, ומנקה אותו אם לא.
+  if (req.query.send === "1" || req.query.dry === "1") {
+    const pid = req.query.pid;
+    const target = pid === undefined ? tokens : tokens.filter((t) => String(t.playerId) === String(pid));
+    out.targeted = { pid: pid ?? "all", tokens: target.length };
+    if (target.length) {
+      out.testSend = await sendPush(target, {
+        title: "🏐 בדיקת התראות",
+        body: "אם את רואה את זה — התזכורות עובדות! 🎉",
+        url: "/?team=" + teamId,
+        tag: "test_" + Date.now(),
+        dryRun: req.query.dry === "1",
+      });
+      out.testSend.dryRun = req.query.dry === "1";
+    }
   }
   res.json(out);
 });
