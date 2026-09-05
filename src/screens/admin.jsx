@@ -1232,13 +1232,13 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                   {prof.phone && <button onClick={() => window.open(`tel:${prof.phone}`, "_blank")} style={{ fontSize: 11, background: "#f1f5f9", color: "#374151", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>📞 {prof.phone}</button>}
                 </div>
               </div>
-              {/* flexShrink:0 — בלעדיו קבוצת הכפתורים נדחסת ונדחפת החוצה */}
+              {/* רק שתי הפעולות היומיומיות. איפוס סיסמה והחזרה לכניסה ראשונה
+                  עברו לתוך לוח העריכה — הן קורות פעם בכמה חודשים, ובטלפון של
+                  375px ארבעה כפתורים השאירו לעמודה האמצעית 84px בלבד, כך שכל
+                  צ'יפ ירד לשורה משלו והכרטיס תפח ל-176px. עם שניים: 170px
+                  לעמודה, 92px לכרטיס (נמדד).
+                  flexShrink:0 — בלעדיו הקבוצה נדחסת ונדחפת מחוץ לכרטיס. */}
               <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-                <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? תיווצר סיסמה זמנית שתעבירי לה, והיא תבחר סיסמה חדשה בכניסה הבאה.`, () => resetPassword(p))}
-                  style={{ background: "#fff7ed", color: "#ea580c", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔑</button>
-                <button title="החזרה לכניסה ראשונה — תבחר סיסמה ותמלא פרטים מחדש"
-                  onClick={() => askConfirm(`להחזיר את ${p.name} לכניסה ראשונה? הסיסמה והפרטים שלה יימחקו, והיא תיכנס עם הקישור של הקבוצה כמו שחקנית חדשה — תבחר סיסמה ותמלא פרטים. השם שלה נשאר ברשימה.`, () => resetToSetup(p))}
-                  style={{ background: "#eef2ff", color: "#4338ca", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>↩️</button>
                 <button onClick={() => expanded === p.id ? setExpanded(null) : startEdit(p)}
                   style={{ background: `${pc}15`, color: pc, border: "none", borderRadius: 7, padding: "6px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️</button>
                 <button onClick={() => askConfirm(`למחוק לצמיתות את ${p.name}? הפעולה תמחק את חשבונה, הפרופיל וכל הנתונים שלה — לא ניתן לשחזר.`, () => deletePlayerFull(p))}
@@ -1276,6 +1276,14 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                       background: p.viewer ? "#e0e7ff" : "#f1f5f9", color: p.viewer ? "#3730a3" : "#64748b" }}>
                     {p.viewer ? "👁️ צופה" : "🏐 שחקנית"}
                   </button>
+                </div>
+                {/* פעולות החשבון — נדירות, ולכן כאן ולא בשורה. כאן גם יש מקום
+                    לכתוב מה הן עושות, במקום אימוג'י שצריך לזכור מה משמעותו. */}
+                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 10, marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? תיווצר סיסמה זמנית שתעבירי לה, והיא תבחר סיסמה חדשה בכניסה הבאה.`, () => resetPassword(p))}
+                    style={{ flex: "1 1 140px", background: "#fff7ed", color: "#ea580c", border: "1px solid #fed7aa", borderRadius: 8, padding: "9px 10px", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}>🔑 איפוס סיסמה</button>
+                  <button onClick={() => askConfirm(`להחזיר את ${p.name} לכניסה ראשונה? הסיסמה והפרטים שלה יימחקו, והיא תיכנס עם הקישור של הקבוצה כמו שחקנית חדשה — תבחר סיסמה ותמלא פרטים. השם שלה נשאר ברשימה.`, () => resetToSetup(p))}
+                    style={{ flex: "1 1 140px", background: "#eef2ff", color: "#4338ca", border: "1px solid #c7d2fe", borderRadius: 8, padding: "9px 10px", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}>↩️ כניסה ראשונה</button>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => saveEdit(p.id)} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור</button>
