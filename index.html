@@ -39,7 +39,15 @@
               return; // הדף נטען מחדש עם ?team= — המניפסט יעודכן שם
             }
           }
-          if (team) {
+          // ⚠️ iOS בלבד. באנדרואיד כרום מייצר מה-manifest אפליקציה אמיתית
+          // (WebAPK), ושינוי start_url מאלץ מנטה מחדש והתקנת עדכון — שנחסמה
+          // אצל שחקנית ע"י Google Play Protect ("אפליקציה לא בטוחה נחסמה",
+          // 5.9.2026). באנדרואיד ממילא אין בעיה: ל-PWA מותקן יש שם אותו אחסון
+          // כמו לדפדפן, אז הגנה 1 לבדה מספיקה. אין שום סיבה לגעת ב-WebAPK.
+          var ua = navigator.userAgent || "";
+          var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+          if (team && isIOS) {
             var link = document.querySelector('link[rel="manifest"]');
             if (link) link.href = "/api/manifest?team=" + encodeURIComponent(team);
           }
