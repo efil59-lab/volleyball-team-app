@@ -345,35 +345,52 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 
   const evLabel = nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "";
 
-  async function setStatusFor(p, status) {
+  // ההתערבות היחידה: מי שאישרה הגעה ולא הגיעה בפועל. במכוון אין כאן "סמני
+  // כהגיעה" ואין "נקה": מי שסימנה בעצמה — הסימון שלה נשאר שלה, ומי שלא ענתה
+  // כלל אינה עניין של נוכחות אלא של תזכורת. כל אפשרות נוספת רק פותחת פתח
+  // לטעויות ולוויכוחים על רשומות שאיש לא ביקש לגעת בהן.
+  async function markNoShow(p) {
     setEditRow(null);
     const key = `${nextEvent.id}_${p.id}`;
     const cur = attendance[key] || {};
-    if ((cur.status || null) === status) return; // אין שינוי — לא כותבים ולא מודיעים
+    if (cur.status !== "coming") return;
     // תיעוד: מי שינה, מתי, ומה היה קודם. בלי זה, בעוד חודשיים אף אחד לא יידע
     // למה הרשומה נראית כך — והשחקנית תראה סתירה בין מה שסימנה לסטטיסטיקה.
     const adminEdit = {
       by: (auth.currentUser && auth.currentUser.email) || "מנהל/ת",
       at: new Date().toISOString(),
-      from: cur.status || null,
+      from: "coming",
     };
-    await upd.attendance({ ...attendance, [key]: { ...cur, status, adminEdit } });
+    await upd.attendance({ ...attendance, [key]: { ...cur, status: "notcoming", adminEdit } });
+    await announce(p, `המנהלת עדכנה שלא הגעת ל${evLabel}, למרות שאישרת הגעה.`);
+    notify(`${p.name} סומנה כמי שלא הגיעה, והיא קיבלה הודעה ✔`, { icon: "✅" });
+  }
 
-    const word = status === "coming" ? "הגעת" : status === "notcoming" ? "לא הגעת" : "טרם ענית";
-    const body = `המנהלת עדכנה ש${word} ל${evLabel}.`;
-    // התראה אישית באפליקציה — מגיעה גם למי שלא הפעילה פוש
+  // ביטול תיקון שגוי של המנהלת עצמה. זו לא "התערבות" נוספת אלא דרך חזרה
+  // מטעות — ובלעדיה שחקנית נשארת עם האשמה שגויה שאין איך להסיר.
+  async function undoNoShow(p) {
+    setEditRow(null);
+    const key = `${nextEvent.id}_${p.id}`;
+    const cur = attendance[key] || {};
+    if (!cur.adminEdit) return;
+    const { adminEdit: _drop, ...rest } = cur;
+    await upd.attendance({ ...attendance, [key]: { ...rest, status: "coming" } });
+    await announce(p, `המנהלת ביטלה את העדכון — הנוכחות שלך ל${evLabel} חזרה ל"הגעת".`);
+    notify(`התיקון של ${p.name} בוטל, והיא קיבלה הודעה ✔`, { icon: "↩️" });
+  }
+
+  // הודעה לשחקנית: התראה אישית באפליקציה (מגיעה גם למי שלא הפעילה פוש) +
+  // פוש למכשירים שלה בלבד, ואז הצעה לוואטסאפ כגיבוי ידני.
+  async function announce(p, body) {
     try {
       await upd.personalNotifAdd(p.id, {
         id: `att_${nextEvent.id}_${Date.now()}`, type: "attendance",
         text: body, seen: false, date: todayStr(),
       });
     } catch (e) { console.error("attendance notif:", e); }
-    // ופוש למכשירים שלה בלבד
     notifyTeamPushRemote("📋 עדכון נוכחות", body, p.id);
-
     const prof = playerProfiles[p.id] || {};
     setWaAfter(prof.whatsapp ? { player: p, text: `היי ${p.name}, ${body}` } : null);
-    notify(`הסימון של ${p.name} עודכן, והיא קיבלה הודעה ✔`, { icon: "✅" });
   }
 
   // Birthday reminders for admin
@@ -495,7 +512,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
       {/* הרשימה: לקריאה עד שהאירוע חלף, ומאותו רגע — לחיצה על שורה מתקנת סימון */}
       {eventPassed && (
         <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: "#92400e", lineHeight: 1.5 }}>
-          ⏱️ ה{evLabel} כבר עבר. לחצי על שחקנית כדי לתקן את הסימון שלה — היא תקבל על כך הודעה, והתיקון יתועד.
+          ⏱️ ה{evLabel} כבר עבר. אם מישהי אישרה הגעה ולא הגיעה — לחצי עליה וסמני. היא תקבל הודעה, והתיקון יתועד.
         </div>
       )}
       {players.map(p => {
@@ -504,10 +521,13 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         const status = rec?.status;
         const edited = rec?.adminEdit;
         const open = editRow === p.id;
+        // ניתנת לפעולה רק מי שאישרה הגעה (לסמן שלא הגיעה), או מי שכבר תוקנה
+        // (לבטל). כל השאר — לקריאה בלבד, כמו קודם.
+        const actionable = eventPassed && (status === "coming" || !!edited);
         return (
           <div key={p.id} style={{ background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, border: `1px solid ${open ? pc : "#e2e8f0"}` }}>
-            <div onClick={() => eventPassed && setEditRow(open ? null : p.id)}
-              style={{ display: "flex", alignItems: "center", gap: 10, cursor: eventPassed ? "pointer" : "default" }}>
+            <div onClick={() => actionable && setEditRow(open ? null : p.id)}
+              style={{ display: "flex", alignItems: "center", gap: 10, cursor: actionable ? "pointer" : "default" }}>
               {prof.photo ? <img src={prof.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
                 : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -516,7 +536,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
                 {edited && (
                   <div style={{ fontSize: 10.5, color: "#b45309", fontWeight: 600 }}
                     title={`שונה על ידי ${edited.by} ב-${new Date(edited.at).toLocaleString("he-IL")}`}>
-                    ✏️ תוקן על ידך{edited.from === "coming" ? " (סימנה שמגיעה)" : edited.from === "notcoming" ? " (סימנה שלא מגיעה)" : " (לא ענתה)"}
+                    ✏️ אישרה הגעה — סומנה על ידך כמי שלא הגיעה
                   </div>
                 )}
               </div>
@@ -525,10 +545,16 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
               </div>
             </div>
             {open && (
-              <div style={{ display: "flex", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
-                <button onClick={() => setStatusFor(p, "coming")} style={{ flex: 1, padding: "9px", background: status === "coming" ? "#dcfce7" : "#f8fafc", color: "#166534", border: `1px solid ${status === "coming" ? "#86efac" : "#e2e8f0"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>✅ הגיעה</button>
-                <button onClick={() => setStatusFor(p, "notcoming")} style={{ flex: 1, padding: "9px", background: status === "notcoming" ? "#fee2e2" : "#f8fafc", color: "#b91c1c", border: `1px solid ${status === "notcoming" ? "#fecaca" : "#e2e8f0"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>❌ לא הגיעה</button>
-                <button onClick={() => setStatusFor(p, null)} style={{ padding: "9px 12px", background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>נקה</button>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                {edited ? (
+                  <button onClick={() => undoNoShow(p)} style={{ width: "100%", padding: "10px", background: "#f8fafc", color: "#166534", border: "1px solid #86efac", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>
+                    ↩️ ביטול — היא כן הגיעה
+                  </button>
+                ) : (
+                  <button onClick={() => markNoShow(p)} style={{ width: "100%", padding: "10px", background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 800 }}>
+                    ❌ אישרה הגעה אבל לא הגיעה
+                  </button>
+                )}
               </div>
             )}
           </div>
