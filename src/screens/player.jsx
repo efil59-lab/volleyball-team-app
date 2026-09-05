@@ -10,10 +10,13 @@ import {
 import { CURRENT_TEAM } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
 import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
+import { useIsDesktop, SiteChrome, PlayerHero } from "../site/Site";
 import ReminderCard from "../components/ReminderCard";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
 function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
+  // מעל כל early return: useState אחרי return מותנה = "Rendered more hooks" ומסך לבן.
+  const isDesk = useIsDesktop();
   const [tab, setTab] = useState("event");
   const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
   const [attModal, setAttModal] = useState(null);
@@ -272,12 +275,430 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   }
   const myApplauseCount = applauseThisMonth(applause, player.id);
 
+  // מה שאתר הדסקטופ צריך — הכל מגיע מה-props שכבר קיימים למסך הנייד.
+  const siteProps = {
+    ctx: { players, events, archive, playerProfiles, attendance },
+    tab, setTab,
+    items: [...navItems, ...navMore],
+    teamName: settings && settings.teamName,
+    who: player.name,
+    onHome: onBack,
+    onLogout,
+    searchPlaceholder: "חיפוש שחקנית, אימון או משחק…",
+    hero: <PlayerHero ctx={{ attendance, players, archive }} player={player} nextEvent={nextEvent} onGo={setTab} />,
+    footerExtra: (<>
+      <button onClick={() => setTab("gallery")}>תמונות</button>
+      <button onClick={() => setTab("polls")}>סקרים</button>
+      <button onClick={() => setEditProfile(true)}>עריכת פרופיל</button>
+    </>),
+  };
+  const tabBody = (
+        <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+          {/* ── EVENT TAB ── */}
+          {tab === "event" && (
+            <>
+              {!nextEvent ? <Empty icon="😴" text="אין אירועים קרובים" /> : (
+                <>
+                  <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                      <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+                      <div style={{ background: sc, color: pc, borderRadius: 20, padding: "6px 14px", fontSize: 14, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</div>
+                    </div>
+                    <div style={{ color: "white", fontSize: 21, fontWeight: 800, marginBottom: 8, lineHeight: 1.3 }}>{formatDate(nextEvent.date)}</div>
+                    <div style={{ display: "flex", gap: 16, color: "rgba(255,255,255,0.92)", fontSize: 15, flexWrap: "wrap" }}>
+                      <span>⏰ {nextEvent.time}</span>
+                      <span>📍 {nextEvent.location}</span>
+                    </div>
+                    {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
+                  </div>
+
+                  {/* Clickable counters */}
+                  <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                    {[["coming", "מגיעות", "#22c55e"], ["notcoming", "לא מגיעות", "#ef4444"], ["pending", "טרם ענו", "#94a3b8"]].map(([s, label, color]) => (
+                      <button key={s} onClick={() => setAttModal(s)}
+                        style={{ flex: 1, background: "white", border: `2px solid ${color}30`, borderRadius: 12, padding: "10px 4px", cursor: "pointer", textAlign: "center" }}>
+                        <div style={{ fontSize: 26, fontWeight: 800, color }}>{countAtt(s)}</div>
+                        <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600 }}>{label}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Who's coming - collapsible */}
+                  {getList("coming").length > 0 && (
+                    <Collapsible title="✅ מגיעות" count={getList("coming").length} accent="#16a34a" defaultOpen>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {getList("coming").map(p => <span key={p.id} style={{ background: "#22c55e", color: "white", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600 }}>{p.name}</span>)}
+                      </div>
+                    </Collapsible>
+                  )}
+
+                  {/* RSVP */}
+                  {myRecord?.status ? (
+                    <div style={{ ...S.card, textAlign: "center" }}>
+                      <div style={{ fontSize: 40, marginBottom: 6 }}>{myRecord.status === "coming" ? "✅" : "❌"}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700 }}>סימנת: <strong>{myRecord.status === "coming" ? "מגיעה" : "לא מגיעה"}</strong></div>
+                      {myRecord.note && <div style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", margin: "6px 0" }}>"{myRecord.note}"</div>}
+
+                      {/* Inline note add without popup */}
+                      {showNoteFor && (
+                        <div style={{ marginTop: 12, textAlign: "right" }}>
+                          <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
+                            placeholder='הוסיפי הערה... (למשל: "מאחרת")'
+                            style={{ ...S.input, marginBottom: 6 }} autoFocus />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={saveNote} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור הערה</button>
+                            <button onClick={() => setShowNoteFor(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>דלג</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {!showNoteFor && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "center" }}>
+                          <button onClick={() => setShowNoteFor("note")} style={{ padding: "7px 16px", background: `${pc}15`, color: pc, border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>✏️ הוסף הערה</button>
+                          <button onClick={() => upd.attendance({ ...attendance, [myKey]: { ...myRecord, status: null } })}
+                            style={{ padding: "7px 16px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>שינוי תשובה</button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ ...S.card, textAlign: "center" }}>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>האם את מגיעה?</p>
+                      <div style={{ display: "flex", gap: 10, marginBottom: showNoteFor ? 12 : 0 }}>
+                        <button onClick={() => handleRSVP("coming")}
+                          style={{ flex: 1, padding: "16px", background: "#22c55e", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>✅ מגיעה</button>
+                        <button onClick={() => handleRSVP("notcoming")}
+                          style={{ flex: 1, padding: "16px", background: "#ef4444", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>❌ לא מגיעה</button>
+                      </div>
+                      {showNoteFor && (
+                        <div style={{ textAlign: "right" }}>
+                          <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
+                            placeholder='הוסיפי הערה (אופציונלי)...'
+                            style={{ ...S.input, marginBottom: 6 }} autoFocus />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={saveNote} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור</button>
+                            <button onClick={() => setShowNoteFor(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>דלג</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 👏 Applause — collapsible */}
+                  {lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
+                    <Collapsible title="👏 כל הכבוד לחברות" count={lastEventAttendees.filter(p => p.id !== player.id).length} accent={pc}>
+                      <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>שלחי מחיאות כפיים למי שהגיעה ל{lastEventLabel} (פעם ביום לכל אחת)</div>
+                      {lastEventAttendees.filter(p => p.id !== player.id).map(p => {
+                        const prof2 = playerProfiles[p.id] || {};
+                        const done = alreadyApplaudedToday(applause, player.id, p.id);
+                        const cnt = applauseThisMonth(applause, p.id);
+                        return (
+                          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+                            {prof2.photo ? <img src={prof2.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                              : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
+                              {cnt > 0 && <div style={{ fontSize: 11, color: "#94a3b8" }}>👏 {cnt} החודש</div>}
+                            </div>
+                            <button onClick={() => sendApplause(p)} disabled={done}
+                              style={{ padding: "7px 14px", borderRadius: 20, border: "none", cursor: done ? "default" : "pointer", fontSize: 13, fontWeight: 700,
+                                background: done ? "#f0fdf4" : sc, color: done ? "#16a34a" : pc, opacity: done ? 1 : 1 }}>
+                              {done ? "✓ נשלח היום" : "👏 כל הכבוד"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </Collapsible>
+                  )}
+                </>
+              )}
+
+              {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
+              <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />
+
+              {/* 📊 Personal stats — based on archived (verified) events only */}
+                  {(() => {
+                    const arch = archive || [];
+                    const calc = type => {
+                      const evs = arch.filter(a => a.type === type);
+                      const came = evs.filter(a => (a.attendanceData || []).some(d => d.playerId === player.id && d.status === "coming")).length;
+                      return { total: evs.length, came };
+                    };
+                    const tr = calc("training"), gm = calc("game");
+                    const totT = tr.total + gm.total, totC = tr.came + gm.came;
+                    const col = p => p >= 75 ? "#16a34a" : p >= 50 ? "#f59e0b" : "#ef4444";
+                    const pct = (c, t) => t ? Math.round(c / t * 100) : 0;
+                    const bar = (icon, label, c, t, big) => {
+                      const p = pct(c, t);
+                      return (
+                        <div style={{ marginBottom: big ? 0 : 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: big ? 14 : 13, marginBottom: 5 }}>
+                            <span style={{ color: big ? "#1e293b" : "#475569", fontWeight: big ? 800 : 500 }}>{icon} {label}</span>
+                            <span style={{ fontWeight: 800, color: col(p) }}>{c} / {t} · {p}%</span>
+                          </div>
+                          <div style={{ height: big ? 10 : 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
+                            <div style={{ width: `${p}%`, height: "100%", background: big ? pc : col(p), borderRadius: 99 }} />
+                          </div>
+                        </div>
+                      );
+                    };
+                    return (
+                      <Collapsible title="📊 הסטטיסטיקה שלי" count={totT} accent={pc}>
+                        {totT === 0
+                          ? <div style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: "8px 0" }}>עדיין אין נתונים — הסטטיסטיקה תופיע אחרי שהמנהלת תארכב אירועים.</div>
+                          : <>
+                              {bar("🏋️", "אימונים", tr.came, tr.total, false)}
+                              {bar("🏆", "משחקים", gm.came, gm.total, false)}
+                              <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>{bar("✅", 'סה"כ נוכחות', totC, totT, true)}</div>
+                            </>}
+                      </Collapsible>
+                    );
+                  })()}
+            </>
+          )}
+
+          {/* ── CALENDAR TAB ── */}
+          {tab === "calendar" && (() => {
+            const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+            const dayHeaders = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+            const { y, m } = calMonth;
+            const firstDay = new Date(y, m, 1).getDay(); // 0=ראשון
+            const daysInMonth = new Date(y, m + 1, 0).getDate();
+            const today = todayStr();
+            // אירועים ללוח = פתוחים + מאורכבים (כדי שאירוע שהסתיים/אורכב ימשיך להופיע), ללא כפילויות
+            const calEvents = (() => { const seen = new Set(); return [...(events || []), ...(archive || [])].filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }); })();
+            const pad = n => String(n).padStart(2, "0");
+            const dateStr = d => `${y}-${pad(m + 1)}-${pad(d)}`;
+
+            // נתונים ליום: אירועים (לא מבוטלים / מבוטלים) + ימי הולדת
+            const dayInfo = d => {
+              const ds = dateStr(d);
+              const evs = calEvents.filter(e => e.date === ds);
+              const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === `${pad(m + 1)}-${pad(d)}`; });
+              return { ds, evs, bdays };
+            };
+
+            const cells = [];
+            for (let i = 0; i < firstDay; i++) cells.push(null);
+            for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+            const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
+            const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
+
+            const selInfo = calSelected ? (() => {
+              const evs = calEvents.filter(e => e.date === calSelected);
+              const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === calSelected.slice(5); });
+              return { evs, bdays };
+            })() : null;
+
+            return (
+              <div>
+                {/* כותרת + ניווט חודשים */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+                  <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
+                </div>
+
+                {/* כותרות ימים */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+                  {dayHeaders.map((h, i) => <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{h}</div>)}
+                </div>
+
+                {/* רשת הימים */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+                  {cells.map((d, i) => {
+                    if (!d) return <div key={i} />;
+                    const info = dayInfo(d);
+                    const isToday = info.ds === today;
+                    const isSel = info.ds === calSelected;
+                    const hasTraining = info.evs.some(e => e.type === "training" && !e.cancelled);
+                    const hasGame = info.evs.some(e => e.type === "game" && !e.cancelled);
+                    const hasCancelled = info.evs.some(e => e.cancelled);
+                    const hasBday = info.bdays.length > 0;
+                    const marks = [];
+                    if (hasTraining) marks.push("🏋️");
+                    if (hasGame) marks.push("🏆");
+                    if (hasBday) marks.push("🎂");
+                    if (hasCancelled && marks.length === 0) marks.push("❌");
+                    return (
+                      <button key={i} onClick={() => setCalSelected(isSel ? null : info.ds)}
+                        style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
+                        {marks.length > 0 && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* פרטי יום נבחר */}
+                {calSelected && selInfo && (
+                  <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 8 }}>{formatDate(calSelected)}</div>
+                    {selInfo.evs.length === 0 && selInfo.bdays.length === 0 && <div style={{ fontSize: 13, color: "#94a3b8" }}>אין אירועים ביום זה.</div>}
+                    {selInfo.evs.map(ev => (
+                      <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
+                        <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק")} · {ev.time}</div>
+                          <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
+                        </div>
+                        {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
+                      </div>
+                    ))}
+                    {selInfo.bdays.map(p => (
+                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                        <span style={{ fontSize: 22 }}>🎂</span>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e" }}>יום ההולדת של {p.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* מקרא — לחיץ: פתיחת רשימת כל האירועים מאותו סוג */}
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+                  {[["training", "🏋️ אימון"], ["game", "🏆 משחק"], ["birthday", "🎂 יום הולדת"], ["cancelled", "❌ בוטל"]].map(([k, lbl]) => (
+                    <button key={k} onClick={() => setLegendKind(k)}
+                      style={{ fontSize: 12, color: "#64748b", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontWeight: 600 }}>{lbl}</button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 8 }}>טיפ: לחצי על סוג כדי לראות את כל האירועים מאותו סוג.</p>
+
+                {legendKind && (
+                  <LegendEventsModal kind={legendKind} events={events} archive={archive} players={players} playerProfiles={playerProfiles} pc={pc} onClose={() => setLegendKind(null)} />
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── CHAT TAB ── */}
+          {tab === "chat" && (
+            <div style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
+              <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {(!chat || chat.length === 0) && <Empty icon="💬" text="אין הודעות עדיין — התחילי שיחה!" />}
+                {(chat || []).map(m => {
+                  const mine = m.playerId === player.id;
+                  return (
+                    <div key={m.id} style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
+                      {!mine && <div style={{ fontSize: 11, color: pc, fontWeight: 700, marginBottom: 2 }}>{m.name}</div>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexDirection: mine ? "row" : "row-reverse" }}>
+                        <div style={{ background: mine ? pc : "white", color: mine ? "white" : "#1e293b", borderRadius: 14, padding: "8px 12px", fontSize: 14, lineHeight: 1.4, overflowWrap: "anywhere", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>{m.text}</div>
+                        {mine && <button onClick={() => deleteChatMsg(m)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", fontSize: 13, padding: 2 }}>🗑</button>}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 2, textAlign: mine ? "left" : "right" }}>{new Date(m.ts).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                  );
+                })}
+                <div ref={chatEndRef} />
+              </div>
+              <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #eef2f7" }}>
+                <input value={chatText} onChange={e => setChatText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="הקלידי הודעה..." style={{ ...S.input, margin: 0, flex: 1 }} />
+                <button onClick={sendChat} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "0 18px", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>שלחי</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── GAMES TAB ── */}
+          {tab === "games" && (() => {
+            // תוצאות משחקים = אירועי-משחק (כולל מהארכיון) שיש להם תוצאה. מהחדש לישן.
+            const allEvents = [...(events || []), ...(archive || [])];
+            const results = allEvents.filter(e => e.type === "game" && (e.outcome || e.result))
+              .sort((a, b) => b.date.localeCompare(a.date));
+            return (
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🏆 תוצאות משחקים</h3>
+              {results.length === 0 && <Empty icon="🏐" text="עדיין אין תוצאות משחקים" />}
+              {results.map(g => (
+                <div key={g.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#94a3b8" }}>{formatDate(g.date)} • {g.time}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>נגד: {g.opponent || "—"}</div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
+                  </div>
+                  {g.outcome
+                    ? <div style={{ textAlign: "center" }}><OutcomeBadge outcome={g.outcome} result={g.result} size="lg" /></div>
+                    : <div style={{ background: `${pc}15`, borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>תוצאה</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: pc }}>{g.result}</div>
+                      </div>
+                  }
+                </div>
+              ))}
+            </div>
+            );
+          })()}
+
+          {/* ── POLLS TAB ── */}
+          {tab === "polls" && (
+            <PlayerPolls polls={polls} player={player} players={players} upd={upd} pc={pc} sc={sc} />
+          )}
+
+          {/* ── GALLERY TAB ── */}
+          {tab === "gallery" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>
+                <label style={{ background: galleryUploading ? "#94a3b8" : pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: galleryUploading ? "default" : "pointer", opacity: galleryUploading ? 0.85 : 1 }}>
+                  {galleryUploading ? "מעלה..." : "+ העלי תמונה"}
+                  <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} disabled={galleryUploading} style={{ display: "none" }} />
+                </label>
+              </div>
+              <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>
+              <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 12px" }}>נותרו לך {Math.max(0, GALLERY_DAILY_LIMIT - uploadedTodayByPlayer())} תמונות להעלאה היום</p>
+              {galleryMsg && <p style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>{galleryMsg}</p>}
+              {gallery.length === 0 && <Empty icon="📸" text="אין תמונות עדיין - היי הראשונה!" />}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                {[...gallery].reverse().map(item => (
+                  <div key={item.id} onClick={() => setSelectedPhoto(item)} style={{ borderRadius: 12, overflow: "hidden", position: "relative", cursor: "pointer" }}>
+                    <img src={item.photo} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.65))", padding: "16px 8px 6px" }}>
+                      <div style={{ color: "white", fontSize: 11, fontWeight: 600 }}>{item.playerName}</div>
+                      <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 10 }}>{item.eventTitle || new Date(item.date).toLocaleDateString("he-IL")}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Lightbox */}
+              {selectedPhoto && (
+                <div onClick={() => setSelectedPhoto(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                  <img src={selectedPhoto.photo} style={{ maxWidth: "100%", maxHeight: "80vh", borderRadius: 12, objectFit: "contain" }} />
+                  <div style={{ color: "white", fontSize: 13, fontWeight: 600, marginTop: 12 }}>{selectedPhoto.playerName}</div>
+                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginTop: 4 }}>{selectedPhoto.eventTitle || new Date(selectedPhoto.date).toLocaleDateString("he-IL")}</div>
+                  {selectedPhoto.playerId === player.id && (
+                    <button onClick={(e) => { e.stopPropagation(); askConfirm("למחוק את התמונה?", () => deleteGalleryPhoto(selectedPhoto)); }}
+                      style={{ marginTop: 16, background: "#ef4444", color: "white", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      🗑️ מחקי תמונה
+                    </button>
+                  )}
+                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 16 }}>לחץ לסגירה</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── UPDATES TAB ── */}
+          {tab === "updates" && (
+            <div>
+              {activeNotifs.length === 0 && <Empty icon="📭" text="אין עדכונים כרגע" />}
+              {[...activeNotifs].reverse().map(n => (
+                <div key={n.id} style={{ ...S.card, borderRight: `4px solid ${n.type === "cancel" ? "#ef4444" : n.type === "coach" ? sc : pc}`, marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
+                    {n.type === "cancel" ? "❌ ביטול" : n.type === "coach" ? "📢 המאמן" : "💬 עדכון"} • {new Date(n.createdAt).toLocaleDateString("he-IL")}
+                  </div>
+                  <div style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{n.text}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+  );
+
   return (
-    <div className="app-shell" style={{ minHeight: "100vh" }}>
+    <div className={"app-shell" + (isDesk ? " st-app" : "")} style={{ minHeight: "100vh" }}>
       {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
           ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
-      <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
-        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />
+      {!isDesk && <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
+        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />}
       {/* מתחת ל-900px display:contents — הפריסה במובייל זהה לחלוטין לקודמתה */}
       <div className="app-main">
       <style>{`@keyframes chatDotPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.45); } }`}</style>
@@ -325,6 +746,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           </div>
         );
       })()}
+      {!isDesk && (
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         <button onClick={() => { localStorage.removeItem("rememberPlayer_" + player.id); onLogout ? onLogout() : onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
@@ -350,6 +772,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           </button>
         </div>
       </div>
+      )}
 
       {/* Edit profile modal */}
       {editProfile && (
@@ -383,406 +806,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
         </div>
       )}
 
-      <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />
+      {!isDesk && <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />}
 
-      <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
-        {/* ── EVENT TAB ── */}
-        {tab === "event" && (
-          <>
-            {!nextEvent ? <Empty icon="😴" text="אין אירועים קרובים" /> : (
-              <>
-                <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
-                    <div style={{ background: sc, color: pc, borderRadius: 20, padding: "6px 14px", fontSize: 14, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</div>
-                  </div>
-                  <div style={{ color: "white", fontSize: 21, fontWeight: 800, marginBottom: 8, lineHeight: 1.3 }}>{formatDate(nextEvent.date)}</div>
-                  <div style={{ display: "flex", gap: 16, color: "rgba(255,255,255,0.92)", fontSize: 15, flexWrap: "wrap" }}>
-                    <span>⏰ {nextEvent.time}</span>
-                    <span>📍 {nextEvent.location}</span>
-                  </div>
-                  {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
-                </div>
-
-                {/* Clickable counters */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                  {[["coming", "מגיעות", "#22c55e"], ["notcoming", "לא מגיעות", "#ef4444"], ["pending", "טרם ענו", "#94a3b8"]].map(([s, label, color]) => (
-                    <button key={s} onClick={() => setAttModal(s)}
-                      style={{ flex: 1, background: "white", border: `2px solid ${color}30`, borderRadius: 12, padding: "10px 4px", cursor: "pointer", textAlign: "center" }}>
-                      <div style={{ fontSize: 26, fontWeight: 800, color }}>{countAtt(s)}</div>
-                      <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600 }}>{label}</div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Who's coming - collapsible */}
-                {getList("coming").length > 0 && (
-                  <Collapsible title="✅ מגיעות" count={getList("coming").length} accent="#16a34a" defaultOpen>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {getList("coming").map(p => <span key={p.id} style={{ background: "#22c55e", color: "white", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600 }}>{p.name}</span>)}
-                    </div>
-                  </Collapsible>
-                )}
-
-                {/* RSVP */}
-                {myRecord?.status ? (
-                  <div style={{ ...S.card, textAlign: "center" }}>
-                    <div style={{ fontSize: 40, marginBottom: 6 }}>{myRecord.status === "coming" ? "✅" : "❌"}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>סימנת: <strong>{myRecord.status === "coming" ? "מגיעה" : "לא מגיעה"}</strong></div>
-                    {myRecord.note && <div style={{ fontSize: 13, color: "#6b7280", fontStyle: "italic", margin: "6px 0" }}>"{myRecord.note}"</div>}
-
-                    {/* Inline note add without popup */}
-                    {showNoteFor && (
-                      <div style={{ marginTop: 12, textAlign: "right" }}>
-                        <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
-                          placeholder='הוסיפי הערה... (למשל: "מאחרת")'
-                          style={{ ...S.input, marginBottom: 6 }} autoFocus />
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={saveNote} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור הערה</button>
-                          <button onClick={() => setShowNoteFor(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>דלג</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!showNoteFor && (
-                      <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "center" }}>
-                        <button onClick={() => setShowNoteFor("note")} style={{ padding: "7px 16px", background: `${pc}15`, color: pc, border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>✏️ הוסף הערה</button>
-                        <button onClick={() => upd.attendance({ ...attendance, [myKey]: { ...myRecord, status: null } })}
-                          style={{ padding: "7px 16px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>שינוי תשובה</button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ ...S.card, textAlign: "center" }}>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 14 }}>האם את מגיעה?</p>
-                    <div style={{ display: "flex", gap: 10, marginBottom: showNoteFor ? 12 : 0 }}>
-                      <button onClick={() => handleRSVP("coming")}
-                        style={{ flex: 1, padding: "16px", background: "#22c55e", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>✅ מגיעה</button>
-                      <button onClick={() => handleRSVP("notcoming")}
-                        style={{ flex: 1, padding: "16px", background: "#ef4444", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>❌ לא מגיעה</button>
-                    </div>
-                    {showNoteFor && (
-                      <div style={{ textAlign: "right" }}>
-                        <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
-                          placeholder='הוסיפי הערה (אופציונלי)...'
-                          style={{ ...S.input, marginBottom: 6 }} autoFocus />
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={saveNote} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור</button>
-                          <button onClick={() => setShowNoteFor(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>דלג</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 👏 Applause — collapsible */}
-                {lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
-                  <Collapsible title="👏 כל הכבוד לחברות" count={lastEventAttendees.filter(p => p.id !== player.id).length} accent={pc}>
-                    <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>שלחי מחיאות כפיים למי שהגיעה ל{lastEventLabel} (פעם ביום לכל אחת)</div>
-                    {lastEventAttendees.filter(p => p.id !== player.id).map(p => {
-                      const prof2 = playerProfiles[p.id] || {};
-                      const done = alreadyApplaudedToday(applause, player.id, p.id);
-                      const cnt = applauseThisMonth(applause, p.id);
-                      return (
-                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-                          {prof2.photo ? <img src={prof2.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
-                            : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
-                            {cnt > 0 && <div style={{ fontSize: 11, color: "#94a3b8" }}>👏 {cnt} החודש</div>}
-                          </div>
-                          <button onClick={() => sendApplause(p)} disabled={done}
-                            style={{ padding: "7px 14px", borderRadius: 20, border: "none", cursor: done ? "default" : "pointer", fontSize: 13, fontWeight: 700,
-                              background: done ? "#f0fdf4" : sc, color: done ? "#16a34a" : pc, opacity: done ? 1 : 1 }}>
-                            {done ? "✓ נשלח היום" : "👏 כל הכבוד"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </Collapsible>
-                )}
-              </>
-            )}
-
-            {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
-            <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />
-
-            {/* 📊 Personal stats — based on archived (verified) events only */}
-                {(() => {
-                  const arch = archive || [];
-                  const calc = type => {
-                    const evs = arch.filter(a => a.type === type);
-                    const came = evs.filter(a => (a.attendanceData || []).some(d => d.playerId === player.id && d.status === "coming")).length;
-                    return { total: evs.length, came };
-                  };
-                  const tr = calc("training"), gm = calc("game");
-                  const totT = tr.total + gm.total, totC = tr.came + gm.came;
-                  const col = p => p >= 75 ? "#16a34a" : p >= 50 ? "#f59e0b" : "#ef4444";
-                  const pct = (c, t) => t ? Math.round(c / t * 100) : 0;
-                  const bar = (icon, label, c, t, big) => {
-                    const p = pct(c, t);
-                    return (
-                      <div style={{ marginBottom: big ? 0 : 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: big ? 14 : 13, marginBottom: 5 }}>
-                          <span style={{ color: big ? "#1e293b" : "#475569", fontWeight: big ? 800 : 500 }}>{icon} {label}</span>
-                          <span style={{ fontWeight: 800, color: col(p) }}>{c} / {t} · {p}%</span>
-                        </div>
-                        <div style={{ height: big ? 10 : 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ width: `${p}%`, height: "100%", background: big ? pc : col(p), borderRadius: 99 }} />
-                        </div>
-                      </div>
-                    );
-                  };
-                  return (
-                    <Collapsible title="📊 הסטטיסטיקה שלי" count={totT} accent={pc}>
-                      {totT === 0
-                        ? <div style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: "8px 0" }}>עדיין אין נתונים — הסטטיסטיקה תופיע אחרי שהמנהלת תארכב אירועים.</div>
-                        : <>
-                            {bar("🏋️", "אימונים", tr.came, tr.total, false)}
-                            {bar("🏆", "משחקים", gm.came, gm.total, false)}
-                            <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>{bar("✅", 'סה"כ נוכחות', totC, totT, true)}</div>
-                          </>}
-                    </Collapsible>
-                  );
-                })()}
-          </>
-        )}
-
-        {/* ── CALENDAR TAB ── */}
-        {tab === "calendar" && (() => {
-          const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
-          const dayHeaders = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
-          const { y, m } = calMonth;
-          const firstDay = new Date(y, m, 1).getDay(); // 0=ראשון
-          const daysInMonth = new Date(y, m + 1, 0).getDate();
-          const today = todayStr();
-          // אירועים ללוח = פתוחים + מאורכבים (כדי שאירוע שהסתיים/אורכב ימשיך להופיע), ללא כפילויות
-          const calEvents = (() => { const seen = new Set(); return [...(events || []), ...(archive || [])].filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }); })();
-          const pad = n => String(n).padStart(2, "0");
-          const dateStr = d => `${y}-${pad(m + 1)}-${pad(d)}`;
-
-          // נתונים ליום: אירועים (לא מבוטלים / מבוטלים) + ימי הולדת
-          const dayInfo = d => {
-            const ds = dateStr(d);
-            const evs = calEvents.filter(e => e.date === ds);
-            const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === `${pad(m + 1)}-${pad(d)}`; });
-            return { ds, evs, bdays };
-          };
-
-          const cells = [];
-          for (let i = 0; i < firstDay; i++) cells.push(null);
-          for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-          const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
-          const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
-
-          const selInfo = calSelected ? (() => {
-            const evs = calEvents.filter(e => e.date === calSelected);
-            const bdays = (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === calSelected.slice(5); });
-            return { evs, bdays };
-          })() : null;
-
-          return (
-            <div>
-              {/* כותרת + ניווט חודשים */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
-                <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
-                <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
-              </div>
-
-              {/* כותרות ימים */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
-                {dayHeaders.map((h, i) => <div key={i} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{h}</div>)}
-              </div>
-
-              {/* רשת הימים */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-                {cells.map((d, i) => {
-                  if (!d) return <div key={i} />;
-                  const info = dayInfo(d);
-                  const isToday = info.ds === today;
-                  const isSel = info.ds === calSelected;
-                  const hasTraining = info.evs.some(e => e.type === "training" && !e.cancelled);
-                  const hasGame = info.evs.some(e => e.type === "game" && !e.cancelled);
-                  const hasCancelled = info.evs.some(e => e.cancelled);
-                  const hasBday = info.bdays.length > 0;
-                  const marks = [];
-                  if (hasTraining) marks.push("🏋️");
-                  if (hasGame) marks.push("🏆");
-                  if (hasBday) marks.push("🎂");
-                  if (hasCancelled && marks.length === 0) marks.push("❌");
-                  return (
-                    <button key={i} onClick={() => setCalSelected(isSel ? null : info.ds)}
-                      style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0 }}>
-                      <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
-                      {marks.length > 0 && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* פרטי יום נבחר */}
-              {calSelected && selInfo && (
-                <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 8 }}>{formatDate(calSelected)}</div>
-                  {selInfo.evs.length === 0 && selInfo.bdays.length === 0 && <div style={{ fontSize: 13, color: "#94a3b8" }}>אין אירועים ביום זה.</div>}
-                  {selInfo.evs.map(ev => (
-                    <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
-                      <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק")} · {ev.time}</div>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
-                      </div>
-                      {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
-                    </div>
-                  ))}
-                  {selInfo.bdays.map(p => (
-                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
-                      <span style={{ fontSize: 22 }}>🎂</span>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e" }}>יום ההולדת של {p.name}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* מקרא — לחיץ: פתיחת רשימת כל האירועים מאותו סוג */}
-              <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-                {[["training", "🏋️ אימון"], ["game", "🏆 משחק"], ["birthday", "🎂 יום הולדת"], ["cancelled", "❌ בוטל"]].map(([k, lbl]) => (
-                  <button key={k} onClick={() => setLegendKind(k)}
-                    style={{ fontSize: 12, color: "#64748b", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontWeight: 600 }}>{lbl}</button>
-                ))}
-              </div>
-              <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 8 }}>טיפ: לחצי על סוג כדי לראות את כל האירועים מאותו סוג.</p>
-
-              {legendKind && (
-                <LegendEventsModal kind={legendKind} events={events} archive={archive} players={players} playerProfiles={playerProfiles} pc={pc} onClose={() => setLegendKind(null)} />
-              )}
-            </div>
-          );
-        })()}
-
-        {/* ── CHAT TAB ── */}
-        {tab === "chat" && (
-          <div style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
-            <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 8 }}>
-              {(!chat || chat.length === 0) && <Empty icon="💬" text="אין הודעות עדיין — התחילי שיחה!" />}
-              {(chat || []).map(m => {
-                const mine = m.playerId === player.id;
-                return (
-                  <div key={m.id} style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
-                    {!mine && <div style={{ fontSize: 11, color: pc, fontWeight: 700, marginBottom: 2 }}>{m.name}</div>}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexDirection: mine ? "row" : "row-reverse" }}>
-                      <div style={{ background: mine ? pc : "white", color: mine ? "white" : "#1e293b", borderRadius: 14, padding: "8px 12px", fontSize: 14, lineHeight: 1.4, overflowWrap: "anywhere", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>{m.text}</div>
-                      {mine && <button onClick={() => deleteChatMsg(m)} style={{ background: "transparent", border: "none", color: "#cbd5e1", cursor: "pointer", fontSize: 13, padding: 2 }}>🗑</button>}
-                    </div>
-                    <div style={{ fontSize: 10, color: "#cbd5e1", marginTop: 2, textAlign: mine ? "left" : "right" }}>{new Date(m.ts).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
-                  </div>
-                );
-              })}
-              <div ref={chatEndRef} />
-            </div>
-            <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #eef2f7" }}>
-              <input value={chatText} onChange={e => setChatText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="הקלידי הודעה..." style={{ ...S.input, margin: 0, flex: 1 }} />
-              <button onClick={sendChat} style={{ background: pc, color: "white", border: "none", borderRadius: 10, padding: "0 18px", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>שלחי</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── GAMES TAB ── */}
-        {tab === "games" && (() => {
-          // תוצאות משחקים = אירועי-משחק (כולל מהארכיון) שיש להם תוצאה. מהחדש לישן.
-          const allEvents = [...(events || []), ...(archive || [])];
-          const results = allEvents.filter(e => e.type === "game" && (e.outcome || e.result))
-            .sort((a, b) => b.date.localeCompare(a.date));
-          return (
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 12 }}>🏆 תוצאות משחקים</h3>
-            {results.length === 0 && <Empty icon="🏐" text="עדיין אין תוצאות משחקים" />}
-            {results.map(g => (
-              <div key={g.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>{formatDate(g.date)} • {g.time}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>נגד: {g.opponent || "—"}</div>
-                  <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
-                </div>
-                {g.outcome
-                  ? <div style={{ textAlign: "center" }}><OutcomeBadge outcome={g.outcome} result={g.result} size="lg" /></div>
-                  : <div style={{ background: `${pc}15`, borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>תוצאה</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: pc }}>{g.result}</div>
-                    </div>
-                }
-              </div>
-            ))}
-          </div>
-          );
-        })()}
-
-        {/* ── POLLS TAB ── */}
-        {tab === "polls" && (
-          <PlayerPolls polls={polls} player={player} players={players} upd={upd} pc={pc} sc={sc} />
-        )}
-
-        {/* ── GALLERY TAB ── */}
-        {tab === "gallery" && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>
-              <label style={{ background: galleryUploading ? "#94a3b8" : pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: galleryUploading ? "default" : "pointer", opacity: galleryUploading ? 0.85 : 1 }}>
-                {galleryUploading ? "מעלה..." : "+ העלי תמונה"}
-                <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} disabled={galleryUploading} style={{ display: "none" }} />
-              </label>
-            </div>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>
-            <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 12px" }}>נותרו לך {Math.max(0, GALLERY_DAILY_LIMIT - uploadedTodayByPlayer())} תמונות להעלאה היום</p>
-            {galleryMsg && <p style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>{galleryMsg}</p>}
-            {gallery.length === 0 && <Empty icon="📸" text="אין תמונות עדיין - היי הראשונה!" />}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-              {[...gallery].reverse().map(item => (
-                <div key={item.id} onClick={() => setSelectedPhoto(item)} style={{ borderRadius: 12, overflow: "hidden", position: "relative", cursor: "pointer" }}>
-                  <img src={item.photo} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.65))", padding: "16px 8px 6px" }}>
-                    <div style={{ color: "white", fontSize: 11, fontWeight: 600 }}>{item.playerName}</div>
-                    <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 10 }}>{item.eventTitle || new Date(item.date).toLocaleDateString("he-IL")}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Lightbox */}
-            {selectedPhoto && (
-              <div onClick={() => setSelectedPhoto(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
-                <img src={selectedPhoto.photo} style={{ maxWidth: "100%", maxHeight: "80vh", borderRadius: 12, objectFit: "contain" }} />
-                <div style={{ color: "white", fontSize: 13, fontWeight: 600, marginTop: 12 }}>{selectedPhoto.playerName}</div>
-                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, marginTop: 4 }}>{selectedPhoto.eventTitle || new Date(selectedPhoto.date).toLocaleDateString("he-IL")}</div>
-                {selectedPhoto.playerId === player.id && (
-                  <button onClick={(e) => { e.stopPropagation(); askConfirm("למחוק את התמונה?", () => deleteGalleryPhoto(selectedPhoto)); }}
-                    style={{ marginTop: 16, background: "#ef4444", color: "white", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                    🗑️ מחקי תמונה
-                  </button>
-                )}
-                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 16 }}>לחץ לסגירה</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── UPDATES TAB ── */}
-        {tab === "updates" && (
-          <div>
-            {activeNotifs.length === 0 && <Empty icon="📭" text="אין עדכונים כרגע" />}
-            {[...activeNotifs].reverse().map(n => (
-              <div key={n.id} style={{ ...S.card, borderRight: `4px solid ${n.type === "cancel" ? "#ef4444" : n.type === "coach" ? sc : pc}`, marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
-                  {n.type === "cancel" ? "❌ ביטול" : n.type === "coach" ? "📢 המאמן" : "💬 עדכון"} • {new Date(n.createdAt).toLocaleDateString("he-IL")}
-                </div>
-                <div style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{n.text}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {isDesk ? <SiteChrome {...siteProps}>{tabBody}</SiteChrome> : tabBody}
 
       {attModal && nextEvent && (
         <AttModal

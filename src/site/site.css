@@ -1,0 +1,252 @@
+/* ── אתר הדסקטופ ────────────────────────────────────────────────────────────
+   כל מחלקה כאן מתחילה ב-st-. מחלקה בלי הקידומת תתנגש עם ה-shell של הטלפון,
+   שמשתמש בשמות כלליים כמו .card ו-.row.
+
+   הקובץ הזה פעיל אך ורק מעל 1100×600. מתחת לזה שום כלל כאן לא חל, ומסך
+   הטלפון והסרגל של הטאבלט נשארים בדיוק כפי שהיו.
+
+   RTL: משתמשים ב-right/left פיזיים בכוונה. inset-inline-end נפתר לשמאל
+   במסמך RTL ושותל דברים בצד ההפוך — נכון בתיאוריה, מייצר באגים כאן. */
+
+@media (min-width: 1100px) and (min-height: 600px) {
+
+  /* הניווט של הטלפון והסרגל של הטאבלט יורדים — הניווט עבר למסטהד */
+  .app-shell.st-app .side,
+  .app-shell.st-app .bottom-nav { display: none !important; }
+
+  .app-shell.st-app {
+    display: block;
+    height: 100dvh;
+    overflow: hidden;               /* החלון לא נגלל — .st-root כן */
+    background: var(--color-bg, #f1f5f9);
+  }
+  .app-shell.st-app .app-main { display: block; height: 100%; }
+
+  .st-root {
+    height: 100%;
+    overflow-y: auto;
+    background: var(--color-bg, #f1f5f9);
+  }
+
+  /* ── מסטהד ─────────────────────────────────────────────────────────────── */
+  .st-head {
+    position: sticky; top: 0; z-index: 220;
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+  }
+  .st-head-in {
+    max-width: 1240px; margin: 0 auto;
+    padding: 0 42px;
+    height: 68px;
+    display: flex; align-items: center; gap: 22px;
+  }
+
+  .st-brand {
+    display: flex; align-items: center; gap: 10px;
+    background: none; border: 0; padding: 0; cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .st-brand-ball { font-size: 26px; line-height: 1; }
+  .st-brand-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+  .st-brand-name {
+    font-size: 16px; font-weight: 800;
+    color: var(--st-pc, #1a237e);
+    max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .st-brand-sub { font-size: 11px; color: var(--color-text-faint, #94a3b8); font-weight: 600; }
+
+  /* ── חיפוש ─────────────────────────────────────────────────────────────── */
+  /* min-width ולא רק flex: לפאנל המנהלת יש 8 לשוניות, והן דחסו את החיפוש עד
+     שנשאר ממנו רק סמל הזכוכית. הניווט הוא זה שמתכווץ, לא החיפוש. */
+  .st-search { position: relative; flex: 1 1 240px; min-width: 220px; max-width: 420px; }
+  .st-search-icon {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; opacity: 0.55; pointer-events: none;
+  }
+  .st-search-input {
+    width: 100%; height: 38px;
+    padding: 0 34px 0 12px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 10px;
+    background: var(--color-bg, #f1f5f9);
+    font-family: inherit; font-size: 13.5px;
+    color: var(--color-text, #1e293b);
+  }
+  .st-search-input:focus {
+    outline: none;
+    border-color: var(--st-pc, #1a237e);
+    background: #fff;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-pc, #1a237e) 12%, transparent);
+  }
+
+  .st-results {
+    position: absolute; top: calc(100% + 6px); right: 0; left: 0;
+    background: #fff;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
+    overflow: hidden; z-index: 240;
+    max-height: 380px; overflow-y: auto;
+  }
+  .st-result {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 10px 13px; background: none; border: 0; cursor: pointer;
+    border-bottom: 1px solid #f1f5f9; text-align: right;
+  }
+  .st-result:last-child { border-bottom: 0; }
+  .st-result:hover { background: var(--color-bg, #f1f5f9); }
+  .st-result-icon { font-size: 17px; flex: 0 0 auto; }
+  .st-result-text { display: flex; flex-direction: column; min-width: 0; }
+  .st-result-title { font-size: 13.5px; font-weight: 700; color: var(--color-text, #1e293b); }
+  .st-result-sub { font-size: 11.5px; color: var(--color-text-muted, #64748b); }
+  .st-result-empty { padding: 14px; font-size: 13px; color: var(--color-text-muted, #64748b); text-align: center; }
+
+  /* ── ניווט ─────────────────────────────────────────────────────────────── */
+  /* הניווט הוא שנדחס כשיש הרבה לשוניות; אם עדיין לא נכנס — הוא נגלל לרוחב
+     בלי פס גלילה גלוי, במקום לדחוף החוצה את החשבון או את החיפוש. */
+  .st-nav {
+    display: flex; align-items: center; gap: 2px;
+    flex: 1 1 auto; min-width: 0; margin-right: auto;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .st-nav::-webkit-scrollbar { display: none; }
+  .st-nav-link {
+    position: relative;
+    background: none; border: 0; cursor: pointer;
+    padding: 8px 11px; border-radius: 9px;
+    font-family: inherit; font-size: 13.5px; font-weight: 600;
+    color: var(--color-text-muted, #64748b);
+    white-space: nowrap;
+  }
+  .st-nav-link:hover { background: var(--color-bg, #f1f5f9); color: var(--color-text, #1e293b); }
+  .st-nav-link.st-on {
+    background: color-mix(in srgb, var(--st-pc, #1a237e) 10%, transparent);
+    color: var(--st-pc, #1a237e);
+    font-weight: 800;
+  }
+  .st-dot {
+    position: absolute; top: 5px; left: 5px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--color-danger, #ef4444);
+  }
+
+  .st-account { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .st-who {
+    font-size: 13px; font-weight: 700; color: var(--color-text, #1e293b);
+    max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .st-out {
+    background: none; border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 9px; padding: 6px 12px; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    color: var(--color-text-muted, #64748b);
+  }
+  .st-out:hover { border-color: var(--color-danger, #ef4444); color: var(--color-danger, #ef4444); }
+
+  /* ── כותרת-על של השחקנית ───────────────────────────────────────────────── */
+  .st-hero {
+    background:
+      radial-gradient(1100px 340px at 80% -60%, color-mix(in srgb, var(--st-sc, #f5c842) 26%, transparent), transparent),
+      linear-gradient(165deg, var(--st-pc, #1a237e), color-mix(in srgb, var(--st-pc, #1a237e) 78%, #000));
+    color: #fff;
+  }
+  .st-hero-in {
+    max-width: 1240px; margin: 0 auto; padding: 54px 42px 48px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: center;
+  }
+  .st-eyebrow {
+    margin: 0 0 8px; font-size: 12px; font-weight: 800;
+    letter-spacing: 0.09em; text-transform: none;
+    color: var(--st-sc, #f5c842);
+  }
+  .st-h1 {
+    margin: 0 0 10px; font-size: 2.5rem; line-height: 1.15;
+    font-weight: 900; text-wrap: balance;
+  }
+  .st-lede { margin: 0; font-size: 1.05rem; line-height: 1.65; opacity: 0.92; max-width: 52ch; }
+  .st-hero-cta { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+  .st-btn {
+    background: var(--st-sc, #f5c842); color: #17203f;
+    border: 0; border-radius: 12px; padding: 12px 22px; cursor: pointer;
+    font-family: inherit; font-size: 14.5px; font-weight: 800;
+  }
+  .st-btn:hover { filter: brightness(1.06); }
+  .st-btn-ghost {
+    background: rgba(255, 255, 255, 0.12); color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .st-stats { display: flex; gap: 12px; flex: 0 0 auto; }
+  .st-stat {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 16px; padding: 18px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    min-width: 118px;
+  }
+  .st-stat b { font-size: 30px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+  .st-stat span { font-size: 11.5px; opacity: 0.85; text-align: center; }
+
+  /* ── רצועת המנהלת ──────────────────────────────────────────────────────── */
+  .st-strip { background: #fff; border-bottom: 1px solid var(--color-border, #e2e8f0); }
+  .st-strip-in { max-width: 1240px; margin: 0 auto; padding: 26px 42px 24px; }
+  .st-strip-lead { margin-bottom: 16px; }
+  .st-strip-lead .st-eyebrow { color: var(--color-text-faint, #94a3b8); }
+  .st-h2 { margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--color-text, #1e293b); text-wrap: balance; }
+
+  .st-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+  .st-tile {
+    background: var(--color-bg, #f1f5f9);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 14px; padding: 16px 12px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-family: inherit;
+  }
+  .st-tile:hover { border-color: var(--st-pc, #1a237e); background: #fff; }
+  .st-tile b { font-size: 26px; font-weight: 900; line-height: 1; color: var(--color-text, #1e293b); font-variant-numeric: tabular-nums; }
+  .st-tile span { font-size: 11.5px; color: var(--color-text-muted, #64748b); text-align: center; }
+  .st-tile.st-good b { color: var(--color-success, #16a34a); }
+  .st-tile.st-bad b { color: var(--color-danger, #ef4444); }
+  .st-tile.st-warn { background: var(--color-warn-bg, #fef9c3); border-color: #fde047; }
+  .st-tile.st-warn b { color: #a16207; }
+
+  /* ── מסלול ה-embed ─────────────────────────────────────────────────────────
+     .tab-body של הטלפון הוא מיכל-גלילה בגובה קבוע. אם משאירים אותו כך בתוך דף
+     שגולל בעצמו נוצר גולל מקונן עם אזור מת. מחזירים את הגלילה ל-.st-root. */
+  .st-embed { min-height: 52vh; }
+  .st-embed .tab-body {
+    height: auto !important;
+    overflow: visible !important;
+    max-width: 1100px !important;
+    margin: 0 auto !important;
+    padding: 26px 42px 64px !important;
+  }
+
+  /* ── פוטר ──────────────────────────────────────────────────────────────── */
+  .st-foot {
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    background: #fff;
+  }
+  .st-foot-in {
+    max-width: 1240px; margin: 0 auto; padding: 26px 42px 34px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--color-text-muted, #64748b);
+  }
+  .st-foot-brand { font-weight: 800; color: var(--st-pc, #1a237e); }
+  .st-foot-links { display: flex; gap: 14px; flex-wrap: wrap; margin-right: auto; }
+  .st-foot-links button {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; color: var(--color-text-muted, #64748b);
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .st-foot-links button:hover { color: var(--st-pc, #1a237e); }
+  .st-foot-legal { flex: 0 0 100%; color: var(--color-text-faint, #94a3b8); }
+
+  /* באנר העדכון ממורכז — אין סרגל שהוא צריך להתחמק ממנו */
+  .app-shell.st-app .update-bar {
+    left: 50% !important; right: auto !important;
+    transform: translateX(-50%);
+    max-width: 460px;
+  }
+}

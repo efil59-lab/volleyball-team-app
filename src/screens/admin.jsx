@@ -13,6 +13,7 @@ import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
 import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
+import { useIsDesktop, SiteChrome, AdminStrip } from "../site/Site";
 
 // ── ADMIN GALLERY (מחיקה גורפת למנהל) ─────────────────────────────────────────
 function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
@@ -190,6 +191,9 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
 
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 function AdminPanel(props) {
+  // ראשון בפונקציה: יש כאן early return על אשף ההקמה, ו-useState אחריו הוא
+  // "Rendered more hooks than during the previous render" ומסך לבן.
+  const isDesk = useIsDesktop();
   const [tab, setTab] = useState("attendance");
   const { pc, sc, onBack, onLogout, teamMeta, askConfirm, settings, players, upd } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
@@ -222,20 +226,53 @@ function AdminPanel(props) {
     { key: "settings", icon: "⚙️", label: "הגדרות" },
   ];
 
+  const siteProps = {
+    ctx: { players: props.players || [], events: props.events || [], archive: props.archive || [], playerProfiles: props.playerProfiles || {}, attendance: props.attendance || {} },
+    tab, setTab,
+    items: [...navItems, ...navMore],
+    teamName: settings && settings.teamName,
+    who: "מנהלת",
+    onHome: onBack,
+    onLogout: () => (askConfirm ? askConfirm("להתנתק מחשבון המנהל?", onLogout) : onLogout && onLogout()),
+    searchPlaceholder: "חיפוש שחקנית, אימון או משחק…",
+    // לא hero שיווקי — זו קונסולת ניהול. המספרים שמנהלת רוצה בלי ללחוץ.
+    hero: <AdminStrip ctx={{ players: props.players || [], attendance: props.attendance || {}, events: props.events || [], archive: props.archive || [] }}
+            nextEvent={getNextEvent(props.events || [])} onGo={setTab} />,
+    footerExtra: (<>
+      <button onClick={() => setTab("settings")}>הגדרות</button>
+      <button onClick={() => setTab("archive")}>סטטיסטיקה</button>
+      <button onClick={() => setTab("gallery")}>תמונות</button>
+    </>),
+  };
+  const tabBody = (
+        <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+          {tab === "attendance" && <AdminAttendance {...props} />}
+          {tab === "events" && <AdminEvents {...props} />}
+          {tab === "players" && <AdminPlayers {...props} />}
+          {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
+          {tab === "polls" && <AdminPolls {...props} />}
+          {tab === "gallery" && <AdminGallery {...props} />}
+          {tab === "archive" && <ArchiveStats {...props} />}
+          {tab === "settings" && <AdminSettings {...props} />}
+        </div>
+  );
+
   return (
-    <div className="app-shell" style={{ minHeight: "100vh" }}>
+    <div className={"app-shell" + (isDesk ? " st-app" : "")} style={{ minHeight: "100vh" }}>
       {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
           ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
-      <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
-        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />
+      {!isDesk && <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
+        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />}
       {/* מתחת ל-900px display:contents — הפריסה במובייל זהה לחלוטין לקודמתה */}
       <div className="app-main">
+      {!isDesk && (
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         {onLogout && <button onClick={() => askConfirm ? askConfirm("להתנתק מחשבון המנהל?", onLogout) : onLogout()} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתק</button>}
         <div style={{ fontSize: 32 }}>🔐</div>
         <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0" }}>פאנל מנהל</h2>
       </div>
+      )}
       {isPending && (
         <div style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", borderBottom: "1px solid #fcd34d", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>⏳</span>
@@ -270,17 +307,8 @@ function AdminPanel(props) {
           </div>
         </div>
       )}
-      <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />
-      <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
-        {tab === "attendance" && <AdminAttendance {...props} />}
-        {tab === "events" && <AdminEvents {...props} />}
-        {tab === "players" && <AdminPlayers {...props} />}
-        {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
-        {tab === "polls" && <AdminPolls {...props} />}
-        {tab === "gallery" && <AdminGallery {...props} />}
-        {tab === "archive" && <ArchiveStats {...props} />}
-        {tab === "settings" && <AdminSettings {...props} />}
-      </div>
+      {!isDesk && <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />}
+      {isDesk ? <SiteChrome {...siteProps}>{tabBody}</SiteChrome> : tabBody}
       </div>
     </div>
   );
