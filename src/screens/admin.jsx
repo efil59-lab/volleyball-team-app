@@ -905,6 +905,10 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         for (let d = 1; d <= daysInMonth; d++) cells.push(d);
         const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
         const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
+        // חזרה להיום — מופיע רק כשלא רואים את החודש הנוכחי (ראה מסך השחקנית)
+        const nowD = new Date();
+        const onThisMonth = y === nowD.getFullYear() && m === nowD.getMonth();
+        const goToday = () => { setCalMonth({ y: nowD.getFullYear(), m: nowD.getMonth() }); setCalSelected(todayStr()); };
         const calEvents = (() => { const seen = new Set(); return [...(events || []), ...(archive || [])].filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }); })();
         const dayEvents = ds => calEvents.filter(e => e.date === ds);
         const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
@@ -914,7 +918,12 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
-              <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+                {!onThisMonth && (
+                  <button onClick={goToday} style={{ background: "none", border: "none", padding: "2px 4px", cursor: "pointer", fontSize: 12, fontWeight: 700, color: pc, textDecoration: "underline", textUnderlineOffset: 3 }}>↩︎ חזרה להיום</button>
+                )}
+              </div>
               <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>

@@ -600,6 +600,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
             const prevMonth = () => { setCalSelected(null); setCalMonth(m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }); };
             const nextMonth = () => { setCalSelected(null); setCalMonth(m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }); };
+            // חזרה להיום. הכפתור מופיע רק כשלא רואים את החודש הנוכחי — בחודש
+            // הנוכחי הוא סתם רעש, וכך האפשרות מופיעה בדיוק כשהיא נחוצה.
+            const nowD = new Date();
+            const onThisMonth = y === nowD.getFullYear() && m === nowD.getMonth();
+            const goToday = () => { setCalMonth({ y: nowD.getFullYear(), m: nowD.getMonth() }); setCalSelected(todayStr()); };
 
             const selInfo = calSelected ? (() => {
               const evs = calEvents.filter(e => e.date === calSelected);
@@ -612,7 +617,12 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 {/* כותרת + ניווט חודשים */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <button onClick={prevMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>▶</button>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: pc }}>{monthNames[m]} {y}</div>
+                    {!onThisMonth && (
+                      <button onClick={goToday} style={{ background: "none", border: "none", padding: "2px 4px", cursor: "pointer", fontSize: 12, fontWeight: 700, color: pc, textDecoration: "underline", textUnderlineOffset: 3 }}>↩︎ חזרה להיום</button>
+                    )}
+                  </div>
                   <button onClick={nextMonth} style={{ background: `${pc}12`, border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", fontSize: 18, color: pc, fontWeight: 800 }}>◀</button>
                 </div>
 
