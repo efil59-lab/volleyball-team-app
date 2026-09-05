@@ -13,7 +13,7 @@ import {
 import { isIOS } from "./lib/utils";
 import { trackScreen } from "./lib/analytics";
 import { Confirm } from "./components/shared";
-import { InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin } from "./screens/gate";
+import { NoTeamScreen, InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin } from "./screens/gate";
 import { SuperAdminScreen } from "./screens/superadmin";
 import { HomeScreen, OnboardScreen } from "./screens/home";
 import { PlayerScreen } from "./screens/player";
@@ -216,9 +216,13 @@ export default function App() {
         return;
       }
 
-      // 3.5) כניסה לכתובת חשופה (בלי ?team=) ואין מנהל מזוהה → דף נחיתה (שער ראשי), לא ניחוש קבוצה.
+      // 3.5) כניסה לכתובת חשופה (בלי ?team=) ואין מנהל מזוהה → דף נחיתה, לא ניחוש קבוצה.
+      // אלא אם האפליקציה מותקנת: מי שהתקינה כבר איננה לקוחה פוטנציאלית אלא
+      // משתמשת שהלכה לאיבוד, ודף המכירה הוא עבורה מבוי סתום. קרה באייפון,
+      // שם ל-PWA מותקן יש אחסון נפרד מ-Safari ולכן ה-?team= לא שרד את ההתקנה.
       if (!TEAM_FROM_URL) {
-        setScreen("landing");
+        const installed = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+        setScreen(installed ? "no-team" : "landing");
         return;
       }
 
@@ -379,6 +383,10 @@ export default function App() {
   if (screen === "splash" && !showInstall && !showWhatsNew) return <Splash pc={pc} sc={sc} />;
   if (screen === "superAdmin") return <SuperAdminScreen pc={pc} sc={sc} authUser={authUser} onGoogle={handleGoogleLogin} onBack={() => setScreen("home")} />;
   if (screen === "privacy" || screen === "terms") return <LegalScreen kind={screen} pc={pc} sc={sc} onBack={() => setScreen(TEAM_FROM_URL ? "home" : "landing")} />;
+  if (screen === "no-team") return <NoTeamScreen pc={pc} sc={sc}
+    onAdminLogin={() => setScreen("admin-login")}
+    onEnterTeam={async (id) => { setCurrentTeam(id); await loadTeamData(); setScreen("home"); }}
+    onEnterBibleumi={async () => { setCurrentTeam(DEFAULT_TEAM); await loadTeamData(); setScreen("home"); }} />;
   if (screen === "landing") return <LandingScreen pc={pc} sc={sc}
     onAdminLogin={() => setScreen("admin-login")}
     onPurchase={() => setScreen("purchase")}

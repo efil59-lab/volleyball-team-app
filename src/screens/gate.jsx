@@ -254,6 +254,45 @@ function NotRegisteredScreen({ pc, sc, authUser, onPurchase, onLogout, onBack })
   );
 }
 
+// ── PWA מותקן שאינו יודע לאיזו קבוצה הוא שייך ────────────────────────────────
+// מי שהתקינה את האפליקציה כבר איננה לקוחה פוטנציאלית — היא משתמשת שהלכה
+// לאיבוד, ודף המכירה הוא התשובה הגרועה ביותר עבורה. זה קרה בעיקר באייפון:
+// ל-PWA מותקן יש שם אחסון נפרד מ-Safari, אז ה-?team= לא שרד את ההתקנה.
+//
+// /api/manifest פותר את זה להתקנות חדשות. המסך הזה הוא עבור מי שכבר מותקנת
+// אצלה הגרסה הישנה, ועבור כל מקרה קצה שבו הקבוצה אבדה.
+function NoTeamScreen({ pc, sc, onEnterTeam, onEnterBibleumi, onAdminLogin }) {
+  const [code, setCode] = useState("");
+  const clean = code.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return (
+    <div style={{ direction: "rtl", minHeight: "100vh", background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: 20, padding: "30px 24px", width: "100%", maxWidth: 360, boxShadow: "0 12px 40px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div style={{ fontSize: 46 }}>🏐</div>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: pc, margin: "10px 0 6px" }}>לאיזו קבוצה?</h2>
+        <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.65, margin: "0 0 16px" }}>
+          האפליקציה מותקנת, אבל היא עדיין לא יודעת לאיזו קבוצה את שייכת.
+          פתחי <strong>פעם אחת</strong> את הקישור שקיבלת מהמנהלת — ומאז האייקון ייפתח ישר לקבוצה שלך.
+        </p>
+        <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8 }}>או: הזיני את קוד הקבוצה מהמנהלת</div>
+          <input value={code} onChange={e => setCode(e.target.value)} placeholder="לדוגמה: bibleumi"
+            autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            onKeyDown={e => { if (e.key === "Enter" && clean) onEnterTeam(clean); }}
+            style={{ width: "100%", padding: "11px 12px", border: "2px solid #e2e8f0", borderRadius: 10, fontSize: 16, boxSizing: "border-box", direction: "ltr", textAlign: "left", outline: "none", marginBottom: 8, fontFamily: "inherit" }} />
+          <button onClick={() => clean && onEnterTeam(clean)} disabled={!clean}
+            style={{ width: "100%", background: clean ? pc : "#e2e8f0", color: clean ? "white" : "#94a3b8", border: "none", borderRadius: 10, padding: "11px", fontSize: 14.5, fontWeight: 800, cursor: clean ? "pointer" : "default" }}>
+            כניסה לקבוצה
+          </button>
+        </div>
+        <button onClick={onEnterBibleumi} style={{ width: "100%", background: sc, color: pc, border: "none", borderRadius: 12, padding: "12px", fontSize: 14.5, fontWeight: 800, cursor: "pointer", marginBottom: 8 }}>
+          כניסה לקבוצת הבינלאומי
+        </button>
+        <button onClick={onAdminLogin} style={{ width: "100%", background: "transparent", color: "#64748b", border: "none", padding: "8px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>🔑 כניסת מנהלת</button>
+      </div>
+    </div>
+  );
+}
+
 // ── LANDING — דף נחיתה מוכר (שלב 5ג): החלון-ראווה לפייסבוק/ממה-נט ─────────────
 // כתובת חשופה (בלי ?team=) מגיעה לכאן. מטרת הדף: להמיר מנהלת מתעניינת לניסיון-חינם.
 function LandingScreen({ pc, sc, onAdminLogin, onPurchase, onEnterBibleumi, onLegal }) {
@@ -426,4 +465,4 @@ function AdminLogin({ pc, sc, onGoogle, onContinue, authUser, onBack, initialErr
   );
 }
 
-export { InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, NoInviteScreen, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin };
+export { NoTeamScreen, InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, NoInviteScreen, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin };

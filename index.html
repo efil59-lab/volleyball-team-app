@@ -12,23 +12,36 @@
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <!--
-      שחזור קבוצה ל-PWA: כשמתקינים את האפליקציה למסך הבית, ה-start_url במניפסט הוא "."
-      (כתובת חשופה, בלי ?team=). הסקריפט הבא רץ לפני טעינת האפליקציה: אם הכתובת הנוכחית
-      חסרת ?team= אבל יש קבוצה שמורה מביקור קודם — הוא מוסיף את ה-?team= מיד.
-      כך PWA שנפתח מהאייקון מגיע ישירות לקבוצה הנכונה, באייפון ובאנדרואיד כאחד.
-      שמירת הקבוצה עצמה (pwaTeam) נעשית באפליקציה רק כשנכנסים עם ?team= מפורש.
+      שתי הגנות על "האייקון פותח את הקבוצה הנכונה":
+
+      1. שחזור מ-localStorage. אם הכתובת חסרת ?team= אבל יש קבוצה שמורה מביקור
+         קודם — מוסיפים אותה מיד. זה מה שגרם לזה לעבוד באנדרואיד, שם ל-PWA
+         מותקן יש אותו אחסון כמו לדפדפן.
+
+      2. הפניית המניפסט ל-/api/manifest?team=X. הגנה 1 לבדה נכשלת באייפון:
+         ל-web app שמותקן במסך הבית יש מאגר אחסון **נפרד לגמרי** מ-Safari, אז
+         pwaTeam פשוט לא קיים שם והשחקנית נוחתת על דף המכירה (דווח 5.9.2026).
+         מניפסט עם start_url שנושא את הקבוצה פותר את זה בשורש, כי הוא לא תלוי
+         באחסון בכלל. חייב להיות כתובת http אמיתית — iOS לא קורא מניפסט
+         מ-blob:/data:. ה-link קיים למעלה, לכן אפשר לעדכן אותו כאן.
     -->
     <script>
       (function () {
         try {
           var params = new URLSearchParams(window.location.search);
-          if (!params.get("team")) {
+          var team = params.get("team");
+          if (!team) {
             var saved = localStorage.getItem("pwaTeam");
             if (saved) {
               var sep = window.location.search ? "&" : "?";
               var newUrl = window.location.pathname + window.location.search + sep + "team=" + encodeURIComponent(saved) + window.location.hash;
               window.location.replace(newUrl);
+              return; // הדף נטען מחדש עם ?team= — המניפסט יעודכן שם
             }
+          }
+          if (team) {
+            var link = document.querySelector('link[rel="manifest"]');
+            if (link) link.href = "/api/manifest?team=" + encodeURIComponent(team);
           }
         } catch (e) { /* אם משהו נכשל - ממשיכים רגיל לדף הנחיתה */ }
       })();
