@@ -1006,7 +1006,12 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                 <input ref={el => fileRefs.current[p.id] = el} type="file" accept="image/*" onChange={e => handlePhoto(p.id, e)} style={{ display: "none" }} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, color: "#1e293b" }}>{p.name}</div>
+                {/* סוג המכשיר באותה שורה עם השם: הגובה נקבע ע"י התמונה (44px),
+                    אז טקסט 11px לצד השם לא מוסיף שום גובה לשורה. */}
+                <div style={{ fontWeight: 700, color: "#1e293b", display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                  {prof.device && <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", whiteSpace: "nowrap", flexShrink: 0 }}>{prof.device}</span>}
+                </div>
                 <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
                   {prof.whatsapp && <button onClick={() => window.open(`https://wa.me/${prof.whatsapp.replace(/\D/g,"")}`, "_blank")} style={{ fontSize: 11, background: "#25D366", color: "white", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>💬 WA</button>}
                   {prof.email && <button onClick={() => window.open(`mailto:${prof.email}`, "_blank")} style={{ fontSize: 11, background: `${pc}20`, color: pc, borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>✉️ מייל</button>}

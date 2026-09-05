@@ -5,7 +5,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { S } from "../styles/S";
 import {
   formatDate, formatShort, getNextEvent, countdownLabel, todayStr, monthDay,
-  isBirthdayToday, applauseThisMonth, alreadyApplaudedToday,
+  isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
@@ -93,6 +93,16 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   // ב-StrictMode או רענון דף לא הופכים לשתי התראות.
   useEffect(() => {
     notifyPlayerActivityRemote(CURRENT_TEAM, player.id, "login");
+    // סוג המכשיר לפרופיל — כדי שהמנהלת תדע ברשימת השחקניות למי להסביר
+    // "כפתור שיתוף" ולמי "תפריט שלוש נקודות". נכתב רק כשהוא השתנה (החלפת
+    // טלפון), אחרת זו כתיבה מיותרת בכל פתיחה. saveProfilesSplit כותב רק את
+    // המסמך של השחקנית הזו, ולכן אין כאן דריסה של פרופילים אחרים.
+    try {
+      const dev = deviceLabel(navigator.userAgent);
+      if (dev && dev !== prof.device) {
+        upd.playerProfiles({ ...playerProfiles, [player.id]: { ...prof, device: dev } });
+      }
+    } catch { /* לא קריטי — לעולם לא לחסום כניסה בגלל זה */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

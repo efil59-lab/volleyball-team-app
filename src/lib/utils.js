@@ -34,6 +34,19 @@ function isIOS() {
   const iPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1; // iPadOS 13+ מתחזה ל-Mac
   return iOSDevice || iPadOS;
 }
+// סוג המכשיר מתוך userAgent, בקצרה — למנהלת שרוצה לדעת למי להסביר "לחצי שיתוף"
+// ולמי "תפריט שלוש נקודות". מוצג ליד השם ברשימת השחקניות, ולכן קצר בכוונה.
+// מחזיר מחרוזת ריקה כשלא ידוע — עדיף כלום מאשר "לא ידוע" שתופס מקום ולא אומר כלום.
+function deviceLabel(ua) {
+  const s = String(ua || "");
+  if (!s) return "";
+  if (/iPad/i.test(s)) return "🍎 אייפד";
+  if (/iPhone|iPod/i.test(s)) return "🍎 אייפון";
+  if (/Android/i.test(s)) return "🤖 אנדרואיד";
+  if (/Windows|Macintosh|Linux|CrOS/i.test(s)) return "💻 מחשב";
+  return "";
+}
+
 // ── הודעת ההזמנה לוואטסאפ ────────────────────────────────────────────────────
 // הנוסח הקודם היה "הצטרפי לקבוצת {שם} שלנו" — ושמות הקבוצות כבר פותחים ב"קבוצת",
 // אז יצא "הצטרפי לקבוצת קבוצת הכדורשת של הבנק הבינלאומי" (דווח מהשטח 5.9.26).
@@ -104,4 +117,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
