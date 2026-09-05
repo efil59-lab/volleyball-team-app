@@ -36,18 +36,21 @@ export default function PlayerHome({
   onRSVP, onVote, onApplause, onOpen,
 }) {
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
+  // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
+  const isViewer = !!player.viewer;
+  const roster = players.filter(p => !p.viewer);
   const my = myRecord?.status || null;
   const counts = useMemo(() => {
-    if (!nextEvent) return { coming: 0, notcoming: 0, pending: players.length };
+    if (!nextEvent) return { coming: 0, notcoming: 0, pending: roster.length };
     let coming = 0, notcoming = 0, pending = 0;
-    for (const p of players) {
+    for (const p of roster) {
       const s = attendance[`${nextEvent.id}_${p.id}`]?.status;
       if (s === "coming") coming++;
       else if (s === "notcoming") notcoming++;
       else pending++;
     }
     return { coming, notcoming, pending };
-  }, [nextEvent, players, attendance]);
+  }, [nextEvent, roster, attendance]);
 
   const leaf = useMemo(() => {
     if (!nextEvent) return null;
@@ -72,7 +75,7 @@ export default function PlayerHome({
     for (let i = sorted.length - 1; i >= 0; i--) { if (came(sorted[i])) streak++; else break; }
 
     // דירוג בקבוצה לפי מספר ההגעות
-    const tallies = players.map(p => ({
+    const tallies = roster.map(p => ({
       id: p.id,
       n: sorted.filter(ev => (ev.attendanceData || []).some(a => String(a.playerId) === String(p.id) && a.status === "coming")).length,
     })).sort((a, b) => b.n - a.n);
@@ -138,24 +141,33 @@ export default function PlayerHome({
                   {leaf.weekday} · <b>{nextEvent.time}</b>
                   {nextEvent.location ? <> · {nextEvent.location}</> : null}
                 </p>
-                <div className="st-p-rsvp">
-                  <button
-                    className={"st-p-rbtn st-yes" + (my === "coming" ? " st-on" : "")}
-                    aria-pressed={my === "coming"}
-                    onClick={() => onRSVP("coming")}
-                  >✅ אני מגיעה</button>
-                  <button
-                    className={"st-p-rbtn st-no" + (my === "notcoming" ? " st-on" : "")}
-                    aria-pressed={my === "notcoming"}
-                    onClick={() => onRSVP("notcoming")}
-                  >❌ לא מגיעה</button>
-                </div>
-                <p className="st-p-saved">
-                  {my === "coming" ? "נשמר — סימנת שאת מגיעה. אפשר לשנות בכל רגע."
-                    : my === "notcoming" ? "נשמר — סימנת שאינך מגיעה. אפשר לשנות בכל רגע."
-                      : "טרם אישרת הגעה"}
-                  {myRecord?.note ? <> · «{myRecord.note}»</> : null}
-                </p>
+                {/* צופה אינה מסמנת נוכחות — במקום הכפתורים, המספר שבשבילו היא כאן */}
+                {isViewer ? (
+                  <p className="st-p-saved" style={{ fontSize: "1.15rem", opacity: 1 }}>
+                    👁️ <b>{counts.coming}</b> מתוך {roster.length} מגיעות · {counts.pending} טרם ענו
+                  </p>
+                ) : (
+                  <>
+                    <div className="st-p-rsvp">
+                      <button
+                        className={"st-p-rbtn st-yes" + (my === "coming" ? " st-on" : "")}
+                        aria-pressed={my === "coming"}
+                        onClick={() => onRSVP("coming")}
+                      >✅ אני מגיעה</button>
+                      <button
+                        className={"st-p-rbtn st-no" + (my === "notcoming" ? " st-on" : "")}
+                        aria-pressed={my === "notcoming"}
+                        onClick={() => onRSVP("notcoming")}
+                      >❌ לא מגיעה</button>
+                    </div>
+                    <p className="st-p-saved">
+                      {my === "coming" ? "נשמר — סימנת שאת מגיעה. אפשר לשנות בכל רגע."
+                        : my === "notcoming" ? "נשמר — סימנת שאינך מגיעה. אפשר לשנות בכל רגע."
+                          : "טרם אישרת הגעה"}
+                      {myRecord?.note ? <> · «{myRecord.note}»</> : null}
+                    </p>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -193,7 +205,7 @@ export default function PlayerHome({
             </div>
             <div className="st-p-card st-p-faces-box">
               <div className="st-p-faces">
-                {players.map(p => (
+                {roster.map(p => (
                   <Face
                     key={p.id}
                     p={p}
@@ -237,7 +249,7 @@ export default function PlayerHome({
                 </div>
                 <div><b className="st-num">{season.mine}</b><span>אירועים שהגעת</span></div>
                 <div><b className="st-num">{season.streak}</b><span>ברצף האחרון</span>{season.streak >= 3 && <span className="st-p-sp">🔥</span>}</div>
-                <div><b className="st-num">{season.rank || "—"}</b><span>מקומך בקבוצה</span><span className="st-p-sp">מתוך {players.length}</span></div>
+                <div><b className="st-num">{season.rank || "—"}</b><span>מקומך בקבוצה</span><span className="st-p-sp">מתוך {roster.length}</span></div>
               </div>
             </div>
           )}
@@ -250,7 +262,7 @@ export default function PlayerHome({
           <div className="st-p-sh"><h2>מהקבוצה</h2></div>
           <div className="st-p-cols">
 
-            <article className="st-p-card">
+            {!isViewer && <article className="st-p-card">
               <div className="st-p-ch">💬 הצ׳אט
                 <button className="st-p-sp st-p-link" onClick={() => onOpen("chat")}>לצ׳אט המלא ←</button>
               </div>
@@ -267,7 +279,7 @@ export default function PlayerHome({
                     </div>
                   ))}
               </div>
-            </article>
+            </article>}
 
             <article className="st-p-card">
               <div className="st-p-ch">🗳️ סקר פעיל
@@ -325,7 +337,7 @@ export default function PlayerHome({
 
           </div>
 
-          {clapTargets.list.length > 0 && (
+          {!isViewer && clapTargets.list.length > 0 && (
             <div className="st-p-card st-p-clap">
               <span className="st-p-clap-i" aria-hidden>👏</span>
               <span className="st-p-clap-t">

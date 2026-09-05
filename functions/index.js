@@ -320,7 +320,9 @@ async function eventsOn(teamId, dateStr) {
 
 // שחקניות שטרם ענו לאירוע (אין להן status ב-attendance/{pid}[eventId])
 async function nonResponders(teamId, eventId) {
-  const players = await getTeamValue(teamId, "players", []);
+  // צופה (מאמנת) אינה מסמנת נוכחות — בלי הסינון היא "טרם ענתה" לנצח,
+  // ותקבל תזכורת לפני כל אימון על משהו שהיא לא אמורה לעשות.
+  const players = (await getTeamValue(teamId, "players", [])).filter(p => !p.viewer);
   const att = await db.collection(`teams/${teamId}/attendance`).get();
   const answered = new Set();
   att.forEach((d) => {
@@ -668,7 +670,7 @@ const PING_COOLDOWN_MS = { login: 3 * 60 * 1000, rsvp: 20 * 1000 };
 // ספירת מגיעות/לא/טרם ענו לאירוע — נשלחת בגוף ההתראה כדי שהמנהלת תדע איפה
 // הדברים עומדים בלי לפתוח את האפליקציה.
 async function attendanceTally(teamId, eventId) {
-  const players = await getTeamValue(teamId, "players", []);
+  const players = (await getTeamValue(teamId, "players", [])).filter(p => !p.viewer);
   const att = await db.collection(`teams/${teamId}/attendance`).get();
   const byPid = new Map();
   att.forEach((d) => {

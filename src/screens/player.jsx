@@ -120,15 +120,18 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     dismissTopPopup();
   }
 
+  // צופה (מאמנת) מחוץ לכל ספירת נוכחות — היא לא מסמנת, ולכן לא "טרם ענתה".
+  const isViewer = !!player.viewer;
+  const roster = players.filter(p => !p.viewer);
   function countAtt(status) {
     if (!nextEvent) return 0;
-    if (status === "pending") return players.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length;
-    return players.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === status).length;
+    if (status === "pending") return roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length;
+    return roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === status).length;
   }
   function getList(status) {
     if (!nextEvent) return [];
-    if (status === "pending") return players.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status);
-    return players.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === status);
+    if (status === "pending") return roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status);
+    return roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === status);
   }
 
   async function handleRSVP(status) {
@@ -240,16 +243,27 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const hasUnreadChat = (chat || []).some(m => m.playerId !== player.id && (m.ts || 0) > chatSeenTs);
 
   // ניווט תחתון: 4 ראשיים + "עוד" (תוצאות משחקים, סקר). נקודה אדומה על צ'אט עם הודעות שלא נקראו.
-  const navItems = [
-    { key: "event", icon: "📋", label: "נוכחות" },
-    { key: "calendar", icon: "🗓️", label: "לוח" },
-    { key: "games", icon: "🏆", label: "תוצאות" },
-    { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
-  ];
-  const navMore = [
-    { key: "polls", icon: "🗳️", label: "סקר" },
-    { key: "gallery", icon: "📸", label: "תמונות" },
-  ];
+  // צופה (מאמנת): רואה מי מגיעה, הלוח והתוצאות. בלי צ'אט — הוא מרחב של
+  // השחקניות, ולא נכון שמי שלא משחקת תשב בו.
+  const navItems = isViewer
+    ? [
+      { key: "event", icon: "📋", label: "נוכחות" },
+      { key: "calendar", icon: "🗓️", label: "לוח" },
+      { key: "games", icon: "🏆", label: "תוצאות" },
+      { key: "gallery", icon: "📸", label: "תמונות" },
+    ]
+    : [
+      { key: "event", icon: "📋", label: "נוכחות" },
+      { key: "calendar", icon: "🗓️", label: "לוח" },
+      { key: "games", icon: "🏆", label: "תוצאות" },
+      { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
+    ];
+  const navMore = isViewer
+    ? [{ key: "polls", icon: "🗳️", label: "סקר" }]
+    : [
+      { key: "polls", icon: "🗳️", label: "סקר" },
+      { key: "gallery", icon: "📸", label: "תמונות" },
+    ];
 
   async function sendChat() {
     const t = chatText.trim();
@@ -299,7 +313,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   let lastEventLabel = "";
   if (lastArchived) {
     const ids = (lastArchived.attendanceData || []).filter(a => a.status === "coming").map(a => a.playerId);
-    lastEventAttendees = players.filter(p => ids.includes(p.id));
+    lastEventAttendees = roster.filter(p => ids.includes(p.id));
     lastEventLabel = `${lastArchived.type === "training" ? "אימון" : "משחק"} ${formatShort(lastArchived.date)}`;
   } else {
     const nowHm = (() => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; })();
@@ -308,7 +322,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       .filter(e => !e.cancelled && (e.date < td || (e.date === td && (e.time || "00:00") <= nowHm)))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
     if (alreadyHappened) {
-      lastEventAttendees = players.filter(p => attendance[`${alreadyHappened.id}_${p.id}`]?.status === "coming");
+      lastEventAttendees = roster.filter(p => attendance[`${alreadyHappened.id}_${p.id}`]?.status === "coming");
       lastEventLabel = `${alreadyHappened.type === "training" ? "אימון" : "משחק"} ${formatShort(alreadyHappened.date)}`;
     }
   }
@@ -333,7 +347,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const deskDeepItems = [
     { key: "calendar", icon: "🗓️", label: "לוח מלא" },
     { key: "games", icon: "🏆", label: "תוצאות" },
-    { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
+    // צופה בלי צ'אט — גם כאן, אחרת הדסקטופ היה פותח לה דלת שהנייד סגר
+    ...(isViewer ? [] : [{ key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat }]),
   ];
   const siteProps = {
     ctx: { players, events, archive, playerProfiles, attendance },
@@ -411,10 +426,19 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   )}
 
                   {/* RSVP */}
-                  {/* המנהלת תיקנה את הרשומה אחרי שהאירוע חלף — הרשומה נעולה.
-                      בלי זה השחקנית הייתה יכולה להחזיר את הסימון עד חצות
-                      (האירוע עדיין "הקרוב" באותו יום) והתיקון היה נמחק בשקט. */}
-                  {myRecord?.adminEdit ? (
+                  {/* צופה אינה מסמנת נוכחות — במקום הכרטיס היא מקבלת את המידע
+                      שבשבילו היא כאן: כמה בנות מגיעות. */}
+                  {isViewer ? (
+                    <div style={{ ...S.card, textAlign: "center" }}>
+                      <div style={{ fontSize: 34, marginBottom: 4 }}>👁️</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                        {countAtt("coming")} מתוך {roster.length} מגיעות
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
+                        הרשימה המלאה למטה. את רשומה כצופה ואינך מסמנת נוכחות.
+                      </div>
+                    </div>
+                  ) : myRecord?.adminEdit ? (
                     <div style={{ ...S.card, textAlign: "center" }}>
                       <div style={{ fontSize: 34, marginBottom: 6 }}>📋</div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
@@ -475,7 +499,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   )}
 
                   {/* 👏 Applause — collapsible */}
-                  {lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
+                  {!isViewer && lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
                     <Collapsible title="👏 כל הכבוד לחברות" count={lastEventAttendees.filter(p => p.id !== player.id).length} accent={pc}>
                       <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>שלחי מחיאות כפיים למי שהגיעה ל{lastEventLabel} (פעם ביום לכל אחת)</div>
                       {lastEventAttendees.filter(p => p.id !== player.id).map(p => {
@@ -662,7 +686,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           })()}
 
           {/* ── CHAT TAB ── */}
-          {tab === "chat" && (
+          {tab === "chat" && !isViewer && (
             <div style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {(!chat || chat.length === 0) && <Empty icon="💬" text="אין הודעות עדיין — התחילי שיחה!" />}
@@ -728,13 +752,13 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>
-                <label style={{ background: galleryUploading ? "#94a3b8" : pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: galleryUploading ? "default" : "pointer", opacity: galleryUploading ? 0.85 : 1 }}>
+                {!isViewer && <label style={{ background: galleryUploading ? "#94a3b8" : pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: galleryUploading ? "default" : "pointer", opacity: galleryUploading ? 0.85 : 1 }}>
                   {galleryUploading ? "מעלה..." : "+ העלי תמונה"}
                   <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} disabled={galleryUploading} style={{ display: "none" }} />
-                </label>
+                </label>}
               </div>
-              <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>
-              <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 12px" }}>נותרו לך {Math.max(0, GALLERY_DAILY_LIMIT - uploadedTodayByPlayer())} תמונות להעלאה היום</p>
+              {!isViewer && <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>}
+              {!isViewer && <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 12px" }}>נותרו לך {Math.max(0, GALLERY_DAILY_LIMIT - uploadedTodayByPlayer())} תמונות להעלאה היום</p>}
               {galleryMsg && <p style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>{galleryMsg}</p>}
               {gallery.length === 0 && <Empty icon="📸" text="אין תמונות עדיין - היי הראשונה!" />}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>

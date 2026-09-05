@@ -438,12 +438,15 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     </div>
   );
 
+  // צופה (מאמנת) אינה מסמנת נוכחות, ולכן היא מחוץ לכל ספירה — אחרת היא הייתה
+  // נצברת לנצח ב"טרם ענו" ומעוותת גם את מספר המגיעות.
+  const roster = players.filter(p => !p.viewer);
   const countAtt = s => s === "pending"
-    ? players.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length
-    : players.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === s).length;
+    ? roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length
+    : roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === s).length;
   const getList = s => s === "pending"
-    ? players.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status)
-    : players.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === s);
+    ? roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status)
+    : roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === s);
 
   function sendWAReminder() {
     const pending = getList("pending");
@@ -542,7 +545,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           ⏱️ ה{evLabel} כבר עבר. אם מישהי אישרה הגעה ולא הגיעה — לחצי עליה וסמני. היא תקבל הודעה, והתיקון יתועד.
         </div>
       )}
-      {players.map(p => {
+      {roster.map(p => {
         const prof = playerProfiles[p.id] || {};
         const rec = attendance[`${nextEvent.id}_${p.id}`];
         const status = rec?.status;
@@ -1075,7 +1078,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
   // null = עדיין נטען; אז לא מציגים "בלי התראות" כדי לא להאשים בטעות.
   const [pushBy, setPushBy] = useState(null);
   useEffect(() => { adminPushStatusRemote().then(r => setPushBy(r ? (r.byPlayer || {}) : {})); }, []);
-  const noPush = pushBy ? players.filter(p => !pushBy[String(p.id)]) : [];
+  const noPush = pushBy ? players.filter(p => !p.viewer && !pushBy[String(p.id)]) : [];
 
   async function handlePhoto(id, e) {
     const file = e.target.files[0]; if (!file) return;
@@ -1140,6 +1143,12 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
     const updated = { ...playerProfiles, [id]: { ...(playerProfiles[id]||{}), ...editData } };
     await upd.playerProfiles(updated);
     setExpanded(null);
+  }
+
+  // הדגל יושב על אובייקט השחקנית ולא על הפרופיל, כי גם הפונקציות בענן קוראות
+  // את data/players — התזכורת "טרם אישרת" חייבת לדעת לדלג עליה.
+  async function toggleViewer(p) {
+    await upd.players(players.map(x => x.id === p.id ? { ...x, viewer: !x.viewer } : x));
   }
 
   return (
@@ -1212,6 +1221,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                   {prof.device && <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", whiteSpace: "nowrap", flexShrink: 0 }}>{prof.device}</span>}
                   {hasPush === false && <span title="לא הפעילה התראות" style={{ fontSize: 11, fontWeight: 700, color: "#b45309", whiteSpace: "nowrap", flexShrink: 0 }}>🔕</span>}
+                  {p.viewer && <span title="צופה בלבד — אינה מסמנת נוכחות" style={{ fontSize: 10.5, fontWeight: 800, color: "#3730a3", background: "#e0e7ff", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap", flexShrink: 0 }}>👁️ צופה</span>}
                 </div>
                 <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
                   {prof.whatsapp && <button onClick={() => window.open(`https://wa.me/${prof.whatsapp.replace(/\D/g,"")}`, "_blank")} style={{ fontSize: 11, background: "#25D366", color: "white", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>💬 WA</button>}
@@ -1249,6 +1259,20 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                 {prof.birthday && (
                   <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>🎂 יום הולדת: {formatShort(prof.birthday)}{ageFromBirthday(prof.birthday) != null ? ` (גיל ${ageFromBirthday(prof.birthday)})` : ""}</div>
                 )}
+                {/* מאמנת / צופה — מי שלא אמורה לסמן נוכחות */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>👁️ צופה בלבד</div>
+                    <div style={{ fontSize: 11.5, color: "#94a3b8", lineHeight: 1.5 }}>
+                      מאמנת או כל מי שלא מסמנת נוכחות. רואה מי מגיעה, את הלוח והתוצאות — בלי אישור הגעה, בלי צ׳אט ובלי העלאת תמונות. לא נספרת בנוכחות ובסטטיסטיקה.
+                    </div>
+                  </div>
+                  <button onClick={() => toggleViewer(p)}
+                    style={{ flexShrink: 0, border: "none", borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+                      background: p.viewer ? "#e0e7ff" : "#f1f5f9", color: p.viewer ? "#3730a3" : "#64748b" }}>
+                    {p.viewer ? "👁️ צופה" : "🏐 שחקנית"}
+                  </button>
+                </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => saveEdit(p.id)} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור</button>
                   <button onClick={() => setExpanded(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>ביטול</button>
@@ -1502,12 +1526,13 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
   // סדר הרשימה כמו בכל שאר המסכים ובכוונה לא לפי אחוזים: מיון לפי אחוז הגעה
   // משנה את סדר השורות בכל תיקון, והשורה בורחת מתחת לסמן באמצע העבודה.
   // הדירוג לפי אחוזים נמצא בלשונית "סטטיסטיקה", שם הוא לא מתנגש בעריכה.
-  const rows = players.map(p => {
+  const roster = players.filter(p => !p.viewer);
+  const rows = roster.map(p => {
     const came = evs.filter(ev => statusOf(ev, p.id) === "coming").length;
     return { ...p, came, pct: evs.length ? Math.round((came / evs.length) * 100) : 0 };
   });
 
-  const colTotals = evs.map(ev => players.filter(p => statusOf(ev, p.id) === "coming").length);
+  const colTotals = evs.map(ev => roster.filter(p => statusOf(ev, p.id) === "coming").length);
   const avg = rows.length ? Math.round(rows.reduce((s, r) => s + r.pct, 0) / rows.length) : 0;
 
   // הגיעה → לא הגיעה → לא ענתה → הגיעה. שומר את ההערה שהשחקנית כתבה, אם יש.
@@ -1532,7 +1557,7 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
     <div className="st-mx" style={{ "--st-pc": pc, "--st-sc": sc }}>
       <div className="st-mx-head">
         <h2>נוכחות העונה</h2>
-        <span className="st-mx-sub">{evs.length} אירועים · {players.length} שחקניות · לחיצה על תא משנה את הסימון</span>
+        <span className="st-mx-sub">{evs.length} אירועים · {roster.length} שחקניות · לחיצה על תא משנה את הסימון</span>
       </div>
       <div className="st-mx-card">
         <div className="st-mx-wrap">
@@ -1597,7 +1622,8 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
   const [view, setView] = useState("stats"); // "stats" | "table"
   const [exporting, setExporting] = useState(false);
   const total = archive.length;
-  const stats = players.map(p => {
+  const roster = players.filter(p => !p.viewer);
+  const stats = roster.map(p => {
     const attended = archive.filter(ev => ev.attendanceData?.find(a => a.playerId === p.id && a.status === "coming")).length;
     return { ...p, ...(playerProfiles[p.id]||{}), attended, pct: total > 0 ? Math.round((attended / total) * 100) : 0 };
   }).sort((a, b) => b.pct - a.pct);
@@ -1615,7 +1641,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
     try {
       const ExcelJS = await loadExcelJS();
       const evs = [...archive].sort((a, b) => a.date.localeCompare(b.date));
-      const N = evs.length, P = players.length;
+      const N = evs.length, P = roster.length;
       const dm = d => { const x = new Date(d + "T12:00:00"); return x.getDate() + "/" + (x.getMonth() + 1); };
       const cameSet = evs.map(e => new Set((e.attendanceData || []).filter(a => a.status === "coming").map(a => a.playerId)));
       const colLetter = n => { let s = ""; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
@@ -1644,7 +1670,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
       evs.forEach((e, i) => { const c = r2.getCell(2 + i); c.value = dm(e.date); apply(c, HEAD); });
       apply(r2.getCell(totalCol), HEAD); r2.getCell(totalCol).value = 'סה"כ';
       apply(r2.getCell(pctCol), HEAD); r2.getCell(pctCol).value = "אחוז";
-      players.forEach((p, pi) => {
+      roster.forEach((p, pi) => {
         const rr = 3 + pi, row = ws.getRow(rr);
         apply(row.getCell(1), NAME); row.getCell(1).value = p.name;
         evs.forEach((e, i) => { const c = row.getCell(2 + i); if (cameSet[i].has(p.id)) { c.value = "✓"; apply(c, CHECK); } else apply(c, EMPTY); });
@@ -1661,7 +1687,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
 
       // גיליון 2 — סיכום
       const ws2 = wb.addWorksheet("סיכום", { views: [{ rightToLeft: true }] });
-      const summary = players.map(p => { let t = 0, g = 0; evs.forEach((e, i) => { if (cameSet[i].has(p.id)) { e.type === "training" ? t++ : g++; } }); return { name: p.name, total: t + g, training: t, game: g }; }).sort((a, b) => b.total - a.total);
+      const summary = roster.map(p => { let t = 0, g = 0; evs.forEach((e, i) => { if (cameSet[i].has(p.id)) { e.type === "training" ? t++ : g++; } }); return { name: p.name, total: t + g, training: t, game: g }; }).sort((a, b) => b.total - a.total);
       const trainCount = evs.filter(e => e.type === "training").length, gameCount = N - trainCount;
       const h = ws2.getRow(1);
       ["שחקנית", 'סה"כ מפגשים', "אחוז כללי", "מתוכם אימונים", "מתוכם משחקים"].forEach((t, i) => { const c = h.getCell(1 + i); c.value = t; apply(c, HEAD); });
