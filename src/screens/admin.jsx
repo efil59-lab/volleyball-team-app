@@ -1214,22 +1214,26 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                 <div style={{ position: "absolute", bottom: -1, left: -1, background: sc, borderRadius: "50%", width: 17, height: 17, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>📷</div>
                 <input ref={el => fileRefs.current[p.id] = el} type="file" accept="image/*" onChange={e => handlePhoto(p.id, e)} style={{ display: "none" }} />
               </div>
-              <div style={{ flex: 1 }}>
-                {/* סוג המכשיר באותה שורה עם השם: הגובה נקבע ע"י התמונה (44px),
-                    אז טקסט 11px לצד השם לא מוסיף שום גובה לשורה. */}
-                <div style={{ fontWeight: 700, color: "#1e293b", display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
-                  {prof.device && <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", whiteSpace: "nowrap", flexShrink: 0 }}>{prof.device}</span>}
-                  {hasPush === false && <span title="לא הפעילה התראות" style={{ fontSize: 11, fontWeight: 700, color: "#b45309", whiteSpace: "nowrap", flexShrink: 0 }}>🔕</span>}
-                  {p.viewer && <span title="צופה בלבד — אינה מסמנת נוכחות" style={{ fontSize: 10.5, fontWeight: 800, color: "#3730a3", background: "#e0e7ff", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap", flexShrink: 0 }}>👁️ צופה</span>}
-                </div>
+              {/* minWidth:0 חובה: ברירת המחדל של פריט flex היא min-width:auto,
+                  כלומר הוא מסרב להצטמצם מתחת לתוכן — והעמודה האמצעית דחפה את
+                  כפתורי הפעולה אל מחוץ לכרטיס (דווח 5.9.26). */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* השם לבדו בשורה הראשונה. בטלפון של 375px התמונה וארבעת
+                    כפתורי הפעולה מותירים לעמודה הזו כ-80px בלבד — כל תווית
+                    נוספת כאן חתכה את השם ל"ש..". כל השאר יורד לשורת הצ'יפים
+                    שמתחת, שיודעת לעטוף ולכן אינה יכולה לשבור את הכרטיס. */}
+                <div style={{ fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                 <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
+                  {prof.device && <span style={{ fontSize: 11, fontWeight: 600, color: "#64748b", background: "#f1f5f9", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>{prof.device}</span>}
+                  {p.viewer && <span title="צופה בלבד — אינה מסמנת נוכחות" style={{ fontSize: 11, fontWeight: 800, color: "#3730a3", background: "#e0e7ff", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>👁️ צופה</span>}
+                  {hasPush === false && <span title="לא הפעילה התראות" style={{ fontSize: 11, fontWeight: 700, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>🔕</span>}
                   {prof.whatsapp && <button onClick={() => window.open(`https://wa.me/${prof.whatsapp.replace(/\D/g,"")}`, "_blank")} style={{ fontSize: 11, background: "#25D366", color: "white", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>💬 WA</button>}
                   {prof.email && <button onClick={() => window.open(`mailto:${prof.email}`, "_blank")} style={{ fontSize: 11, background: `${pc}20`, color: pc, borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>✉️ מייל</button>}
                   {prof.phone && <button onClick={() => window.open(`tel:${prof.phone}`, "_blank")} style={{ fontSize: 11, background: "#f1f5f9", color: "#374151", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>📞 {prof.phone}</button>}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 5 }}>
+              {/* flexShrink:0 — בלעדיו קבוצת הכפתורים נדחסת ונדחפת החוצה */}
+              <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                 <button onClick={() => askConfirm(`לאפס את הסיסמה של ${p.name}? תיווצר סיסמה זמנית שתעבירי לה, והיא תבחר סיסמה חדשה בכניסה הבאה.`, () => resetPassword(p))}
                   style={{ background: "#fff7ed", color: "#ea580c", border: "none", borderRadius: 7, padding: "6px 9px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔑</button>
                 <button title="החזרה לכניסה ראשונה — תבחר סיסמה ותמלא פרטים מחדש"
