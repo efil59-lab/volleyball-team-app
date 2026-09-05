@@ -426,6 +426,30 @@ exports.notifyTeamPush = onCall(async (request) => {
   return { ok: true, sent, targeted: tokens.length };
 });
 
+// ── מי הפעילה התראות ומי לא (מנהלת בלבד) ────────────────────────────────────
+// מחזיר ספירות בלבד, לא טוקנים: ללקוח אין שום סיבה לראות טוקן דחיפה של מישהי
+// אחרת, וקריאה דרך פונקציה חוסכת גם פתיחה של pushTokens בכללי ה-Firestore.
+exports.adminPushStatus = onCall(async (request) => {
+  const { teamId } = request.data || {};
+  if (!teamId) throw new HttpsError("invalid-argument", "חסר teamId");
+  await assertAdmin(request.auth, teamId);
+
+  const tokens = await getTeamPushTokens(teamId);
+  const byPlayer = {};
+  for (const t of tokens) {
+    if (!hasRole(t, "player")) continue;
+    if (t.playerId === undefined || t.playerId === null) continue;
+    const k = String(t.playerId);
+    const at = t.updatedAt || "";
+    const prev = byPlayer[k];
+    byPlayer[k] = {
+      devices: (prev ? prev.devices : 0) + 1,
+      updatedAt: prev && prev.updatedAt > at ? prev.updatedAt : at,
+    };
+  }
+  return { ok: true, byPlayer, adminDevices: tokens.filter((t) => hasRole(t, "admin")).length };
+});
+
 // ── מייל תקציר שגיאות לבעל המוצר — כל שעה, רק אם יש שגיאות חדשות ──
 // דורש RESEND_API_KEY ב-functions/.env (לא ב-git). בלעדיו — יוצא בשקט.
 exports.errorDigest = onSchedule({ schedule: "0 * * * *", timeZone: TZ }, async () => {

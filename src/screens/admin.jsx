@@ -7,7 +7,7 @@ import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay, DEFAULT_INVITE, buildInvite,
   isBirthdayToday, isBirthdayTomorrow, ageFromBirthday,
 } from "../lib/utils";
-import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote } from "../lib/db";
+import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
@@ -986,6 +986,11 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
   const [editData, setEditData] = useState({});
   const [resetMsg, setResetMsg] = useState(null);
   const fileRefs = useRef({});
+  // מי הפעילה התראות. נקרא מהשרת (הלקוח לא רואה טוקנים) פעם אחת בפתיחת הלשונית.
+  // null = עדיין נטען; אז לא מציגים "בלי התראות" כדי לא להאשים בטעות.
+  const [pushBy, setPushBy] = useState(null);
+  useEffect(() => { adminPushStatusRemote().then(r => setPushBy(r ? (r.byPlayer || {}) : {})); }, []);
+  const noPush = pushBy ? players.filter(p => !pushBy[String(p.id)]) : [];
 
   async function handlePhoto(id, e) {
     const file = e.target.files[0]; if (!file) return;
@@ -1085,8 +1090,27 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
         <button onClick={() => { if (newName.trim()) { upd.players([...players, { id: Date.now(), name: newName.trim(), phone:"", email:"", address:"", whatsapp:"" }]); setNewName(""); } }}
           style={{ background: pc, color: "white", border: "none", borderRadius: 8, padding: "0 16px", cursor: "pointer", fontWeight: 700, fontSize: 18 }}>+</button>
       </div>
+      {/* מי עדיין בלי התראות — הן לא יקבלו תזכורת לפני אימון ולא עדכון נוכחות.
+          מוצג רק כשיש כאלה, כדי שהכרטיס ייעלם מעצמו כשהכל מסודר. */}
+      {noPush.length > 0 && (
+        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 14px", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 18 }}>🔕</span>
+            <span style={{ fontWeight: 800, color: "#92400e", fontSize: 13.5 }}>
+              {noPush.length === 1 ? "שחקנית אחת עדיין בלי התראות" : `${noPush.length} שחקניות עדיין בלי התראות`}
+            </span>
+          </div>
+          <div style={{ fontSize: 12.5, color: "#a16207", lineHeight: 1.6 }}>
+            {noPush.map(p => p.name).join(" · ")}
+          </div>
+          <div style={{ fontSize: 11.5, color: "#b45309", marginTop: 6, lineHeight: 1.5 }}>
+            הן לא יקבלו תזכורת לפני אימון ולא עדכון נוכחות. שיפעילו מהאפליקציה: 📋 נוכחות ← הכרטיס "🔔 תזכורות".
+          </div>
+        </div>
+      )}
       {players.map(p => {
         const prof = playerProfiles[p.id] || {};
+        const hasPush = pushBy ? !!pushBy[String(p.id)] : null;
         return (
           <div key={p.id} style={{ ...S.card, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1102,6 +1126,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
                 <div style={{ fontWeight: 700, color: "#1e293b", display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                   {prof.device && <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", whiteSpace: "nowrap", flexShrink: 0 }}>{prof.device}</span>}
+                  {hasPush === false && <span title="לא הפעילה התראות" style={{ fontSize: 11, fontWeight: 700, color: "#b45309", whiteSpace: "nowrap", flexShrink: 0 }}>🔕</span>}
                 </div>
                 <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
                   {prof.whatsapp && <button onClick={() => window.open(`https://wa.me/${prof.whatsapp.replace(/\D/g,"")}`, "_blank")} style={{ fontSize: 11, background: "#25D366", color: "white", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>💬 WA</button>}

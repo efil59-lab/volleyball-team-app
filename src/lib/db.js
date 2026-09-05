@@ -231,6 +231,14 @@ const callNotifyPlayerJoinedFn = httpsCallable(functions, "notifyPlayerJoined");
 const callNotifyPlayerActivityFn = httpsCallable(functions, "notifyPlayerActivity");
 const callResetActivityFn = httpsCallable(functions, "adminResetTeamActivity");
 const callSuperAdminChatFn = httpsCallable(functions, "superAdminChat");
+const callPushStatusFn = httpsCallable(functions, "adminPushStatus");
+// מי מהשחקניות הפעילה התראות. מחזיר ספירות בלבד — { byPlayer: {pid:{devices,updatedAt}} }.
+async function adminPushStatusRemote() {
+  try {
+    const res = await callPushStatusFn({ teamId: CURRENT_TEAM });
+    return res.data || { byPlayer: {} };
+  } catch (e) { console.error("adminPushStatus:", e); return null; }
+}
 // Reading and deleting chat for the product owner. Both go through the server
 // on purpose: it runs as admin, so the owner can moderate a team he is not a
 // member of without opening chat up in the Firestore rules.
@@ -482,7 +490,7 @@ export {
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
-  superAdminChatList, superAdminChatDelete,
+  superAdminChatList, superAdminChatDelete, adminPushStatusRemote,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
