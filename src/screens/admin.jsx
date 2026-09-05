@@ -324,7 +324,57 @@ function AdminPanel(props) {
 // ── ADMIN ATTENDANCE ──────────────────────────────────────────────────────────
 function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings, notify }) {
   const [attModal, setAttModal] = useState(null);
+  const [editRow, setEditRow] = useState(null);   // playerId שפתוח לתיקון סימון
+  const [waAfter, setWaAfter] = useState(null);   // { player, text } — הצעת וואטסאפ אחרי תיקון
   const nextEvent = getNextEvent(events);
+
+  // ── תיקון סימון אחרי שהאירוע חלף ─────────────────────────────────────────
+  // רק אחרי שהזמן עבר: לפני האירוע "מי שאמרה שתגיע" היא כוונה, לא נוכחות,
+  // ותיקון מראש הוא ניחוש. דיאלוג הארכוב מבקש מהמנהלת לאמת את הנתונים —
+  // עד היום לא הייתה לה שום דרך לתקן את מה שגילתה באימות (הרשימה הייתה
+  // לקריאה בלבד), וזה היה חצי פיצ'ר.
+  const eventPassed = (() => {
+    if (!nextEvent) return false;
+    const td = todayStr();
+    if (nextEvent.date < td) return true;
+    if (nextEvent.date > td) return false;
+    const d = new Date();
+    const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return (nextEvent.time || "00:00") <= hm;
+  })();
+
+  const evLabel = nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "";
+
+  async function setStatusFor(p, status) {
+    setEditRow(null);
+    const key = `${nextEvent.id}_${p.id}`;
+    const cur = attendance[key] || {};
+    if ((cur.status || null) === status) return; // אין שינוי — לא כותבים ולא מודיעים
+    // תיעוד: מי שינה, מתי, ומה היה קודם. בלי זה, בעוד חודשיים אף אחד לא יידע
+    // למה הרשומה נראית כך — והשחקנית תראה סתירה בין מה שסימנה לסטטיסטיקה.
+    const adminEdit = {
+      by: (auth.currentUser && auth.currentUser.email) || "מנהל/ת",
+      at: new Date().toISOString(),
+      from: cur.status || null,
+    };
+    await upd.attendance({ ...attendance, [key]: { ...cur, status, adminEdit } });
+
+    const word = status === "coming" ? "הגעת" : status === "notcoming" ? "לא הגעת" : "טרם ענית";
+    const body = `המנהלת עדכנה ש${word} ל${evLabel}.`;
+    // התראה אישית באפליקציה — מגיעה גם למי שלא הפעילה פוש
+    try {
+      await upd.personalNotifAdd(p.id, {
+        id: `att_${nextEvent.id}_${Date.now()}`, type: "attendance",
+        text: body, seen: false, date: todayStr(),
+      });
+    } catch (e) { console.error("attendance notif:", e); }
+    // ופוש למכשירים שלה בלבד
+    notifyTeamPushRemote("📋 עדכון נוכחות", body, p.id);
+
+    const prof = playerProfiles[p.id] || {};
+    setWaAfter(prof.whatsapp ? { player: p, text: `היי ${p.name}, ${body}` } : null);
+    notify(`הסימון של ${p.name} עודכן, והיא קיבלה הודעה ✔`, { icon: "✅" });
+  }
 
   // Birthday reminders for admin
   const birthdaysToday = players.filter(p => isBirthdayToday((playerProfiles[p.id] || {}).birthday));
@@ -442,25 +492,66 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         </div>
       )}
 
-      {/* Read-only list */}
+      {/* הרשימה: לקריאה עד שהאירוע חלף, ומאותו רגע — לחיצה על שורה מתקנת סימון */}
+      {eventPassed && (
+        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: "#92400e", lineHeight: 1.5 }}>
+          ⏱️ ה{evLabel} כבר עבר. לחצי על שחקנית כדי לתקן את הסימון שלה — היא תקבל על כך הודעה, והתיקון יתועד.
+        </div>
+      )}
       {players.map(p => {
         const prof = playerProfiles[p.id] || {};
         const rec = attendance[`${nextEvent.id}_${p.id}`];
         const status = rec?.status;
+        const edited = rec?.adminEdit;
+        const open = editRow === p.id;
         return (
-          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, border: "1px solid #e2e8f0" }}>
-            {prof.photo ? <img src={prof.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
-              : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
-              {rec?.note && <div style={{ fontSize: 11, color: "#6b7280", fontStyle: "italic" }}>"{rec.note}"</div>}
+          <div key={p.id} style={{ background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, border: `1px solid ${open ? pc : "#e2e8f0"}` }}>
+            <div onClick={() => eventPassed && setEditRow(open ? null : p.id)}
+              style={{ display: "flex", alignItems: "center", gap: 10, cursor: eventPassed ? "pointer" : "default" }}>
+              {prof.photo ? <img src={prof.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
+                {rec?.note && <div style={{ fontSize: 11, color: "#6b7280", fontStyle: "italic" }}>"{rec.note}"</div>}
+                {edited && (
+                  <div style={{ fontSize: 10.5, color: "#b45309", fontWeight: 600 }}
+                    title={`שונה על ידי ${edited.by} ב-${new Date(edited.at).toLocaleString("he-IL")}`}>
+                    ✏️ תוקן על ידך{edited.from === "coming" ? " (סימנה שמגיעה)" : edited.from === "notcoming" ? " (סימנה שלא מגיעה)" : " (לא ענתה)"}
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: 18 }}>
+                {status === "coming" ? "✅" : status === "notcoming" ? "❌" : <span style={{ color: "#94a3b8", fontSize: 13 }}>טרם ענתה</span>}
+              </div>
             </div>
-            <div style={{ fontSize: 18 }}>
-              {status === "coming" ? "✅" : status === "notcoming" ? "❌" : <span style={{ color: "#94a3b8", fontSize: 13 }}>טרם ענתה</span>}
-            </div>
+            {open && (
+              <div style={{ display: "flex", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                <button onClick={() => setStatusFor(p, "coming")} style={{ flex: 1, padding: "9px", background: status === "coming" ? "#dcfce7" : "#f8fafc", color: "#166534", border: `1px solid ${status === "coming" ? "#86efac" : "#e2e8f0"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>✅ הגיעה</button>
+                <button onClick={() => setStatusFor(p, "notcoming")} style={{ flex: 1, padding: "9px", background: status === "notcoming" ? "#fee2e2" : "#f8fafc", color: "#b91c1c", border: `1px solid ${status === "notcoming" ? "#fecaca" : "#e2e8f0"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}>❌ לא הגיעה</button>
+                <button onClick={() => setStatusFor(p, null)} style={{ padding: "9px 12px", background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>נקה</button>
+              </div>
+            )}
           </div>
         );
       })}
+
+      {/* גיבוי ידני: מי שלא הפעילה התראות לא תראה כלום עד שתיכנס לאפליקציה */}
+      {waAfter && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setWaAfter(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, maxWidth: 340, width: "100%", boxSizing: "border-box", textAlign: "center" }}>
+            <div style={{ fontSize: 38 }}>💬</div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "8px 0 6px" }}>לשלוח ל{waAfter.player.name} גם בוואטסאפ?</p>
+            <p style={{ fontSize: 12.5, color: "#64748b", margin: "0 0 14px", lineHeight: 1.5 }}>
+              היא כבר קיבלה התראה באפליקציה. וואטסאפ שימושי אם היא לא הפעילה התראות.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { window.open(`https://wa.me/${(playerProfiles[waAfter.player.id] || {}).whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(waAfter.text)}`, "_blank"); setWaAfter(null); }}
+                style={{ flex: 1, padding: 12, background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>💬 וואטסאפ</button>
+              <button onClick={() => setWaAfter(null)} style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>לא צריך</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {attModal && (
         <AttModal

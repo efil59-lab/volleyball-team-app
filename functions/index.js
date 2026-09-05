@@ -404,20 +404,26 @@ exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ 
   console.log("remindersHourly hour=" + hour + " sent=" + total);
 });
 
-// ── התראת דחיפה מיידית לכל הקבוצה (מנהלת בלבד) — משמשת לביטול אימון/משחק ──
+// ── התראת דחיפה מיידית מהמנהלת ──────────────────────────────────────────────
+// בלי playerId — לכל הקבוצה (ביטול אימון/משחק). עם playerId — רק למכשירים של
+// אותה שחקנית, לעדכון אישי כמו תיקון סימון הגעה. הסינון בשרת ולא בלקוח:
+// הלקוח לא רואה את הטוקנים בכלל, וזה גם לא היה נכון שיראה.
 exports.notifyTeamPush = onCall(async (request) => {
-  const { teamId, title, body, url } = request.data || {};
+  const { teamId, title, body, url, playerId } = request.data || {};
   if (!teamId || !title) throw new HttpsError("invalid-argument", "חסר teamId או title");
   await assertAdmin(request.auth, teamId);
-  const tokens = await getTeamPushTokens(teamId);
-  console.log("notifyTeamPush team=" + teamId + " tokens=" + tokens.length + " title=" + String(title).slice(0, 40));
+  const all = await getTeamPushTokens(teamId);
+  const tokens = playerId === undefined || playerId === null
+    ? all
+    : all.filter((t) => hasRole(t, "player") && String(t.playerId) === String(playerId));
+  console.log(`notifyTeamPush team=${teamId} pid=${playerId ?? "all"} tokens=${tokens.length}/${all.length} title=${String(title).slice(0, 40)}`);
   const { sent } = await sendPush(tokens, {
     title: String(title).slice(0, 100),
     body: String(body || "").slice(0, 300),
     url: url || `/?team=${teamId}`,
     tag: `notify_${teamId}_${Date.now()}`,
   });
-  return { ok: true, sent };
+  return { ok: true, sent, targeted: tokens.length };
 });
 
 // ── מייל תקציר שגיאות לבעל המוצר — כל שעה, רק אם יש שגיאות חדשות ──

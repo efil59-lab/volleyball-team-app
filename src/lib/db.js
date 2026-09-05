@@ -284,8 +284,9 @@ async function adminDeleteTeamRemote(teamId) {
   return res.data; // { ok }
 }
 // התראת דחיפה מיידית לכל הקבוצה (למשל ביטול אימון). fire-and-forget — כשל לא עוצר את הזרימה.
-async function notifyTeamPushRemote(title, body) {
-  try { await callNotifyPushFn({ teamId: CURRENT_TEAM, title, body, url: "/?team=" + CURRENT_TEAM }); }
+// playerId אופציונלי: בלעדיו ההתראה יוצאת לכל הקבוצה, איתו רק למכשירים שלה.
+async function notifyTeamPushRemote(title, body, playerId) {
+  try { await callNotifyPushFn({ teamId: CURRENT_TEAM, title, body, url: "/?team=" + CURRENT_TEAM, playerId }); }
   catch (e) { console.error("notifyTeamPushRemote:", e); }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.

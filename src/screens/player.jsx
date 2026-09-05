@@ -68,8 +68,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       }
     });
     // Unseen personal notifications: applause (one each) + birthday greetings (aggregated)
-    const myNotifs = (personalNotifs[player.id] || []).filter(n => !n.seen && (n.type === "applause" || n.type === "birthday"));
+    const myNotifs = (personalNotifs[player.id] || []).filter(n => !n.seen && (n.type === "applause" || n.type === "birthday" || n.type === "attendance"));
     myNotifs.filter(n => n.type === "applause").forEach(n => popups.push({ kind: "applause", id: n.id, fromName: n.fromName }));
+    // עדכון נוכחות מהמנהלת — עובדתי, בלי ערעור. ההסבר נכתב בצד המנהלת.
+    myNotifs.filter(n => n.type === "attendance").forEach(n => popups.push({ kind: "attendance", id: n.id, text: n.text }));
     const bdayGreets = myNotifs.filter(n => n.type === "birthday");
     if (bdayGreets.length > 0) {
       const names = [...new Set(bdayGreets.map(n => n.fromName))];
@@ -80,7 +82,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       setEntryPopups(popups);
       // Mark applause + birthday notifs as seen
       if (myNotifs.length > 0) {
-        const items = (personalNotifs[player.id] || []).map(n => (n.type === "applause" || n.type === "birthday") ? { ...n, seen: true } : n);
+        const items = (personalNotifs[player.id] || []).map(n => (n.type === "applause" || n.type === "birthday" || n.type === "attendance") ? { ...n, seen: true } : n);
         upd.personalNotifSetItems(player.id, items);
       }
     }
@@ -409,7 +411,20 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   )}
 
                   {/* RSVP */}
-                  {myRecord?.status ? (
+                  {/* המנהלת תיקנה את הרשומה אחרי שהאירוע חלף — הרשומה נעולה.
+                      בלי זה השחקנית הייתה יכולה להחזיר את הסימון עד חצות
+                      (האירוע עדיין "הקרוב" באותו יום) והתיקון היה נמחק בשקט. */}
+                  {myRecord?.adminEdit ? (
+                    <div style={{ ...S.card, textAlign: "center" }}>
+                      <div style={{ fontSize: 34, marginBottom: 6 }}>📋</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                        המנהלת עדכנה: <strong>{myRecord.status === "coming" ? "הגעת" : myRecord.status === "notcoming" ? "לא הגעת" : "לא ענית"}</strong>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
+                        האירוע כבר עבר, ולכן הסימון נקבע על ידי המנהלת. יש טעות? דברי איתה.
+                      </div>
+                    </div>
+                  ) : myRecord?.status ? (
                     <div style={{ ...S.card, textAlign: "center" }}>
                       <div style={{ fontSize: 40, marginBottom: 6 }}>{myRecord.status === "coming" ? "✅" : "❌"}</div>
                       <div style={{ fontSize: 15, fontWeight: 700 }}>סימנת: <strong>{myRecord.status === "coming" ? "מגיעה" : "לא מגיעה"}</strong></div>
@@ -781,7 +796,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       {/* Entry popups: self birthday, others' birthday (send greeting), applause, received greetings */}
       {entryPopups.length > 0 && (() => {
         const top = entryPopups[0];
-        const icon = top.kind === "applause" ? "👏" : top.kind === "otherBirthday" ? "🎂" : top.kind === "birthdayReceived" ? "🎉" : "🎂";
+        const icon = top.kind === "applause" ? "👏" : top.kind === "attendance" ? "📋" : top.kind === "otherBirthday" ? "🎂" : top.kind === "birthdayReceived" ? "🎉" : "🎂";
         return (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={dismissTopPopup}>
             <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 22, padding: "32px 26px", maxWidth: 320, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.35)", animation: "bounce 0.5s ease" }}>
@@ -796,6 +811,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 <>
                   <div style={{ fontSize: 20, fontWeight: 900, color: pc, marginBottom: 8 }}>{top.fromName} שלחה לך כל הכבוד!</div>
                   <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: 0 }}>על ההגעה לאימון/משחק. כל הכבוד! 💪</p>
+                </>
+              ) : top.kind === "attendance" ? (
+                <>
+                  <div style={{ fontSize: 19, fontWeight: 900, color: pc, marginBottom: 8 }}>עדכון נוכחות</div>
+                  <p style={{ fontSize: 14.5, color: "#475569", lineHeight: 1.6, margin: 0 }}>{top.text}</p>
                 </>
               ) : top.kind === "otherBirthday" ? (
                 <>
