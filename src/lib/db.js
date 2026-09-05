@@ -106,6 +106,17 @@ async function saveProfilesSplit(oldMap, newMap) {
     await Promise.all(writes);
   } catch (e) { console.error("saveProfilesSplit:", e); }
 }
+// סוג המכשיר לפרופיל — כתיבת שדה בודד עם merge, ובכוונה לא דרך upd.playerProfiles.
+// saveProfilesSplit כותב את המסמך **במלואו** (setDoc בלי merge), ולכן שליחת מפה
+// שנבנתה לפני שהפרופילים הספיקו להיטען הייתה מוחקת לשחקנית טלפון/מייל/תמונה ואת
+// setupDone — כלומר מחזירה אותה לכניסה ראשונה ונועלת אותה החוצה. ערך נוחות
+// למנהלת לא שווה את הסיכון הזה, גם אם הוא נדיר.
+async function savePlayerDevice(playerId, device) {
+  if (!playerId || !device) return;
+  try {
+    await setDoc(doc(db, "teams", CURRENT_TEAM, "profiles", String(playerId)), { device }, { merge: true });
+  } catch (e) { console.error("savePlayerDevice:", e); }
+}
 // קריאת סיסמת שחקנית on-demand (לכניסה) — מאפשר להדק את secrets ל"עצמי בלבד" בשלב 5
 async function loadPlayerSecret(playerId) {
   try {
@@ -469,7 +480,7 @@ export {
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
-  notifyPlayerJoinedRemote, notifyPlayerActivityRemote,
+  notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
   superAdminChatList, superAdminChatDelete,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,

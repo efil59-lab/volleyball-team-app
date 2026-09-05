@@ -7,7 +7,7 @@ import {
   formatDate, formatShort, getNextEvent, countdownLabel, todayStr, monthDay,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
 } from "../lib/utils";
-import { CURRENT_TEAM, notifyPlayerActivityRemote } from "../lib/db";
+import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
 import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import { useIsDesktop, SiteChrome } from "../site/Site";
@@ -94,14 +94,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   useEffect(() => {
     notifyPlayerActivityRemote(CURRENT_TEAM, player.id, "login");
     // סוג המכשיר לפרופיל — כדי שהמנהלת תדע ברשימת השחקניות למי להסביר
-    // "כפתור שיתוף" ולמי "תפריט שלוש נקודות". נכתב רק כשהוא השתנה (החלפת
-    // טלפון), אחרת זו כתיבה מיותרת בכל פתיחה. saveProfilesSplit כותב רק את
-    // המסמך של השחקנית הזו, ולכן אין כאן דריסה של פרופילים אחרים.
+    // "כפתור שיתוף" ולמי "תפריט שלוש נקודות". נכתב רק כשהוא השתנה (החלפת טלפון).
+    // כתיבת שדה בודד עם merge, לא דרך upd.playerProfiles — ההסבר ב-savePlayerDevice.
     try {
       const dev = deviceLabel(navigator.userAgent);
-      if (dev && dev !== prof.device) {
-        upd.playerProfiles({ ...playerProfiles, [player.id]: { ...prof, device: dev } });
-      }
+      if (dev && dev !== prof.device) savePlayerDevice(player.id, dev);
     } catch { /* לא קריטי — לעולם לא לחסום כניסה בגלל זה */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
