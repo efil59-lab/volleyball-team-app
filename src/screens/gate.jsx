@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { WHATS_NEW, OWNER_CONTACT_EMAIL, OWNER_CONTACT_WHATSAPP, TRIAL_DAYS, PAYMENT } from "../lib/constants";
 import { isGoogleUser } from "../lib/auth";
+import { isSamsungInternet } from "../lib/utils";
 import { PurchaseBanner } from "../components/shared";
 
 // ── INSTALL SCREEN ───────────────────────────────────────────────────────────
@@ -8,7 +9,11 @@ import { PurchaseBanner } from "../components/shared";
 // התקנה אמיתי בלחיצה אחת (beforeinstallprompt שנלכד ב-main.jsx); באייפון — הוראות.
 function InstallScreen({ pc, sc, onDone, installVersion }) {
   const [installing, setInstalling] = useState(false);
-  const canOneClick = !!window.__installPrompt;
+  const [copied, setCopied] = useState(false);
+  // סמסונג לפני הכל: הוא כן יורה beforeinstallprompt, כלומר בלעדי הבדיקה הזו
+  // היינו מציגים לה כפתור "התקיני בלחיצה אחת" שנחסם ע"י Play Protect.
+  const samsung = isSamsungInternet();
+  const canOneClick = !samsung && !!window.__installPrompt;
 
   async function oneClickInstall() {
     const ev = window.__installPrompt;
@@ -33,7 +38,28 @@ function InstallScreen({ pc, sc, onDone, installVersion }) {
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, textAlign: "center", lineHeight: 1.7, margin: "0 0 18px", maxWidth: 320 }}>
         פתיחה מהירה מהמסך הבית — <strong style={{ color: sc }}>וחובה כדי לקבל תזכורות 🔔 לאימונים ולמשחקים</strong>
       </p>
-      {canOneClick ? (
+      {samsung ? (
+        /* לא נותנים לה לנסות ולהיכשל: בדפדפן של סמסונג ההתקנה נחסמת ע"י
+           Play Protect, כי ה-WebAPK שסמסונג מייצר מכוון ל-SDK ישן. */
+        <div style={{ background: "rgba(255,255,255,0.12)", border: `1px solid ${sc}66`, borderRadius: 16, padding: "18px 20px", width: "100%", maxWidth: 320, marginBottom: 18 }}>
+          <div style={{ color: sc, fontSize: 14.5, fontWeight: 800, marginBottom: 8 }}>⚠️ בדפדפן הזה ההתקנה נחסמת</div>
+          <p style={{ color: "rgba(255,255,255,0.9)", fontSize: 13.5, lineHeight: 1.65, margin: "0 0 14px" }}>
+            את גולשת ב<strong>אינטרנט של סמסונג</strong>, ואנדרואיד חוסם התקנה שמגיעה משם
+            («אפליקציה לא בטוחה נחסמה»). <strong>מכרום זה עובד.</strong>
+          </p>
+          <button onClick={async () => {
+            try { await navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* ignore */ }
+          }}
+            style={{ width: "100%", background: sc, color: pc, border: "none", borderRadius: 12, padding: "13px", fontSize: 15, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
+            {copied ? "✓ הקישור הועתק" : "📋 העתקי את הקישור"}
+          </button>
+          <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 12.5, lineHeight: 1.7 }}>
+            1. פתחי את <strong>Chrome</strong><br />
+            2. הדביקי את הקישור בשורת הכתובת<br />
+            3. תפריט ⋮ ← «הוסף למסך הבית»
+          </div>
+        </div>
+      ) : canOneClick ? (
         <button onClick={oneClickInstall} disabled={installing}
           style={{ background: sc, color: pc, border: "none", borderRadius: 14, padding: "16px 40px", fontSize: 17, fontWeight: 800, cursor: installing ? "default" : "pointer", marginBottom: 18, width: "100%", maxWidth: 320, boxShadow: "0 6px 24px rgba(0,0,0,0.3)" }}>
           {installing ? "מתקינה…" : "⚡ התקיני עכשיו בלחיצה אחת"}
@@ -49,7 +75,9 @@ function InstallScreen({ pc, sc, onDone, installVersion }) {
         </div>
       )}
       <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, textAlign: "center", margin: "0 0 14px", maxWidth: 300, lineHeight: 1.6 }}>
-        אחרי ההתקנה — פתחי את האפליקציה מהאייקון 🏐 במסך הבית, והתזכורת הזו תיעלם.
+        {samsung
+          ? "אפשר גם להמשיך כאן בדפדפן — הכל עובד. מה שחסר בלי התקנה זה האייקון והתזכורות."
+          : "אחרי ההתקנה — פתחי את האפליקציה מהאייקון 🏐 במסך הבית, והתזכורת הזו תיעלם."}
       </p>
       <button onClick={() => onDone(installVersion)} style={{ background: "transparent", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 12, fontSize: 13, cursor: "pointer", padding: "10px 24px", fontWeight: 600 }}>
         אמשיך בדפדפן בינתיים ←

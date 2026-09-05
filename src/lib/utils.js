@@ -34,6 +34,17 @@ function isIOS() {
   const iPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1; // iPadOS 13+ מתחזה ל-Mac
   return iOSDevice || iPadOS;
 }
+// Samsung Internet — דפדפן ברירת המחדל במכשירי גלקסי. הוא מייצר WebAPK משרת
+// המנטה של סמסונג, וה-APK שיוצא משם מכוון ל-SDK ישן; אנדרואיד 14+ חוסם התקנה
+// כזו, ו-Play Protect מציג "אפליקציה לא בטוחה נחסמה · תוכננה לגרסה ישנה יותר
+// של Android" (דווח משחקנית 5.9.2026). ההתקנה מכרום עובדת — שם המנטה של גוגל.
+// שים לב: סמסונג כן יורה beforeinstallprompt, כלומר כפתור ההתקנה "בלחיצה אחת"
+// מוצג ואז נכשל. לכן הבדיקה הזו חייבת לגבור עליו.
+function isSamsungInternet() {
+  if (typeof navigator === "undefined") return false;
+  return /SamsungBrowser/i.test(navigator.userAgent || "");
+}
+
 // סוג המכשיר מתוך userAgent, בקצרה — למנהלת שרוצה לדעת למי להסביר "לחצי שיתוף"
 // ולמי "תפריט שלוש נקודות". מוצג ליד השם ברשימת השחקניות, ולכן קצר בכוונה.
 // מחזיר מחרוזת ריקה כשלא ידוע — עדיף כלום מאשר "לא ידוע" שתופס מקום ולא אומר כלום.
@@ -117,4 +128,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
