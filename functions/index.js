@@ -271,11 +271,19 @@ async function getTeamValue(teamId, key, fallback) {
   return snap.exists ? (snap.data().value ?? fallback) : fallback;
 }
 
-// כל טוקני הדחיפה של קבוצה: [{token, role, playerId, ref}]
+// כל טוקני הדחיפה של קבוצה: [{token, roles[], playerId, ref}]
 async function getTeamPushTokens(teamId) {
   const snap = await db.collection(`teams/${teamId}/pushTokens`).get();
   return snap.docs.map((d) => ({ ...d.data(), token: d.id, ref: d.ref }));
 }
+
+// מכשיר אחד יכול לשמש גם כמנהלת וגם כשחקנית — מסמך הטוקן מוחזק לפי טוקן ה-FCM,
+// שהוא פר-מכשיר ולא פר-תפקיד. לכן `roles` הוא מערך. `role` הבודד נקרא רק
+// כ-fallback, לטוקנים שנרשמו לפני 5.9.26.
+function hasRole(t, r) {
+  return Array.isArray(t.roles) ? t.roles.includes(r) : t.role === r;
+}
+const rolesOf = (t) => (Array.isArray(t.roles) ? t.roles : (t.role ? [t.role] : []));
 
 // שליחת push לרשימת טוקנים + ניקוי טוקנים מתים (מכשיר שהוחלף/הרשאה שבוטלה).
 async function sendPush(tokenDocs, { title, body, url, tag }) {
@@ -338,7 +346,7 @@ async function remindTeam(teamId, when) {
   const events = await eventsOn(teamId, dateStr);
   const tokens = await getTeamPushTokens(teamId);
   console.log("remindTeam " + teamId + " " + when + " date=" + dateStr + " events=" + events.length + " tokens=" + tokens.length +
-    " roles=[" + tokens.map((t) => t.role + ":" + t.playerId).join(",") + "]");
+    " roles=[" + tokens.map((t) => rolesOf(t).join("|") + ":" + t.playerId).join(",") + "]");
   if (!events.length) return 0;
   if (!tokens.length) return 0;
   const url = "/?team=" + teamId;
@@ -347,7 +355,7 @@ async function remindTeam(teamId, when) {
     const { players, missing, answeredCount } = await nonResponders(teamId, ev.id);
     // תזכורת לשחקניות שטרם ענו — לכל אחת לפי הטוקנים שלה
     const missingIds = new Set(missing.map((p) => String(p.id)));
-    const playerTokens = tokens.filter((t) => t.role === "player" && missingIds.has(String(t.playerId)));
+    const playerTokens = tokens.filter((t) => hasRole(t, "player") && missingIds.has(String(t.playerId)));
     const r1 = await sendPush(playerTokens, {
       title: "🏐 " + dayWord + " " + evLabel(ev) + " ב-" + ev.time,
       body: "טרם אישרת הגעה — לחצי לאישור מהיר ✅",
@@ -356,7 +364,7 @@ async function remindTeam(teamId, when) {
     total += r1.sent;
     // בבוקר האירוע — גם סיכום למנהלת
     if (when === "morning") {
-      const adminTokens = tokens.filter((t) => t.role === "admin");
+      const adminTokens = tokens.filter((t) => hasRole(t, "admin"));
       const r2 = await sendPush(adminTokens, {
         title: "📋 " + evLabel(ev) + " " + dayWord + " ב-" + ev.time,
         body: answeredCount + " ענו · " + missing.length + " טרם ענו (מתוך " + players.length + ")",
@@ -463,7 +471,7 @@ exports.debugPush = onRequest(async (req, res) => {
   const teamId = req.query.team || "bibleumi";
   const tokens = await getTeamPushTokens(teamId);
   const evs = await eventsOn(teamId, ilDate(1));
-  const out = { now_il_hour: ilHour(), tokens: tokens.map((t) => ({ role: t.role, playerId: t.playerId, ua: (t.ua || "").slice(0, 60), updatedAt: t.updatedAt })), tomorrowEvents: evs.map((e) => ({ id: e.id, type: e.type, date: e.date, time: e.time, open: e.open, cancelled: !!e.cancelled })) };
+  const out = { now_il_hour: ilHour(), tokens: tokens.map((t) => ({ roles: rolesOf(t), playerId: t.playerId, ua: (t.ua || "").slice(0, 60), updatedAt: t.updatedAt })), tomorrowEvents: evs.map((e) => ({ id: e.id, type: e.type, date: e.date, time: e.time, open: e.open, cancelled: !!e.cancelled })) };
   if (evs.length) {
     const { players, missing } = await nonResponders(teamId, evs[0].id);
     out.playersTotal = players.length;
@@ -493,7 +501,7 @@ exports.notifyNewTeam = onCall(async (request) => {
   const body = `${(st && st.teamName) || teamId} · ${meta.ownerEmail || "?"} · קוד ${teamId}`;
   // push לכל טוקני ה-admin של קבוצת הבית (המכשירים של בעל המוצר)
   try {
-    const homeTokens = (await getTeamPushTokens("bibleumi")).filter((t) => t.role === "admin");
+    const homeTokens = (await getTeamPushTokens("bibleumi")).filter((t) => hasRole(t, "admin"));
     await sendPush(homeTokens, { title, body, url: "/?team=bibleumi", tag: "signup_" + teamId });
   } catch (e) { console.error("notifyNewTeam push:", e); }
   // מייל (אם RESEND_API_KEY מוגדר)
@@ -589,7 +597,7 @@ exports.notifyPlayerJoined = onCall(async (request) => {
   const title = "👋 שחקנית חדשה נכנסה לראשונה";
   const body = `${name} השלימה הרשמה ל${(st && st.teamName) || teamId} · ${total} שחקניות בקבוצה`;
   try {
-    const admins = (await getTeamPushTokens(teamId)).filter((t) => t.role === "admin");
+    const admins = (await getTeamPushTokens(teamId)).filter((t) => hasRole(t, "admin"));
     const r = await sendPush(admins, { title, body, url: `/?team=${teamId}`, tag: "join_" + pid });
     console.log("notifyPlayerJoined:", teamId, pid, name, "sent=" + r.sent, "admins=" + admins.length);
     return { ok: true, sent: r.sent };
@@ -676,7 +684,7 @@ exports.notifyPlayerActivity = onCall(async (request) => {
   }
 
   try {
-    const admins = (await getTeamPushTokens(teamId)).filter((t) => t.role === "admin");
+    const admins = (await getTeamPushTokens(teamId)).filter((t) => hasRole(t, "admin"));
     const r = await sendPush(admins, { title, body, url: `/?team=${teamId}`, tag });
     console.log(`notifyPlayerActivity ${kind} team=${teamId} pid=${pid} sent=${r.sent} admins=${admins.length}`);
     return { ok: true, sent: r.sent };

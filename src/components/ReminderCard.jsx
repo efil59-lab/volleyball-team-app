@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { S } from "../styles/S";
 import { pushSupport, pushEnabledLocally, enablePush, disablePush } from "../lib/push";
 
@@ -14,6 +14,22 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn })
   const [explain, setExplain] = useState(false); // מסך-ההכנה לפני שאלת הדפדפן
   const [, setRecheck] = useState(0);            // "בדקי שוב" אחרי שחרור חסימה
   const support = pushSupport();
+
+  // ── ריפוי-עצמי של הרישום בשרת ────────────────────────────────────────────
+  // הדגל ב-localStorage אומר רק "אישרה פעם במכשיר הזה". הוא לא יודע אם מסמך
+  // הטוקן בשרת עדיין קיים, ועדיין נושא את התפקיד הזה. שני דברים מפילים אותו
+  // בשקט: טוקן FCM שמתחלף מעצמו, והפעלה בתפקיד השני מאותו מכשיר (עד 5.9.26
+  // ה-setDoc דרס את התפקיד הקודם). התוצאה הייתה הגרועה מכולן — הכרטיס מציג
+  // "פעיל", ולכן לעולם לא נרשם מחדש, ואף התראה לא מגיעה.
+  // הרישום אידמפוטנטי, ו-requestPermission חוזר מיד כשההרשאה כבר ניתנה, אז
+  // אין כאן שאלה נוספת למשתמשת. חייב להיות מעל ה-return המותנה שמתחת.
+  useEffect(() => {
+    if (support === "no-vapid" || support === "unsupported") return;
+    if (!pushEnabledLocally(who)) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    enablePush(role, playerId).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (support === "no-vapid" || support === "unsupported") return null; // הפיצ'ר כבוי/לא נתמך — לא מציקים
   if (on && hideWhenOn) return null; // כבר פעיל → אין מה להציג (הביטול זמין בעריכת פרופיל)
