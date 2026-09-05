@@ -258,8 +258,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       { key: "games", icon: "🏆", label: "תוצאות" },
       { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
     ];
+  // לצופה אין "עוד" בכלל — הסקר הוא של השחקניות, והגלריה כבר בניווט הראשי.
+  // BottomNav מסתיר את לשונית "עוד" כשהרשימה ריקה.
   const navMore = isViewer
-    ? [{ key: "polls", icon: "🗳️", label: "סקר" }]
+    ? []
     : [
       { key: "polls", icon: "🗳️", label: "סקר" },
       { key: "gallery", icon: "📸", label: "תמונות" },
@@ -368,7 +370,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     searchPlaceholder: "חיפוש שחקנית, אימון או משחק…",
     footerExtra: (<>
       <button onClick={() => goDesk("gallery")}>תמונות</button>
-      <button onClick={() => goDesk("polls")}>סקרים</button>
+      {!isViewer && <button onClick={() => goDesk("polls")}>סקרים</button>}
       <button onClick={() => { setEditPhone(prof.phone || ""); setEditEmail(prof.email || ""); setEditWhatsapp(prof.whatsapp || ""); setEditBirthday(prof.birthday || ""); setEditProfile(true); }}>עריכת פרופיל והתראות</button>
     </>),
   };
@@ -743,7 +745,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           })()}
 
           {/* ── POLLS TAB ── */}
-          {tab === "polls" && (
+          {tab === "polls" && !isViewer && (
             <PlayerPolls polls={polls} player={player} players={players} upd={upd} pc={pc} sc={sc} />
           )}
 

@@ -281,7 +281,7 @@ export default function PlayerHome({
               </div>
             </article>}
 
-            <article className="st-p-card">
+            {!isViewer && <article className="st-p-card">
               <div className="st-p-ch">🗳️ סקר פעיל
                 {poll ? <span className="st-p-sp">{pollTotal} {pollTotal === 1 ? "הצביעה" : "הצביעו"}</span> : null}
               </div>
@@ -313,7 +313,7 @@ export default function PlayerHome({
                   </>
                 )}
               </div>
-            </article>
+            </article>}
 
             <article className="st-p-card">
               <div className="st-p-ch">📸 תמונות אחרונות
