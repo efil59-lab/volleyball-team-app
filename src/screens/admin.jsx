@@ -195,6 +195,9 @@ function AdminPanel(props) {
   // "Rendered more hooks than during the previous render" ומסך לבן.
   const isDesk = useIsDesktop();
   const [tab, setTab] = useState("attendance");
+  // המטריצה אינה בניווט התחתון. אם המסך הצטמצם בזמן שהיא פתוחה, נשארת לשונית
+  // בלי כפתור שמוביל אליה — מחזירים לסטטיסטיקה, שהיא המקבילה הניידת שלה.
+  useEffect(() => { if (!isDesk && tab === "matrix") setTab("archive"); }, [isDesk, tab]);
   const { pc, sc, onBack, onLogout, teamMeta, askConfirm, settings, players, upd } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
   // שלב 5 — ניסיון: ספירה לאחור ותשלום. המנהלת לא ננעלת; הבנות כן (נאכף ב-App).
@@ -229,10 +232,13 @@ function AdminPanel(props) {
   const siteProps = {
     ctx: { players: props.players || [], events: props.events || [], archive: props.archive || [], playerProfiles: props.playerProfiles || {}, attendance: props.attendance || {} },
     tab, setTab,
-    items: [...navItems, ...navMore],
+    // המטריצה קיימת רק בדסקטופ: היא הסיבה לפתוח מחשב, ובטלפון היא ממילא
+    // רצועה שנגררת לרוחב. בניווט התחתון היא לא מופיעה.
+    items: [...navItems, ...navMore, { key: "matrix", icon: "▦", label: "מטריצה" }],
     teamName: settings && settings.teamName,
     who: "מנהלת",
     onHome: onBack,
+    pc, sc,
     onLogout: () => (askConfirm ? askConfirm("להתנתק מחשבון המנהל?", onLogout) : onLogout && onLogout()),
     searchPlaceholder: "חיפוש שחקנית, אימון או משחק…",
     // לא hero שיווקי — זו קונסולת ניהול. המספרים שמנהלת רוצה בלי ללחוץ.
@@ -245,7 +251,7 @@ function AdminPanel(props) {
     </>),
   };
   const tabBody = (
-        <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+        <div className={"tab-body" + (tab === "matrix" ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {tab === "attendance" && <AdminAttendance {...props} />}
           {tab === "events" && <AdminEvents {...props} />}
           {tab === "players" && <AdminPlayers {...props} />}
@@ -253,6 +259,7 @@ function AdminPanel(props) {
           {tab === "polls" && <AdminPolls {...props} />}
           {tab === "gallery" && <AdminGallery {...props} />}
           {tab === "archive" && <ArchiveStats {...props} />}
+          {tab === "matrix" && <AttendanceMatrix {...props} />}
           {tab === "settings" && <AdminSettings {...props} />}
         </div>
   );
@@ -1271,6 +1278,114 @@ function AdminPolls({ polls, players, playerProfiles, upd, pc, sc, askConfirm })
   );
 }
 
+// ── ATTENDANCE MATRIX (דסקטופ בלבד) ──────────────────────────────────────────
+// שורות שחקניות מול עמודות אירועים: עונה שלמה במבט אחד. מה שהוא לא רק תצוגה —
+// לחיצה על תא מתקנת סימון בארכיון (הגיעה → לא הגיעה → לא ענתה). זה מה שאי אפשר
+// לעשות בטלפון, ולכן זה נמצא רק כאן.
+//
+// הכתיבה היא read-modify-write על מערך הארכיון כולו — כמו כל שאר הכתיבות
+// לארכיון בקובץ הזה. מנהלת אחת לקבוצה, ולכן אין כאן מרוץ אמיתי; אם יום אחד
+// יהיו שתי מנהלות, זה המקום להעביר לכתיבת שדה ממוקדת.
+function AttendanceMatrix({ archive, players, upd, pc, sc }) {
+  const [busy, setBusy] = useState(null); // "evId_pid" — התא שנכתב כרגע
+  const evs = [...(archive || [])].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  const statusOf = (ev, pid) =>
+    ((ev.attendanceData || []).find(a => String(a.playerId) === String(pid)) || {}).status || null;
+
+  // סדר הרשימה כמו בכל שאר המסכים ובכוונה לא לפי אחוזים: מיון לפי אחוז הגעה
+  // משנה את סדר השורות בכל תיקון, והשורה בורחת מתחת לסמן באמצע העבודה.
+  // הדירוג לפי אחוזים נמצא בלשונית "סטטיסטיקה", שם הוא לא מתנגש בעריכה.
+  const rows = players.map(p => {
+    const came = evs.filter(ev => statusOf(ev, p.id) === "coming").length;
+    return { ...p, came, pct: evs.length ? Math.round((came / evs.length) * 100) : 0 };
+  });
+
+  const colTotals = evs.map(ev => players.filter(p => statusOf(ev, p.id) === "coming").length);
+  const avg = rows.length ? Math.round(rows.reduce((s, r) => s + r.pct, 0) / rows.length) : 0;
+
+  // הגיעה → לא הגיעה → לא ענתה → הגיעה. שומר את ההערה שהשחקנית כתבה, אם יש.
+  async function cycle(ev, p) {
+    const key = `${ev.id}_${p.id}`;
+    if (busy) return;
+    setBusy(key);
+    try {
+      const cur = (ev.attendanceData || []).find(a => String(a.playerId) === String(p.id));
+      const next = cur?.status === "coming" ? "notcoming" : cur?.status === "notcoming" ? null : "coming";
+      const data = (ev.attendanceData || []).filter(a => String(a.playerId) !== String(p.id));
+      if (next) data.push({ ...(cur || {}), playerId: p.id, status: next });
+      await upd.archive(archive.map(a =>
+        a.id === ev.id ? { ...a, attendanceData: data, editedAt: new Date().toISOString() } : a
+      ));
+    } finally { setBusy(null); }
+  }
+
+  if (evs.length === 0) return <Empty icon="▦" text="אין אירועים בארכיון — המטריצה תתמלא אחרי הארכוב הראשון" />;
+
+  return (
+    <div className="st-mx" style={{ "--st-pc": pc, "--st-sc": sc }}>
+      <div className="st-mx-head">
+        <h2>נוכחות העונה</h2>
+        <span className="st-mx-sub">{evs.length} אירועים · {players.length} שחקניות · לחיצה על תא משנה את הסימון</span>
+      </div>
+      <div className="st-mx-card">
+        <div className="st-mx-wrap">
+          <table className="st-mx-t">
+            <thead>
+              <tr>
+                <th className="st-mx-corner">שחקנית</th>
+                {evs.map(ev => (
+                  <th key={ev.id} title={`${ev.type === "training" ? "אימון" : ev.opponent ? "משחק נגד " + ev.opponent : "משחק"} · ${formatShort(ev.date)}`}>
+                    <span className="st-mx-kind">{ev.type === "training" ? "🏋️" : "🏆"}</span>
+                    <span className="st-mx-dt">{formatShort(ev.date)}</span>
+                  </th>
+                ))}
+                <th className="st-mx-sum">סה״כ</th>
+                <th className="st-mx-sum">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(p => (
+                <tr key={p.id}>
+                  <th className="st-mx-name">{p.name}</th>
+                  {evs.map(ev => {
+                    const s = statusOf(ev, p.id);
+                    const key = `${ev.id}_${p.id}`;
+                    return (
+                      <td key={ev.id}>
+                        <button
+                          className={"st-mx-cell " + (s === "coming" ? "st-ok" : s === "notcoming" ? "st-no" : "st-w")}
+                          onClick={() => cycle(ev, p)}
+                          disabled={busy !== null}
+                          aria-label={`${p.name}, ${formatShort(ev.date)}, ${s === "coming" ? "הגיעה" : s === "notcoming" ? "לא הגיעה" : "לא ענתה"}`}
+                        >{busy === key ? "…" : s === "coming" ? "✓" : s === "notcoming" ? "✗" : "–"}</button>
+                      </td>
+                    );
+                  })}
+                  <td className="st-mx-sum st-num">{p.came}</td>
+                  <td className={"st-mx-sum st-num " + (p.pct >= 80 ? "st-hi" : p.pct >= 50 ? "st-mid" : "st-lo")}>{p.pct}%</td>
+                </tr>
+              ))}
+              <tr className="st-mx-tot">
+                <th className="st-mx-name">סה״כ מגיעות</th>
+                {colTotals.map((n, i) => <td key={i} className="st-num">{n}</td>)}
+                <td className="st-mx-sum st-num">{rows.reduce((s, r) => s + r.came, 0)}</td>
+                <td className="st-mx-sum st-num">{avg}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="st-mx-foot">
+          <span className="st-mx-lg"><i className="st-ok" />הגיעה</span>
+          <span className="st-mx-lg"><i className="st-no" />לא הגיעה</span>
+          <span className="st-mx-lg"><i className="st-w" />לא ענתה</span>
+          <span className="st-mx-lg st-mx-end">🏋️ אימון · 🏆 משחק · תיקון כאן נשמר בארכיון ומשנה את הסטטיסטיקה</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ARCHIVE & STATS ───────────────────────────────────────────────────────────
 function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
   const [view, setView] = useState("stats"); // "stats" | "table"
@@ -1580,6 +1695,35 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 📣 התראות בזמן אמת על פעילות שחקניות — נשלחות רק למכשירים של המנהלת.
+          מופרד מהתזכורות האוטומטיות: אלה יוצאות לשחקניות, אלה מגיעות אלייך. */}
+      <div style={S.card}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <span style={{ fontSize: 20 }}>📣</span>
+          <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14, flex: 1 }}>התראות אלייך על פעילות</span>
+        </div>
+        <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 12px", lineHeight: 1.5 }}>
+          מגיעות רק למכשירים שלך, ורק אם הפעלת התראות למעלה. שימי לב שאלה ההתראות התכופות ביותר — קבוצה של 13 שחקניות יכולה לייצר עשרות ביום.
+        </p>
+        {[
+          { field: "pingLogins", icon: "👤", label: "כשמישהי נכנסת לאפליקציה", hint: "כניסה חוזרת של אותה שחקנית בתוך 3 דקות לא נספרת פעמיים" },
+          { field: "pingRsvp", icon: "✅", label: "כשמישהי מאשרת או דוחה הגעה", hint: "כולל ספירה מעודכנת: כמה מגיעות, כמה לא, כמה טרם ענו" },
+        ].map(row => (
+          <div key={row.field} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: "1px solid #f1f5f9" }}>
+            <span style={{ fontSize: 17, flexShrink: 0 }}>{row.icon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>{row.label}</div>
+              <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>{row.hint}</div>
+            </div>
+            <button onClick={() => handleChange(row.field, s[row.field] === false)}
+              style={{ flexShrink: 0, border: "none", borderRadius: 20, padding: "6px 14px", cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+                background: s[row.field] === false ? "#f1f5f9" : "#dcfce7", color: s[row.field] === false ? "#64748b" : "#16a34a" }}>
+              {s[row.field] === false ? "🔕 כבוי" : "🔔 פעיל"}
+            </button>
+          </div>
+        ))}
       </div>
 
       <div style={{ ...S.card, border: `2px solid ${pc}`, background: `${pc}08` }}>

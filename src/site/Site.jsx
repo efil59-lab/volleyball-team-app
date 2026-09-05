@@ -101,8 +101,17 @@ function SearchBox({ ctx, onPick, placeholder }) {
   );
 }
 
+// גלילה לעוגן בתוך .st-root — לא window.scrollTo: החלון עצמו לא נגלל כאן.
+// scroll-margin-top ב-CSS הוא מה שמונע מהכותרת לנחות מתחת למסטהד הדביק.
+function scrollToAnchor(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 // ── מסטהד ───────────────────────────────────────────────────────────────────
-function SiteHeader({ ctx, tab, setTab, items, teamName, who, onHome, onLogout, searchPlaceholder }) {
+// שני מצבי ניווט: anchors = קישורים שגוללים בתוך אותו עמוד (בית השחקנית),
+// items = לשוניות שמחליפות תוכן (פאנל המנהלת, ומסכי העומק של השחקנית).
+function SiteHeader({ ctx, tab, setTab, items = [], anchors, teamName, brandSub, who, onHome, onLogout, searchPlaceholder }) {
   return (
     <header className="st-head">
       <div className="st-head-in">
@@ -110,17 +119,25 @@ function SiteHeader({ ctx, tab, setTab, items, teamName, who, onHome, onLogout, 
           <span className="st-brand-ball" aria-hidden>🏐</span>
           <span className="st-brand-text">
             <span className="st-brand-name">{teamName || "כדורשת"}</span>
-            <span className="st-brand-sub">ניהול קבוצה</span>
+            <span className="st-brand-sub">{brandSub || "ניהול קבוצה"}</span>
           </span>
         </button>
 
         <SearchBox ctx={ctx} placeholder={searchPlaceholder} onPick={(r) => setTab(r.tab)} />
 
         <nav className="st-nav" aria-label="ניווט ראשי">
+          {(anchors || []).map((a) => (
+            <a
+              key={a.id}
+              className="st-nav-link"
+              href={"#" + a.id}
+              onClick={(e) => { e.preventDefault(); scrollToAnchor(a.id); }}
+            >{a.label}</a>
+          ))}
           {items.map((it) => (
             <button
               key={it.key}
-              className={"st-nav-link" + (tab === it.key ? " st-on" : "")}
+              className={"st-nav-link" + (tab === it.key ? " st-on" : "") + (it.lead ? " st-lead" : "")}
               onClick={() => setTab(it.key)}
             >
               <span aria-hidden>{it.icon}</span> {it.label}
@@ -151,56 +168,6 @@ function SiteFooter({ teamName, extra }) {
         </div>
       </div>
     </footer>
-  );
-}
-
-// ── כותרת-על ללשונית הבית של השחקנית ────────────────────────────────────────
-// כאן הרוחב באמת עובד: האירוע הקרוב גדול, ולידו המספרים שהיא רוצה לראות בלי
-// ללחוץ על כלום.
-function PlayerHero({ ctx, player, nextEvent, onGo }) {
-  const { attendance = {}, players = [], archive = [] } = ctx;
-  const my = nextEvent ? attendance[`${nextEvent.id}_${player.id}`] : null;
-  const coming = nextEvent ? players.filter((p) => attendance[`${nextEvent.id}_${p.id}`]?.status === "coming").length : 0;
-  const mine = archive.filter((ev) => (ev.attendanceData || []).some((a) => a.playerId === player.id && a.status === "coming")).length;
-  const pct = archive.length ? Math.round((mine / archive.length) * 100) : 0;
-
-  return (
-    <section className="st-hero">
-      <div className="st-hero-in">
-        <div className="st-hero-main">
-          <p className="st-eyebrow">שלום {player.name}</p>
-          {nextEvent ? (
-            <>
-              <h1 className="st-h1">
-                {nextEvent.type === "training" ? "האימון הבא" : nextEvent.opponent ? `משחק נגד ${nextEvent.opponent}` : "המשחק הבא"}
-              </h1>
-              <p className="st-lede">
-                {formatShort(nextEvent.date)} בשעה {nextEvent.time}
-                {nextEvent.location ? ` · ${nextEvent.location}` : ""}
-                {nextEvent.date === todayStr() ? " — היום!" : ""}
-              </p>
-              <div className="st-hero-cta">
-                <button className="st-btn" onClick={() => onGo("event")}>
-                  {my?.status === "coming" ? "✅ אישרת הגעה — לשינוי" : my?.status === "notcoming" ? "❌ סימנת שלא מגיעה — לשינוי" : "לאישור הגעה"}
-                </button>
-                <button className="st-btn st-btn-ghost" onClick={() => onGo("calendar")}>הלוח המלא</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h1 className="st-h1">אין אירוע קרוב</h1>
-              <p className="st-lede">כשהמנהלת תקבע אימון או משחק, הוא יופיע כאן ותקבלי תזכורת.</p>
-              <div className="st-hero-cta"><button className="st-btn st-btn-ghost" onClick={() => onGo("calendar")}>הלוח המלא</button></div>
-            </>
-          )}
-        </div>
-        <div className="st-stats">
-          <div className="st-stat"><b>{coming}</b><span>מגיעות לאירוע הקרוב</span></div>
-          <div className="st-stat"><b>{mine}</b><span>אירועים שהגעת אליהם</span></div>
-          <div className="st-stat"><b>{pct}%</b><span>אחוז ההגעה שלך</span></div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -243,25 +210,33 @@ function AdminStrip({ ctx, nextEvent, onGo }) {
 // children = גוף הלשונית הקיים (.tab-body). זהו מסלול ה-embed של הסקיל: מסכים
 // שהם טפסים ורשימות נראים טוב בעמודה, ואין טעם לבנות להם גרסה נפרדת.
 export function SiteChrome({
-  ctx, tab, setTab, items, teamName, who, onHome, onLogout,
-  hero, footerExtra, searchPlaceholder, children,
+  ctx, tab, setTab, items, anchors, teamName, brandSub, who, onHome, onLogout,
+  hero, footerExtra, searchPlaceholder, children, page, pc, sc,
 }) {
   const rootRef = useRef(null);
   // החלפת לשונית שמגיעה לאמצע של סקשן חדש מרגישה שבורה
   useEffect(() => { if (rootRef.current) rootRef.current.scrollTop = 0; }, [tab]);
 
+  // צבעי הקבוצה מגיעים מ-settings בזמן ריצה. בלי ההזרמה הזאת כל שכבת הדסקטופ
+  // נופלת לכחול ברירת המחדל, ולקבוצה עם מיתוג אחר האתר נראה של מישהו אחר.
+  const vars = {};
+  if (pc) vars["--st-pc"] = pc;
+  if (sc) vars["--st-sc"] = sc;
+
   return (
-    <div className="st-root" ref={rootRef}>
+    <div className="st-root" ref={rootRef} style={vars}>
       <SiteHeader
-        ctx={ctx} tab={tab} setTab={setTab} items={items}
-        teamName={teamName} who={who} onHome={onHome} onLogout={onLogout}
+        ctx={ctx} tab={tab} setTab={setTab} items={items} anchors={anchors}
+        teamName={teamName} brandSub={brandSub} who={who} onHome={onHome} onLogout={onLogout}
         searchPlaceholder={searchPlaceholder}
       />
       {hero}
-      <main className="st-embed">{children}</main>
+      {/* page = תוכן שמעצב את הרוחב בעצמו (בית השחקנית). ברירת המחדל היא
+          מסלול ה-embed: גוף לשונית של הטלפון שמוגש בעמודה ממורכזת. */}
+      {page ? <main>{children}</main> : <main className="st-embed">{children}</main>}
       <SiteFooter teamName={teamName} extra={footerExtra} />
     </div>
   );
 }
 
-export { PlayerHero, AdminStrip };
+export { AdminStrip };

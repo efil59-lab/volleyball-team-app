@@ -555,6 +555,93 @@ exports.notifyPlayerJoined = onCall(async (request) => {
   }
 });
 
+// ── התראות למנהלת על פעילות שחקניות: כניסה + אישור/דחיית הגעה ────────────────
+// המנהלת רוצה לדעת בזמן אמת מי נכנסה ומי ענתה, בלי לפתוח את האפליקציה.
+// שתי בקרות מונעות הצפה, כי אלה ההתראות התכופות ביותר במערכת:
+//   1. מתגים ב-settings (pingLogins / pingRsvp) — כל מנהלת יכולה להשתיק.
+//   2. חלון צינון בשרת — רענון דף, mount כפול של React או לחיצה כפולה על
+//      "אני מגיעה" לא הופכים לשתי התראות.
+// שינוי דעה (מגיעה → לא מגיעה) עובר את הצינון בכוונה: זה מידע חדש למנהלת.
+const PING_COOLDOWN_MS = { login: 3 * 60 * 1000, rsvp: 20 * 1000 };
+
+// ספירת מגיעות/לא/טרם ענו לאירוע — נשלחת בגוף ההתראה כדי שהמנהלת תדע איפה
+// הדברים עומדים בלי לפתוח את האפליקציה.
+async function attendanceTally(teamId, eventId) {
+  const players = await getTeamValue(teamId, "players", []);
+  const att = await db.collection(`teams/${teamId}/attendance`).get();
+  const byPid = new Map();
+  att.forEach((d) => {
+    const rec = (d.data() || {})[String(eventId)];
+    if (rec && rec.status) byPid.set(String(d.id), rec.status);
+  });
+  let coming = 0, notcoming = 0;
+  for (const p of players) {
+    const s = byPid.get(String(p.id));
+    if (s === "coming") coming++;
+    else if (s === "notcoming") notcoming++;
+  }
+  return { coming, notcoming, pending: players.length - coming - notcoming };
+}
+
+exports.notifyPlayerActivity = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "נדרשת התחברות");
+  const { teamId, playerId, kind, eventId, status } = request.data || {};
+  if (!teamId || playerId === undefined) throw new HttpsError("invalid-argument", "חסר teamId/playerId");
+  if (kind !== "login" && kind !== "rsvp") throw new HttpsError("invalid-argument", "kind לא חוקי");
+  const pid = Number(playerId);
+
+  // הקוראת חייבת להיות אותה שחקנית — אותה בדיקה כמו ב-notifyPlayerJoined.
+  // בלעדיה כל משתמשת מחוברת יכולה לזייף התראות בשם אחרת.
+  const mem = await db.doc(`teams/${teamId}/members/${request.auth.uid}`).get();
+  if (!mem.exists || Number(mem.data().playerId) !== pid)
+    throw new HttpsError("permission-denied", "לא השחקנית הזו");
+
+  const st = await getTeamValue(teamId, "settings", {});
+  const on = kind === "login" ? st.pingLogins !== false : st.pingRsvp !== false;
+  if (!on) return { ok: true, skipped: "off" };
+
+  // צינון: אותה חתימה בתוך החלון = אותה פעולה, לא שולחים שוב.
+  const sig = kind === "rsvp" ? `${eventId}:${status}` : "login";
+  const marker = db.doc(`teams/${teamId}/data/ping_${kind}_${pid}`);
+  const prev = await marker.get();
+  const prevVal = prev.exists ? (prev.data().value || {}) : {};
+  const age = prevVal.at ? Date.now() - new Date(prevVal.at).getTime() : Infinity;
+  if (prevVal.sig === sig && age < PING_COOLDOWN_MS[kind]) return { ok: true, skipped: "cooldown" };
+  await marker.set({ value: { at: new Date().toISOString(), sig } });
+
+  const players = await getTeamValue(teamId, "players", []);
+  const name = (players.find((p) => Number(p.id) === pid) || {}).name || "שחקנית";
+  const teamName = (st && st.teamName) || teamId;
+
+  let title, body, tag;
+  if (kind === "login") {
+    const hm = new Date().toLocaleTimeString("he-IL", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+    title = `👤 ${name} נכנסה לאפליקציה`;
+    body = `${teamName} · ${hm}`;
+    tag = `login_${pid}`; // כניסה חוזרת של אותה שחקנית מחליפה את הקודמת במגש
+  } else {
+    const events = await getTeamValue(teamId, "events", []);
+    const ev = (Array.isArray(events) ? events : []).find((e) => String(e.id) === String(eventId));
+    const yes = status === "coming";
+    title = yes ? `✅ ${name} אישרה הגעה` : `❌ ${name} לא מגיעה`;
+    const when = ev && ev.date ? ev.date.split("-").reverse().slice(0, 2).join(".") : "";
+    const where = ev ? `${evLabel(ev)} ${when}${ev.time ? " " + ev.time : ""}` : "האירוע הקרוב";
+    const t = await attendanceTally(teamId, eventId);
+    body = `${where} · ${t.coming} מגיעות, ${t.notcoming} לא, ${t.pending} טרם ענו`;
+    tag = `rsvp_${eventId}_${pid}`; // שחקנית ששינתה דעה מחליפה את השורה שלה, לא מוסיפה
+  }
+
+  try {
+    const admins = (await getTeamPushTokens(teamId)).filter((t) => t.role === "admin");
+    const r = await sendPush(admins, { title, body, url: `/?team=${teamId}`, tag });
+    console.log(`notifyPlayerActivity ${kind} team=${teamId} pid=${pid} sent=${r.sent} admins=${admins.length}`);
+    return { ok: true, sent: r.sent };
+  } catch (e) {
+    console.error("notifyPlayerActivity push:", e);
+    return { ok: true, sent: 0 };
+  }
+});
+
 // ── שלב 5: גיבוי יומי — snapshot JSON מלא של כל קבוצה ל-Cloud Storage ─────────
 // נשמר תחת backups/YYYY-MM-DD/{teamId}.json בדלי ברירת-המחדל של הפרויקט (פרטי —
 // נגיש רק לבעלי הפרויקט). שחזור = הורדת הקובץ מהקונסולה וכתיבה חזרה. שמירה: 30 יום.

@@ -217,6 +217,7 @@ const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 const callNotifyPushFn = httpsCallable(functions, "notifyTeamPush");
 const callNotifyNewTeamFn = httpsCallable(functions, "notifyNewTeam");
 const callNotifyPlayerJoinedFn = httpsCallable(functions, "notifyPlayerJoined");
+const callNotifyPlayerActivityFn = httpsCallable(functions, "notifyPlayerActivity");
 const callResetActivityFn = httpsCallable(functions, "adminResetTeamActivity");
 // Clears attendance, the archive and game results for one team; keeps players,
 // accounts, profiles, events, settings and photos. Super-admin only (enforced
@@ -230,6 +231,15 @@ async function adminResetTeamActivityRemote(teamId) {
 // keeps its own once-per-player marker, so calling twice is harmless.
 async function notifyPlayerJoinedRemote(teamId, playerId) {
   try { await callNotifyPlayerJoinedFn({ teamId, playerId }); } catch (e) { console.error("notifyPlayerJoined:", e); }
+}
+// Tells the team's admins that a player entered the app, or answered for the
+// next event. Fire-and-forget for the same reason as above: a player must never
+// see an error, or wait, because a notification to someone else failed. The
+// server owns the on/off switches and the cooldown — the client only reports
+// what happened.
+async function notifyPlayerActivityRemote(teamId, playerId, kind, extra = {}) {
+  try { await callNotifyPlayerActivityFn({ teamId, playerId, kind, ...extra }); }
+  catch (e) { console.error("notifyPlayerActivity:", e); }
 }
 async function adminResetPlayer(teamId, playerId) {
   const res = await callResetFn({ teamId, playerId });
@@ -447,7 +457,7 @@ export {
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
-  notifyPlayerJoinedRemote,
+  notifyPlayerJoinedRemote, notifyPlayerActivityRemote,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,

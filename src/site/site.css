@@ -111,13 +111,21 @@
     overflow-x: auto; scrollbar-width: none;
   }
   .st-nav::-webkit-scrollbar { display: none; }
+  /* אותו כלל לכפתור-לשונית ולקישור-עוגן — הם צריכים להיראות זהים בשורה אחת */
   .st-nav-link {
     position: relative;
-    background: none; border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    background: none; border: 0; cursor: pointer; text-decoration: none;
     padding: 8px 11px; border-radius: 9px;
     font-family: inherit; font-size: 13.5px; font-weight: 600;
     color: var(--color-text-muted, #64748b);
     white-space: nowrap;
+  }
+  /* "חזרה לעמוד הבית" — קישור החזרה מובלט משאר הלשוניות ומופרד מהן בקו */
+  .st-nav-link.st-lead {
+    color: var(--st-pc, #1a237e); font-weight: 800;
+    margin-left: 6px; padding-left: 14px;
+    border-left: 1px solid var(--color-border, #e2e8f0); border-radius: 9px 0 0 9px;
   }
   .st-nav-link:hover { background: var(--color-bg, #f1f5f9); color: var(--color-text, #1e293b); }
   .st-nav-link.st-on {
@@ -144,51 +152,8 @@
   }
   .st-out:hover { border-color: var(--color-danger, #ef4444); color: var(--color-danger, #ef4444); }
 
-  /* ── כותרת-על של השחקנית ───────────────────────────────────────────────── */
-  .st-hero {
-    background:
-      radial-gradient(1100px 340px at 80% -60%, color-mix(in srgb, var(--st-sc, #f5c842) 26%, transparent), transparent),
-      linear-gradient(165deg, var(--st-pc, #1a237e), color-mix(in srgb, var(--st-pc, #1a237e) 78%, #000));
-    color: #fff;
-  }
-  .st-hero-in {
-    max-width: 1240px; margin: 0 auto; padding: 54px 42px 48px;
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: center;
-  }
-  .st-eyebrow {
-    margin: 0 0 8px; font-size: 12px; font-weight: 800;
-    letter-spacing: 0.09em; text-transform: none;
-    color: var(--st-sc, #f5c842);
-  }
-  .st-h1 {
-    margin: 0 0 10px; font-size: 2.5rem; line-height: 1.15;
-    font-weight: 900; text-wrap: balance;
-  }
-  .st-lede { margin: 0; font-size: 1.05rem; line-height: 1.65; opacity: 0.92; max-width: 52ch; }
-  .st-hero-cta { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
-  .st-btn {
-    background: var(--st-sc, #f5c842); color: #17203f;
-    border: 0; border-radius: 12px; padding: 12px 22px; cursor: pointer;
-    font-family: inherit; font-size: 14.5px; font-weight: 800;
-  }
-  .st-btn:hover { filter: brightness(1.06); }
-  .st-btn-ghost {
-    background: rgba(255, 255, 255, 0.12); color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-  }
-
-  .st-stats { display: flex; gap: 12px; flex: 0 0 auto; }
-  .st-stat {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 16px; padding: 18px 20px;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    min-width: 118px;
-  }
-  .st-stat b { font-size: 30px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
-  .st-stat span { font-size: 11.5px; opacity: 0.85; text-align: center; }
-
   /* ── רצועת המנהלת ──────────────────────────────────────────────────────── */
+  .st-eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.09em; }
   .st-strip { background: #fff; border-bottom: 1px solid var(--color-border, #e2e8f0); }
   .st-strip-in { max-width: 1240px; margin: 0 auto; padding: 26px 42px 24px; }
   .st-strip-lead { margin-bottom: 16px; }
@@ -242,6 +207,284 @@
   }
   .st-foot-links button:hover { color: var(--st-pc, #1a237e); }
   .st-foot-legal { flex: 0 0 100%; color: var(--color-text-faint, #94a3b8); }
+
+  /* ── עמוד הבית של השחקנית ────────────────────────────────────────────────
+     מסך אחד רציף, בלי לשוניות. הקישורים במסטהד גוללים לעוגנים, ולכן כל סקשן
+     צריך scroll-margin שיפצה על המסטהד הדביק — אחרת הכותרת נוחתת מתחתיו.
+     המכולה שנגללת היא .st-root ולא החלון, ולכן scroll-behavior יושב עליה. */
+  .st-root { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { .st-root { scroll-behavior: auto; } }
+  #st-next, #st-team, #st-season, #st-feed { scroll-margin-top: 80px; }
+
+  .st-num { font-variant-numeric: tabular-nums; }
+  .st-p-wrap { max-width: 1180px; margin: 0 auto; padding: 0 42px; }
+
+  /* ── האירוע הקרוב ─────────────────────────────────────────────────────── */
+  .st-p-hero {
+    background: linear-gradient(155deg, var(--st-pc, #1a237e), color-mix(in srgb, var(--st-pc, #1a237e) 72%, #000));
+    color: #fff; padding: 52px 0 58px;
+  }
+  .st-p-hero-in {
+    max-width: 1180px; margin: 0 auto; padding: 0 42px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 44px; align-items: center;
+  }
+  .st-p-eyebrow { margin: 0 0 10px; font-size: 14.5px; font-weight: 500; color: rgba(255, 255, 255, 0.76); }
+  .st-p-h1 { margin: 0 0 8px; font-size: 2.6rem; font-weight: 900; line-height: 1.14; text-wrap: balance; }
+  .st-p-meta { margin: 0 0 26px; font-size: 1.05rem; color: rgba(255, 255, 255, 0.78); }
+  .st-p-meta b { color: #fff; font-weight: 700; }
+
+  /* ההחלטה היחידה שהיא באמת חייבת לקבל — ולכן הכפתורים בגודל הזה */
+  .st-p-rsvp { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .st-p-rbtn {
+    border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.08); color: #fff;
+    border-radius: 14px; padding: 15px 30px; cursor: pointer;
+    font-family: inherit; font-size: 16.5px; font-weight: 800;
+    display: flex; align-items: center; gap: 9px;
+    transition: transform 0.12s, background 0.12s, border-color 0.12s;
+  }
+  .st-p-rbtn:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.16); }
+  .st-p-rbtn.st-yes.st-on { background: var(--color-success, #16a34a); border-color: var(--color-success, #16a34a); color: #fff; }
+  .st-p-rbtn.st-no.st-on { background: var(--color-danger, #ef4444); border-color: var(--color-danger, #ef4444); color: #fff; }
+  .st-p-saved { margin: 12px 0 0; min-height: 20px; font-size: 13.5px; color: rgba(255, 255, 255, 0.76); }
+
+  /* דף-לוח: התאריך כאלמנט אופי, לא עוד שורת טקסט */
+  .st-p-leaf {
+    flex: 0 0 auto; width: 186px; text-align: center; overflow: hidden;
+    background: var(--color-surface, #fff); color: var(--color-text, #1e293b);
+    border-radius: 20px; box-shadow: 0 20px 60px rgba(16, 24, 64, 0.3);
+  }
+  .st-p-leaf-h { background: var(--st-sc, #f5c842); color: #5c4600; font-weight: 800; font-size: 14px; padding: 8px 0; }
+  .st-p-leaf-d { font-size: 5.2rem; font-weight: 900; line-height: 1; padding: 14px 0 2px; color: var(--st-pc, #1a237e); }
+  .st-p-leaf-m { font-weight: 700; font-size: 17px; color: var(--color-text-muted, #64748b); padding-bottom: 12px; }
+  .st-p-leaf-t { border-top: 1px solid var(--color-border, #e2e8f0); padding: 10px 0; font-size: 15px; font-weight: 700; }
+
+  /* ── סקשנים ───────────────────────────────────────────────────────────── */
+  .st-p-sec { padding: 50px 0; }
+  .st-p-alt { background: var(--color-surface, #fff); }
+  .st-p-sh { display: flex; align-items: baseline; gap: 12px; margin: 0 0 22px; flex-wrap: wrap; }
+  .st-p-sh h2 { margin: 0; font-size: 1.45rem; font-weight: 800; color: var(--color-text, #1e293b); }
+  .st-p-note { font-size: 14px; color: var(--color-text-faint, #94a3b8); }
+  .st-p-more {
+    margin-right: auto; background: none; border: 0; cursor: pointer;
+    font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--st-pc, #1a237e);
+  }
+  .st-p-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .st-p-card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(16, 24, 64, 0.05), 0 10px 30px rgba(16, 24, 64, 0.06);
+  }
+  .st-p-alt .st-p-card { background: var(--color-bg, #f8fafc); box-shadow: none; }
+  .st-p-empty { padding: 26px; font-size: 14px; color: var(--color-text-muted, #64748b); }
+
+  /* ── מי מגיעה: אנשים, לא שורות ─────────────────────────────────────────── */
+  .st-p-tally { margin-right: auto; display: flex; gap: 18px; font-size: 14px; color: var(--color-text-muted, #64748b); flex-wrap: wrap; }
+  .st-p-tally i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-left: 6px; vertical-align: -1px; }
+  .st-p-faces-box { padding: 24px; }
+  .st-p-faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 16px; }
+  .st-face { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+  .st-face .st-ring {
+    position: relative; width: 64px; height: 64px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 21px;
+    background: color-mix(in srgb, var(--st-pc, #1a237e) 10%, transparent);
+    color: var(--st-pc, #1a237e);
+    border: 3px solid #cbd5e1;
+  }
+  .st-face .st-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .st-face.st-ok .st-ring { border-color: var(--color-success, #16a34a); }
+  .st-face.st-no .st-ring { border-color: var(--color-danger, #ef4444); opacity: 0.62; }
+  .st-face .st-mark {
+    position: absolute; bottom: -3px; left: -3px;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 12px; color: #fff;
+    border: 2px solid var(--color-surface, #fff);
+  }
+  .st-face.st-ok .st-mark { background: var(--color-success, #16a34a); }
+  .st-face.st-no .st-mark { background: var(--color-danger, #ef4444); }
+  .st-face.st-wait .st-mark { display: none; }
+  .st-face b { font-size: 13.5px; font-weight: 600; color: var(--color-text, #1e293b); }
+  .st-face.st-me-face b { color: var(--st-pc, #1a237e); font-weight: 800; }
+
+  /* ── העונה שלי ────────────────────────────────────────────────────────── */
+  .st-p-season { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: stretch; }
+  /* עד 9 תאים (8 מהארכיון + הקרוב). min-width נמוך כדי שכולם ייכנסו לצד
+     עמודת הסטטיסטיקה בלי גלילה אופקית — התא האחרון חתוך נראה כמו באג. */
+  .st-p-strip { display: flex; gap: 8px; padding: 22px; overflow-x: auto; }
+  .st-p-ev {
+    flex: 1 1 0; min-width: 62px; text-align: center; padding: 12px 6px;
+    border: 1px solid var(--color-border, #e2e8f0); border-radius: 13px;
+    background: var(--color-surface, #fff);
+  }
+  .st-p-ev-k { font-size: 17px; }
+  .st-p-ev-d { font-size: 12.5px; color: var(--color-text-faint, #94a3b8); margin: 3px 0 8px; font-variant-numeric: tabular-nums; }
+  .st-p-ev-dot { width: 26px; height: 26px; border-radius: 50%; margin: 0 auto; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+  .st-p-ev.st-ok .st-p-ev-dot { background: var(--color-success-bg, #dcfce7); color: var(--color-success, #16a34a); }
+  .st-p-ev.st-no .st-p-ev-dot { background: var(--color-danger-bg, #fee2e2); color: var(--color-danger, #ef4444); }
+  .st-p-ev.st-next { border: 2px solid var(--st-sc, #f5c842); background: color-mix(in srgb, var(--st-sc, #f5c842) 12%, transparent); }
+  .st-p-ev.st-next .st-p-ev-dot { background: var(--st-sc, #f5c842); color: #5c4600; }
+  .st-p-mystats {
+    display: flex; flex-direction: column; gap: 1px;
+    background: var(--color-border, #e2e8f0);
+    border: 1px solid var(--color-border, #e2e8f0); border-radius: 16px; overflow: hidden;
+  }
+  .st-p-mystats > div { flex: 1; background: var(--color-surface, #fff); padding: 15px 20px; display: flex; align-items: baseline; gap: 10px; }
+  .st-p-mystats b { font-size: 1.9rem; font-weight: 900; line-height: 1; color: var(--color-text, #1e293b); }
+  .st-p-mystats span { font-size: 13.5px; color: var(--color-text-faint, #94a3b8); }
+  .st-p-sp { margin-right: auto; font-size: 13px; }
+
+  /* ── מהקבוצה: שלוש עמודות במקום שלוש לשוניות ──────────────────────────── */
+  .st-p-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  .st-p-ch {
+    padding: 15px 18px; border-bottom: 1px solid var(--color-border, #e2e8f0);
+    font-weight: 700; font-size: 14.5px; color: var(--color-text, #1e293b);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .st-p-ch .st-p-sp { font-size: 12.5px; color: var(--color-text-faint, #94a3b8); font-weight: 500; }
+  .st-p-link { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; color: var(--st-pc, #1a237e); font-weight: 700; }
+  .st-p-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .st-p-cb { padding: 16px 18px; }
+  .st-p-quiet { margin: 0; font-size: 13.5px; color: var(--color-text-faint, #94a3b8); line-height: 1.6; }
+  .st-p-q { margin: 0 0 12px; font-weight: 700; font-size: 14.5px; color: var(--color-text, #1e293b); }
+  .st-p-msg { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--color-border, #e2e8f0); }
+  .st-p-msg:last-child { border-bottom: 0; }
+  .st-p-av {
+    width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%;
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+    background: var(--st-pc, #1a237e); color: var(--st-sc, #f5c842);
+  }
+  .st-p-who { font-size: 13px; font-weight: 700; color: var(--color-text, #1e293b); }
+  .st-p-tx { font-size: 13.5px; color: var(--color-text-muted, #64748b); line-height: 1.5; }
+  .st-p-opt {
+    position: relative; overflow: hidden; width: 100%; text-align: right;
+    border: 1.5px solid var(--color-border, #e2e8f0); border-radius: 11px;
+    background: var(--color-surface, #fff); color: var(--color-text, #1e293b);
+    padding: 10px 13px; margin-bottom: 8px; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 600;
+  }
+  .st-p-opt:hover { border-color: var(--st-pc, #1a237e); }
+  .st-p-opt[aria-pressed="true"] { border-color: var(--st-pc, #1a237e); color: var(--st-pc, #1a237e); }
+  .st-p-fill { position: absolute; top: 0; right: 0; bottom: 0; z-index: 0; background: color-mix(in srgb, var(--st-pc, #1a237e) 12%, transparent); transition: width 0.4s ease; }
+  .st-p-lb { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 10px; }
+  .st-p-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .st-p-shot {
+    position: relative; overflow: hidden; aspect-ratio: 1; padding: 0; cursor: pointer;
+    border: 1px solid var(--color-border, #e2e8f0); border-radius: 11px; background: var(--color-bg, #f1f5f9);
+  }
+  .st-p-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .st-p-shot span {
+    position: absolute; right: 0; bottom: 0; left: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.62)); color: #fff;
+    font-size: 11.5px; padding: 14px 8px 6px; text-align: right;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .st-p-clap { margin-top: 18px; padding: 18px 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .st-p-clap-i { font-size: 26px; }
+  .st-p-clap-t { font-size: 14.5px; color: var(--color-text-muted, #64748b); }
+  .st-p-clap-t b { color: var(--color-text, #1e293b); }
+  .st-p-clap-w { display: flex; gap: 8px; margin-right: auto; flex-wrap: wrap; }
+  .st-p-cbtn {
+    border: 1px solid var(--color-border, #e2e8f0); border-radius: 20px;
+    background: var(--color-surface, #fff); color: var(--color-text, #1e293b);
+    padding: 6px 14px; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 700;
+  }
+  .st-p-cbtn:hover:not(:disabled) { border-color: var(--st-sc, #f5c842); background: color-mix(in srgb, var(--st-sc, #f5c842) 16%, transparent); }
+  .st-p-cbtn[aria-pressed="true"] { background: var(--st-sc, #f5c842); border-color: var(--st-sc, #f5c842); color: #5c4600; cursor: default; }
+
+  /* מתחת ל-1240 הדסקטופ עדיין פעיל אבל צר: שלוש עמודות נחנקות */
+  @media (max-width: 1240px) {
+    .st-p-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .st-p-season { grid-template-columns: 1fr; }
+  }
+
+  /* ── מסטהד צפוף (1100–1300) ──────────────────────────────────────────────
+     בקצה התחתון של הדסקטופ המותג + החיפוש דחקו החוצה שלושה קישורי ניווט:
+     .st-nav גולל אופקית בלי פס גלילה, כלומר הם פשוט נעלמו. מצמצמים את מה
+     שאפשר לוותר עליו (תת-הכותרת, רוחב המותג, החיפוש והריווח) לפני שמוותרים
+     על ניווט. נמדד: מחזיר ~230px, מספיק גם ב-1100. */
+  @media (max-width: 1300px) {
+    .st-head-in { gap: 14px; padding: 0 24px; }
+    .st-brand-sub { display: none; }
+    .st-brand-name { max-width: 130px; }
+    .st-brand-ball { font-size: 22px; }
+    .st-search { flex: 1 1 150px; min-width: 140px; max-width: 220px; }
+    .st-nav-link { padding: 8px 7px; }
+    .st-who { display: none; }
+  }
+
+  /* ── מטריצת הנוכחות ──────────────────────────────────────────────────────
+     טבלה היא הרכיב היחיד בפאנל שרוצה את כל הרוחב, ולכן היא מרחיבה את עמודת
+     ה-embed במקום להידחס לתוכה. */
+  .st-embed .tab-body.tab-wide { max-width: 1560px !important; }
+
+  .st-mx-head { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 16px; flex-wrap: wrap; }
+  .st-mx-head h2 { margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text, #1e293b); }
+  .st-mx-sub { font-size: 13px; color: var(--color-text-faint, #94a3b8); }
+  .st-mx-card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(16, 24, 64, 0.05), 0 10px 30px rgba(16, 24, 64, 0.06);
+  }
+  /* גובה תחום = הכותרת והעמודה הראשונה יכולות להיות דביקות. בלי התחימה
+     ה-scrollport האנכי הוא כל הטבלה, ו-sticky top לא עושה כלום. */
+  .st-mx-wrap { overflow: auto; max-height: calc(100dvh - 300px); min-height: 260px; }
+
+  .st-mx-t { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+  .st-mx-t th, .st-mx-t td { border-bottom: 1px solid var(--color-border, #e2e8f0); white-space: nowrap; }
+  .st-mx-t thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: var(--color-bg, #f1f5f9);
+    padding: 9px 8px; font-size: 12px; font-weight: 700;
+    color: var(--color-text-muted, #64748b);
+  }
+  .st-mx-kind { display: block; font-size: 15px; }
+  .st-mx-dt { display: block; font-size: 10.5px; font-weight: 500; color: var(--color-text-faint, #94a3b8); font-variant-numeric: tabular-nums; }
+  .st-mx-t tbody th.st-mx-name {
+    position: sticky; right: 0; z-index: 2;
+    background: var(--color-surface, #fff);
+    text-align: right; padding: 0 14px; font-weight: 600;
+    color: var(--color-text, #1e293b);
+    border-left: 1px solid var(--color-border, #e2e8f0);
+  }
+  .st-mx-t thead th.st-mx-corner { right: 0; z-index: 4; text-align: right; padding: 9px 14px; }
+  .st-mx-t td { text-align: center; padding: 0; }
+  .st-mx-t td.st-mx-sum, .st-mx-t th.st-mx-sum { padding: 0 10px; font-weight: 800; }
+  .st-mx-t td.st-mx-sum { color: var(--color-text-muted, #64748b); }
+  .st-mx-t .st-hi { color: var(--color-success, #16a34a); }
+  .st-mx-t .st-mid { color: #b45309; }
+  .st-mx-t .st-lo { color: var(--color-danger, #ef4444); }
+
+  .st-mx-cell {
+    width: 100%; height: 38px; border: 0; background: none; cursor: pointer;
+    display: grid; place-items: center; font-family: inherit; font-weight: 800; font-size: 13px;
+  }
+  .st-mx-cell:disabled { cursor: default; }
+  .st-mx-cell:hover:not(:disabled) { outline: 2px solid var(--st-pc, #1a237e); outline-offset: -2px; border-radius: 6px; }
+  .st-mx-cell.st-ok { background: var(--color-success-bg, #dcfce7); color: var(--color-success, #16a34a); }
+  .st-mx-cell.st-no { background: var(--color-danger-bg, #fee2e2); color: var(--color-danger, #ef4444); }
+  .st-mx-cell.st-w { background: transparent; color: #cbd5e1; }
+  .st-mx-t tbody tr:hover th.st-mx-name, .st-mx-t tbody tr:hover td { background: var(--color-bg, #f1f5f9); }
+
+  .st-mx-tot th, .st-mx-tot td {
+    background: var(--color-bg, #f1f5f9); font-weight: 800;
+    color: var(--st-pc, #1a237e); padding: 9px 8px; border-bottom: 0;
+  }
+  .st-mx-tot th.st-mx-name { background: var(--color-bg, #f1f5f9); color: var(--st-pc, #1a237e); }
+
+  .st-mx-foot {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    padding: 11px 16px; border-top: 1px solid var(--color-border, #e2e8f0);
+    font-size: 12.5px; color: var(--color-text-faint, #94a3b8);
+  }
+  .st-mx-lg { display: inline-flex; align-items: center; gap: 6px; }
+  .st-mx-lg i { width: 15px; height: 15px; border-radius: 4px; display: inline-block; border: 1px solid var(--color-border, #e2e8f0); }
+  .st-mx-lg i.st-ok { background: var(--color-success-bg, #dcfce7); }
+  .st-mx-lg i.st-no { background: var(--color-danger-bg, #fee2e2); }
+  .st-mx-lg i.st-w { background: transparent; }
+  .st-mx-end { margin-right: auto; }
 
   /* באנר העדכון ממורכז — אין סרגל שהוא צריך להתחמק ממנו */
   .app-shell.st-app .update-bar {

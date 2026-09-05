@@ -7,10 +7,11 @@ import {
   formatDate, formatShort, getNextEvent, countdownLabel, todayStr, monthDay,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday,
 } from "../lib/utils";
-import { CURRENT_TEAM } from "../lib/db";
+import { CURRENT_TEAM, notifyPlayerActivityRemote } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
 import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
-import { useIsDesktop, SiteChrome, PlayerHero } from "../site/Site";
+import { useIsDesktop, SiteChrome } from "../site/Site";
+import PlayerHome from "../site/PlayerHome";
 import ReminderCard from "../components/ReminderCard";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
@@ -18,6 +19,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   // מעל כל early return: useState אחרי return מותנה = "Rendered more hooks" ומסך לבן.
   const isDesk = useIsDesktop();
   const [tab, setTab] = useState("event");
+  // בדסקטופ ברירת המחדל היא עמוד הבית הרציף, לא לשונית. הלשוניות נשארות
+  // מסכי העומק (לוח מלא, תוצאות, צ'אט, גלריה) ונפתחות מתוכו.
+  const [deskHome, setDeskHome] = useState(true);
   const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
@@ -83,6 +87,15 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── התראת כניסה למנהלת ──────────────────────────────────────────────────
+  // הגעה למסך הזה = השחקנית נכנסה, בין אם בחרה את שמה ובין אם נכנסה אוטומטית
+  // כשהיא זכורה במכשיר. השרת מחזיק את המתג ואת חלון הצינון, ולכן mount כפול
+  // ב-StrictMode או רענון דף לא הופכים לשתי התראות.
+  useEffect(() => {
+    notifyPlayerActivityRemote(CURRENT_TEAM, player.id, "login");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function dismissTopPopup() {
     setEntryPopups(p => p.slice(1));
   }
@@ -112,6 +125,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   async function handleRSVP(status) {
     const key = `${nextEvent.id}_${player.id}`;
     await upd.attendance({ ...attendance, [key]: { status, note: "", time: new Date().toISOString() } });
+    // המנהלת מקבלת push על כל תשובה. אחרי הכתיבה, כדי שהספירה בגוף ההתראה
+    // תכלול גם את התשובה הזו — ולא await, כדי שהמסך יגיב מיד.
+    notifyPlayerActivityRemote(CURRENT_TEAM, player.id, "rsvp", { eventId: nextEvent.id, status });
     // Show inline note option
     setShowNoteFor(status);
   }
@@ -275,23 +291,61 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   }
   const myApplauseCount = applauseThisMonth(applause, player.id);
 
-  // מה שאתר הדסקטופ צריך — הכל מגיע מה-props שכבר קיימים למסך הנייד.
+  // ── שכבת הדסקטופ ─────────────────────────────────────────────────────────
+  // ניווט אחד לשני מצבים: בעמוד הבית הקישורים גוללים לעוגנים ורק המסכים
+  // העמוקים הם לשוניות; בתוך מסך עומק הכל לשוניות + חזרה הביתה.
+  function goDesk(key) {
+    if (key === "__home") { setDeskHome(true); return; }
+    setDeskHome(false);
+    setTab(key);
+  }
+  // "מי מגיעה" קיים רק כשיש אירוע קרוב — קישור לעוגן שאינו קיים לא עושה כלום
+  // וזה נראה כמו תקלה. אותה בדיקה שמסתירה את הסקשן מסתירה את הקישור אליו.
+  const deskAnchors = [
+    { id: "st-next", label: "האירוע הקרוב" },
+    ...(nextEvent ? [{ id: "st-team", label: "מי מגיעה" }] : []),
+    { id: "st-season", label: "העונה שלי" },
+    { id: "st-feed", label: "מהקבוצה" },
+  ];
+  const deskDeepItems = [
+    { key: "calendar", icon: "🗓️", label: "לוח מלא" },
+    { key: "games", icon: "🏆", label: "תוצאות" },
+    { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
+  ];
   const siteProps = {
     ctx: { players, events, archive, playerProfiles, attendance },
-    tab, setTab,
-    items: [...navItems, ...navMore],
+    tab: deskHome ? "__home" : tab,
+    setTab: goDesk,
+    anchors: deskHome ? deskAnchors : null,
+    items: deskHome
+      ? deskDeepItems
+      : [{ key: "__home", icon: "←", label: "עמוד הבית", lead: true }, ...deskDeepItems, ...navMore],
     teamName: settings && settings.teamName,
+    brandSub: "המסך שלי",
     who: player.name,
     onHome: onBack,
     onLogout,
+    pc, sc,
+    page: deskHome,
     searchPlaceholder: "חיפוש שחקנית, אימון או משחק…",
-    hero: <PlayerHero ctx={{ attendance, players, archive }} player={player} nextEvent={nextEvent} onGo={setTab} />,
     footerExtra: (<>
-      <button onClick={() => setTab("gallery")}>תמונות</button>
-      <button onClick={() => setTab("polls")}>סקרים</button>
-      <button onClick={() => setEditProfile(true)}>עריכת פרופיל</button>
+      <button onClick={() => goDesk("gallery")}>תמונות</button>
+      <button onClick={() => goDesk("polls")}>סקרים</button>
+      <button onClick={() => { setEditPhone(prof.phone || ""); setEditEmail(prof.email || ""); setEditWhatsapp(prof.whatsapp || ""); setEditBirthday(prof.birthday || ""); setEditProfile(true); }}>עריכת פרופיל והתראות</button>
     </>),
   };
+  const deskHomeBody = (
+    <PlayerHome
+      player={player} players={players} playerProfiles={playerProfiles}
+      attendance={attendance} archive={archive} chat={chat} polls={polls}
+      gallery={gallery} applause={applause}
+      nextEvent={nextEvent} myRecord={myRecord}
+      onRSVP={handleRSVP}
+      onVote={(pollId, i) => upd.pollVote(pollId, player.id, i)}
+      onApplause={sendApplause}
+      onOpen={goDesk}
+    />
+  );
   const tabBody = (
         <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {/* ── EVENT TAB ── */}
@@ -808,7 +862,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
       {!isDesk && <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />}
 
-      {isDesk ? <SiteChrome {...siteProps}>{tabBody}</SiteChrome> : tabBody}
+      {isDesk
+        ? <SiteChrome {...siteProps}>{deskHome ? deskHomeBody : tabBody}</SiteChrome>
+        : tabBody}
 
       {attModal && nextEvent && (
         <AttModal
