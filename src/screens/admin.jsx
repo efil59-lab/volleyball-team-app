@@ -326,22 +326,33 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   const [attModal, setAttModal] = useState(null);
   const [editRow, setEditRow] = useState(null);   // playerId שפתוח לתיקון סימון
   const [waAfter, setWaAfter] = useState(null);   // { player, text } — הצעת וואטסאפ אחרי תיקון
-  const nextEvent = getNextEvent(events);
+  const [viewId, setViewId] = useState(null);     // אירוע שנבחר לצפייה במקום הקרוב
+
+  // ── איזה אירוע מוצג כאן ──────────────────────────────────────────────────
+  // getNextEvent מחזיר רק אירוע עם date >= today. כלומר בחצות של יום האירוע
+  // הוא נעלם מהמסך הזה — בדיוק בבוקר שאחריו, כשהמנהלת ניגשת לארכב ורוצה
+  // לתקן את מי שאישרה ולא הגיעה. האירוע עדיין קיים ב-events עד הארכוב, אז
+  // מאפשרים לחזור אליו במפורש.
+  const isPastEv = (e) => {
+    const td = todayStr();
+    if (e.date < td) return true;
+    if (e.date > td) return false;
+    const d = new Date();
+    return (e.time || "00:00") <= `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  const upcoming = getNextEvent(events);
+  const pastPending = [...events]
+    .filter(e => e.open !== false && !e.cancelled && isPastEv(e))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0] || null;
+  const nextEvent = (viewId && events.find(e => String(e.id) === String(viewId))) || upcoming || pastPending;
+  const showSwitch = pastPending && nextEvent && String(pastPending.id) !== String(nextEvent.id);
 
   // ── תיקון סימון אחרי שהאירוע חלף ─────────────────────────────────────────
   // רק אחרי שהזמן עבר: לפני האירוע "מי שאמרה שתגיע" היא כוונה, לא נוכחות,
   // ותיקון מראש הוא ניחוש. דיאלוג הארכוב מבקש מהמנהלת לאמת את הנתונים —
   // עד היום לא הייתה לה שום דרך לתקן את מה שגילתה באימות (הרשימה הייתה
   // לקריאה בלבד), וזה היה חצי פיצ'ר.
-  const eventPassed = (() => {
-    if (!nextEvent) return false;
-    const td = todayStr();
-    if (nextEvent.date < td) return true;
-    if (nextEvent.date > td) return false;
-    const d = new Date();
-    const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    return (nextEvent.time || "00:00") <= hm;
-  })();
+  const eventPassed = !!nextEvent && isPastEv(nextEvent);
 
   const evLabel = nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "";
 
@@ -510,6 +521,22 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
       )}
 
       {/* הרשימה: לקריאה עד שהאירוע חלף, ומאותו רגע — לחיצה על שורה מתקנת סימון */}
+      {/* מעבר לאירוע שעבר וטרם אורכב — אחרת הוא בלתי-נגיש מחצות ועד הארכוב */}
+      {showSwitch && (
+        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "10px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12.5, color: "#1e40af", flex: 1, minWidth: 160, lineHeight: 1.5 }}>
+            ⏳ {pastPending.type === "training" ? "אימון" : "משחק"} {formatShort(pastPending.date)} כבר עבר וטרם אורכב.
+          </span>
+          <button onClick={() => setViewId(pastPending.id)}
+            style={{ background: "#1d4ed8", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>הצג אותו</button>
+        </div>
+      )}
+      {viewId && upcoming && String(viewId) !== String(upcoming.id) && (
+        <button onClick={() => setViewId(null)}
+          style={{ background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>
+          ← חזרה לאירוע הקרוב
+        </button>
+      )}
       {eventPassed && (
         <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: "#92400e", lineHeight: 1.5 }}>
           ⏱️ ה{evLabel} כבר עבר. אם מישהי אישרה הגעה ולא הגיעה — לחצי עליה וסמני. היא תקבל הודעה, והתיקון יתועד.
