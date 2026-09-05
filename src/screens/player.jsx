@@ -277,7 +277,14 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     }
   }, [chat, tab]);
 
-  // Attendees of the most recent event (last archived event, else current event's "coming" list)
+  // ── למי אפשר להריע ──────────────────────────────────────────────────────
+  // מחיאת כפיים היא על הגעה שקרתה בפועל. הארכיון הוא המקור המהימן; אבל מנהלת
+  // שעוד לא ארכבה אימון שכבר התקיים לא צריכה לחסום את הבנות, ולכן נופלים
+  // לאירוע הפתוח האחרון שזמנו כבר עבר.
+  //
+  // מה שהיה כאן קודם נפל ל-nextEvent — אירוע *עתידי* — ולכן אפשר היה להריע
+  // למי שרק אישרה הגעה ועוד לא הגיעה לשום דבר (דווח מהשטח 5.9.26, בזמן
+  // שהשחקניות בדיוק נרשמו). "אישרה הגעה" אינה "הגיעה", והכותרת אמרה "הגיעה".
   const lastArchived = [...(archive || [])].sort((a, b) => b.date.localeCompare(a.date))[0];
   let lastEventAttendees = [];
   let lastEventLabel = "";
@@ -285,9 +292,16 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     const ids = (lastArchived.attendanceData || []).filter(a => a.status === "coming").map(a => a.playerId);
     lastEventAttendees = players.filter(p => ids.includes(p.id));
     lastEventLabel = `${lastArchived.type === "training" ? "אימון" : "משחק"} ${formatShort(lastArchived.date)}`;
-  } else if (nextEvent) {
-    lastEventAttendees = players.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === "coming");
-    lastEventLabel = `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}`;
+  } else {
+    const nowHm = (() => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; })();
+    const td = todayStr();
+    const alreadyHappened = (events || [])
+      .filter(e => !e.cancelled && (e.date < td || (e.date === td && (e.time || "00:00") <= nowHm)))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    if (alreadyHappened) {
+      lastEventAttendees = players.filter(p => attendance[`${alreadyHappened.id}_${p.id}`]?.status === "coming");
+      lastEventLabel = `${alreadyHappened.type === "training" ? "אימון" : "משחק"} ${formatShort(alreadyHappened.date)}`;
+    }
   }
   const myApplauseCount = applauseThisMonth(applause, player.id);
 
@@ -340,6 +354,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       attendance={attendance} archive={archive} chat={chat} polls={polls}
       gallery={gallery} applause={applause}
       nextEvent={nextEvent} myRecord={myRecord}
+      clapList={lastEventAttendees} clapLabel={lastEventLabel}
       onRSVP={handleRSVP}
       onVote={(pollId, i) => upd.pollVote(pollId, player.id, i)}
       onApplause={sendApplause}

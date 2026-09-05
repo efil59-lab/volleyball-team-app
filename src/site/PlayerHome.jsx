@@ -32,6 +32,7 @@ function Face({ p, prof, status, isMe }) {
 export default function PlayerHome({
   player, players = [], playerProfiles = {}, attendance = {}, archive = [],
   chat = [], polls = [], gallery = [], applause = [], nextEvent, myRecord,
+  clapList = [], clapLabel = "",
   onRSVP, onVote, onApplause, onOpen,
 }) {
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
@@ -108,16 +109,13 @@ export default function PlayerHome({
     [gallery]
   );
 
-  // ── מחיאות כפיים: מי הגיעה לאירוע האחרון ─────────────────────────────────
-  const clapTargets = useMemo(() => {
-    const last = [...archive].sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
-    if (!last) return { label: "", list: [] };
-    const ids = (last.attendanceData || []).filter(a => a.status === "coming").map(a => String(a.playerId));
-    return {
-      label: `${last.type === "training" ? "אימון" : "משחק"} ${formatShort(last.date)}`,
-      list: players.filter(p => ids.includes(String(p.id)) && String(p.id) !== String(player.id)).slice(0, 8),
-    };
-  }, [archive, players, player.id]);
+  // מי הגיעה לאירוע האחרון — מחושב במסך השחקנית ומועבר לכאן. היה כאן חישוב
+  // שני שהסתמך על הארכיון בלבד, ולכן הדסקטופ והנייד לא הסכימו ביניהם על מי
+  // מוצגת. מקור אחד, שני מסכים.
+  const clapTargets = useMemo(() => ({
+    label: clapLabel || "",
+    list: (clapList || []).filter(p => String(p.id) !== String(player.id)).slice(0, 8),
+  }), [clapList, clapLabel, player.id]);
 
   const pollTotal = poll ? Object.keys(poll.votes || {}).length : 0;
   const myVote = poll ? (poll.votes || {})[player.id] : undefined;
