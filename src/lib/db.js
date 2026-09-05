@@ -219,6 +219,18 @@ const callNotifyNewTeamFn = httpsCallable(functions, "notifyNewTeam");
 const callNotifyPlayerJoinedFn = httpsCallable(functions, "notifyPlayerJoined");
 const callNotifyPlayerActivityFn = httpsCallable(functions, "notifyPlayerActivity");
 const callResetActivityFn = httpsCallable(functions, "adminResetTeamActivity");
+const callSuperAdminChatFn = httpsCallable(functions, "superAdminChat");
+// Reading and deleting chat for the product owner. Both go through the server
+// on purpose: it runs as admin, so the owner can moderate a team he is not a
+// member of without opening chat up in the Firestore rules.
+async function superAdminChatList(teamId) {
+  const res = await callSuperAdminChatFn({ teamId, op: "list" });
+  return res.data.messages || [];
+}
+async function superAdminChatDelete(teamId, messageId) {
+  const res = await callSuperAdminChatFn({ teamId, op: "delete", messageId });
+  return res.data; // { ok, deleted }
+}
 // Clears attendance, the archive and game results for one team; keeps players,
 // accounts, profiles, events, settings and photos. Super-admin only (enforced
 // on the server). Returns what it actually removed.
@@ -458,6 +470,7 @@ export {
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote,
+  superAdminChatList, superAdminChatDelete,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,

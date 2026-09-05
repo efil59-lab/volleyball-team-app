@@ -4,7 +4,7 @@ import { ref, deleteObject } from "firebase/storage";
 import { S } from "../styles/S";
 import { KEYS, DEFAULT_TEAM } from "../lib/constants";
 import {
-  formatDate, formatShort, getNextEvent, todayStr, monthDay,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, DEFAULT_INVITE, buildInvite,
   isBirthdayToday, isBirthdayTomorrow, ageFromBirthday,
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote } from "../lib/db";
@@ -96,7 +96,7 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
     try { navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
   }
   function shareWhatsapp() {
-    const msg = `היי! הצטרפי לקבוצת ${teamName.trim() || "הכדורשת"} שלנו באפליקציה 🏐\nהיכנסי לקישור, בחרי את שמך וקבעי סיסמה:\n${inviteLink}`;
+    const msg = buildInvite(settings && settings.inviteMessage, teamName, inviteLink);
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
@@ -1628,13 +1628,14 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
 function AdminSettings({ settings, upd, pc, sc, notify }) {
   const [s, setS] = useState({ ...settings });
   const [linkCopied, setLinkCopied] = useState(false);
+  const [editInvite, setEditInvite] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const teamLink = `${window.location.origin}/?team=${CURRENT_TEAM}`;
   function copyTeamLink() {
     try { navigator.clipboard.writeText(teamLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } catch {}
   }
   function shareTeamLink() {
-    const msg = `היי! הצטרפי לקבוצת ${s.teamName || "הכדורשת"} שלנו באפליקציה 🏐\nהיכנסי לקישור, בחרי את שמך וקבעי סיסמה:\n${teamLink}`;
+    const msg = buildInvite(s.inviteMessage, s.teamName, teamLink);
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
@@ -1739,6 +1740,36 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
           <button onClick={copyTeamLink} style={{ flex: 1, background: "#e2e8f0", color: "#1e293b", border: "none", borderRadius: 10, padding: "11px", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>{linkCopied ? "✓ הועתק" : "📋 העתקי קישור"}</button>
           <button onClick={shareTeamLink} style={{ flex: 1, background: "#25D366", color: "white", border: "none", borderRadius: 10, padding: "11px", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>📱 וואטסאפ</button>
         </div>
+
+        {/* נוסח ההזמנה — ניתן לעריכה. שמור בתוך כרטיס הקישור כי זו אותה פעולה:
+            מה נשלח לשחקנית כשלוחצים על "וואטסאפ" ממש למעלה. */}
+        <button onClick={() => setEditInvite(v => !v)}
+          style={{ marginTop: 10, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: pc, textDecoration: "underline", textUnderlineOffset: 3 }}>
+          {editInvite ? "סגירת עריכת הנוסח" : "✏️ עריכת נוסח ההזמנה"}
+        </button>
+        {editInvite && (
+          <div style={{ marginTop: 10 }}>
+            <textarea
+              value={s.inviteMessage ?? DEFAULT_INVITE}
+              onChange={e => handleChange("inviteMessage", e.target.value)}
+              rows={5}
+              style={{ ...S.input, marginBottom: 6, fontSize: 14, lineHeight: 1.6, resize: "vertical" }} />
+            <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.6 }}>
+              <code>{"{קבוצה}"}</code> יוחלף בשם הקבוצה, <code>{"{קישור}"}</code> בקישור ההצטרפות.
+              אם תמחקי את <code>{"{קישור}"}</code> — הקישור יתווסף בסוף בכל מקרה.
+            </p>
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", marginBottom: 4 }}>כך זה ייראה</div>
+              <div style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}>
+                {buildInvite(s.inviteMessage, s.teamName, teamLink)}
+              </div>
+            </div>
+            <button onClick={() => handleChange("inviteMessage", DEFAULT_INVITE)}
+              style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+              ↺ החזרת נוסח ברירת המחדל
+            </button>
+          </div>
+        )}
       </div>
       <div style={S.card}>
         <Label>שם הקבוצה</Label>

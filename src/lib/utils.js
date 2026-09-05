@@ -34,6 +34,27 @@ function isIOS() {
   const iPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1; // iPadOS 13+ מתחזה ל-Mac
   return iOSDevice || iPadOS;
 }
+// ── הודעת ההזמנה לוואטסאפ ────────────────────────────────────────────────────
+// הנוסח הקודם היה "הצטרפי לקבוצת {שם} שלנו" — ושמות הקבוצות כבר פותחים ב"קבוצת",
+// אז יצא "הצטרפי לקבוצת קבוצת הכדורשת של הבנק הבינלאומי" (דווח מהשטח 5.9.26).
+// כאן שם הקבוצה הוא נושא המשפט ולא נגרר אחרי מילת יחס, ולכן הוא עובד גם לשם
+// שאינו פותח ב"קבוצת" ("מכבי חיפה עוברת לאפליקציה"). וגם: היא כבר בקבוצה —
+// מה שהיא מצטרפת אליו הוא האפליקציה.
+const DEFAULT_INVITE = `היי! 🏐 {קבוצה} עוברת לאפליקציה.
+אישור הגעה בלחיצה, לוח האימונים, ותזכורת לפני כל אימון.
+כניסה ראשונה לוקחת דקה: בחרי את שמך וקבעי סיסמה.
+{קישור}`;
+
+// המנהלת יכולה לערוך את הנוסח. הקישור מצורף גם אם מחקה את {קישור} מהתבנית —
+// הזמנה בלי קישור היא הודעה חסרת תועלת, וזו טעות קלה מדי לעשות.
+function buildInvite(template, teamName, link) {
+  const t = String(template || "").trim() || DEFAULT_INVITE;
+  const name = String(teamName || "").trim() || "קבוצת הכדורשת";
+  let msg = t.split("{קבוצה}").join(name);
+  if (msg.includes("{קישור}")) msg = msg.split("{קישור}").join(link);
+  else msg = msg.replace(/\s+$/, "") + "\n" + link;
+  return msg;
+}
 function todayStr() {
   // תאריך מקומי (לא UTC) — אחרת בשעות הערב toISOString קופץ ליום הבא וחוסם בחירת היום הנוכחי.
   const d = new Date();
@@ -83,4 +104,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };

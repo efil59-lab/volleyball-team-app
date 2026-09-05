@@ -9,6 +9,7 @@ import {
   syncTeamIndex, deleteJoinRequest, loadJoinRequests, listAllTeams, setTeamStatus,
   setTeamPaid, extendTrial, setTeamPromoHidden,
   adminDeleteTeamRemote, adminResetTeamActivityRemote,
+  superAdminChatList, superAdminChatDelete,
 } from "../lib/db";
 import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
 
@@ -49,6 +50,12 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [requests, setRequests] = useState(null); // בקשות הצטרפות ממתינות
   const [reqBusy, setReqBusy] = useState(null);
+  // מודרציית צ'אט: הקבוצה שנפתחה, ההודעות שלה, ומי מהן ממתינה לאישור מחיקה
+  const [chatTeam, setChatTeam] = useState(null);
+  const [chatMsgs, setChatMsgs] = useState(null); // null = טוען
+  const [chatErr, setChatErr] = useState("");
+  const [chatConfirm, setChatConfirm] = useState(null); // docId שמחכה ל"כן"
+  const [chatBusy, setChatBusy] = useState(null);       // docId שנמחק כרגע
   const [errors, setErrors] = useState(null);     // לוג שגיאות (null = טוען)
   const [errBusy, setErrBusy] = useState(false);
   const [expandedErr, setExpandedErr] = useState(null);
@@ -114,6 +121,24 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     setTeams(null);
     const list = await listAllTeams();
     setTeams(list);
+  }
+
+  // ── מודרציית צ'אט ────────────────────────────────────────────────────────
+  async function openChat(t) {
+    setChatTeam(t); setChatMsgs(null); setChatErr(""); setChatConfirm(null);
+    try { setChatMsgs(await superAdminChatList(t.teamId)); }
+    catch (e) { setChatErr(e.message || "טעינת הצ'אט נכשלה"); setChatMsgs([]); }
+  }
+  async function deleteChatMsg(docId) {
+    setChatBusy(docId); setChatErr("");
+    try {
+      await superAdminChatDelete(chatTeam.teamId, docId);
+      // מסירים מקומית ולא טוענים מחדש: רשימה שקופצת מתחת ליד באמצע מודרציה
+      // גורמת ללחוץ על ההודעה הלא-נכונה.
+      setChatMsgs(ms => ms.filter(m => m.docId !== docId));
+      setChatConfirm(null);
+    } catch (e) { setChatErr(e.message || "המחיקה נכשלה"); }
+    setChatBusy(null);
   }
   async function refreshErrors() {
     setErrBusy(true);
@@ -341,6 +366,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
                   <button disabled={busyId === t.teamId} onClick={async () => { setBusyId(t.teamId); await extendTrial(t.teamId, 14); await refreshTeams(); setBusyId(null); }}
                     style={{ padding: "9px 12px", background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>➕14</button>
                 )}
+                <button disabled={busyId === t.teamId} onClick={() => openChat(t)}
+                  title="צפייה בצ'אט הקבוצה ומחיקת הודעות — שחקנית יכולה למחוק רק את שלה"
+                  style={{ padding: "9px 12px", background: "#f0f9ff", color: "#0369a1", border: "1px solid #bae6fd", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>💬 צ׳אט</button>
                 <button disabled={busyId === t.teamId} onClick={() => { setResetTarget(t); setResetErr(""); }}
                   title="איפוס נוכחות, ארכיון ותוצאות משחקים — השחקניות והאירועים נשארים"
                   style={{ padding: "9px 12px", background: "#fff7ed", color: "#c2410c", border: "1px solid #fed7aa", borderRadius: 10, cursor: busyId === t.teamId ? "default" : "pointer", fontSize: 13, fontWeight: 800, opacity: busyId === t.teamId ? 0.6 : 1 }}>♻️ איפוס</button>
@@ -353,6 +381,63 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           );
         })}
       </div>
+
+      {/* ── מודרציית צ'אט ─────────────────────────────────────────────────
+          אישור בשתי לחיצות בתוך השורה עצמה, ולא מודל נוסף: המחיקה כאן היא
+          פעולה נקודתית וחוזרת, וההודעה שמוחקים חייבת להישאר מול העיניים. */}
+      {chatTeam && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}
+          onClick={() => { if (!chatBusy) { setChatTeam(null); setChatMsgs(null); } }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, width: "100%", maxWidth: 520, maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 10px 40px rgba(0,0,0,0.3)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 22 }}>💬</span>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#1e293b", margin: 0, overflowWrap: "anywhere" }}>צ׳אט — {chatTeam.teamName || chatTeam.teamId}</h3>
+                <button onClick={() => { if (!chatBusy) { setChatTeam(null); setChatMsgs(null); } }}
+                  style={{ marginRight: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#94a3b8", padding: 0, lineHeight: 1 }} aria-label="סגירה">×</button>
+              </div>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "6px 0 0", lineHeight: 1.6 }}>
+                60 ההודעות האחרונות, החדשה למעלה. מחיקה מסירה את ההודעה מיד אצל כל השחקניות ואינה הפיכה.
+              </p>
+            </div>
+
+            {chatErr && <div style={{ background: "#fef2f2", color: "#dc2626", fontSize: 12.5, fontWeight: 700, padding: "10px 20px" }}>{chatErr}</div>}
+
+            <div style={{ overflowY: "auto", padding: "8px 12px 14px", flex: 1 }}>
+              {chatMsgs === null && <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: 24 }}>טוען…</p>}
+              {chatMsgs && chatMsgs.length === 0 && !chatErr && <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: 24 }}>אין הודעות בצ׳אט של הקבוצה הזו</p>}
+              {chatMsgs && chatMsgs.map(m => {
+                const asking = chatConfirm === m.docId;
+                const busy = chatBusy === m.docId;
+                return (
+                  <div key={m.docId} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 8px", borderBottom: "1px solid #f1f5f9", background: asking ? "#fef2f2" : "transparent", borderRadius: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 800, color: "#1e293b" }}>{m.name}</span>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{m.ts ? new Date(m.ts).toLocaleString("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+                      </div>
+                      <div style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.55, overflowWrap: "anywhere", whiteSpace: "pre-wrap", marginTop: 2 }}>{m.text}</div>
+                    </div>
+                    {asking ? (
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button disabled={busy} onClick={() => deleteChatMsg(m.docId)}
+                          style={{ padding: "6px 12px", background: "#dc2626", color: "white", border: "none", borderRadius: 8, cursor: busy ? "default" : "pointer", fontSize: 12.5, fontWeight: 800, opacity: busy ? 0.6 : 1 }}>
+                          {busy ? "מוחק…" : "כן, מחק"}
+                        </button>
+                        <button disabled={busy} onClick={() => setChatConfirm(null)}
+                          style={{ padding: "6px 10px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}>ביטול</button>
+                      </div>
+                    ) : (
+                      <button disabled={chatBusy !== null} onClick={() => setChatConfirm(m.docId)} title="מחיקת ההודעה"
+                        style={{ flexShrink: 0, padding: "6px 10px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, opacity: chatBusy !== null ? 0.5 : 1 }}>🗑</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {resetTarget && (() => {
         const busy = busyId === resetTarget.teamId;

@@ -208,6 +208,50 @@ exports.adminDeleteTeam = onCall(async (request) => {
 
   return { ok: true, deletedAccounts };
 });
+
+// ── מודרציית צ'אט לבעל המוצר ──────────────────────────────────────────────────
+// שחקנית מוחקת רק את ההודעות של עצמה, ולכן להודעה פוגענית לא הייתה עד היום שום
+// דרך לרדת. הפעולה עוברת דרך פונקציה ולא דרך הלקוח בכוונה: ה-admin SDK עוקף את
+// כללי ה-Firestore, וכך אין צורך לגעת בכללים (שמוחלים ידנית בקונסולה) כדי לתת
+// לבעל המוצר גישה לצ'אט של קבוצה שהוא לא חבר בה. אותה סיבה בדיוק ל-list.
+const CHAT_PAGE = 60;
+const SAFE_ID = /^[^/]+$/; // מזהה שאינו מכיל "/" — אחרת הוא מרכיב נתיב אחר לגמרי
+
+exports.superAdminChat = onCall(async (request) => {
+  const email = ((request.auth && request.auth.token && request.auth.token.email) || "").toLowerCase();
+  if (email !== SUPER_ADMIN_EMAIL) throw new HttpsError("permission-denied", "מותר לבעל המוצר בלבד");
+
+  const { teamId, op, messageId } = request.data || {};
+  if (!teamId || !SAFE_ID.test(String(teamId))) throw new HttpsError("invalid-argument", "teamId לא חוקי");
+
+  if (op === "list") {
+    const col = db.collection(`teams/${teamId}/chat`);
+    let snap = await col.orderBy("ts", "desc").limit(CHAT_PAGE).get();
+    // הודעה בלי שדה ts כלל לא מוחזרת ממיון — עדיף להציג לא-ממוין מאשר ריק
+    if (snap.empty) snap = await col.limit(CHAT_PAGE).get();
+    const messages = snap.docs
+      .map((d) => {
+        const v = d.data() || {};
+        return { docId: d.id, name: v.name || "—", playerId: v.playerId ?? null, text: v.text || "", ts: v.ts || 0 };
+      })
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    return { ok: true, messages };
+  }
+
+  if (op === "delete") {
+    if (!messageId || !SAFE_ID.test(String(messageId))) throw new HttpsError("invalid-argument", "messageId לא חוקי");
+    const ref = db.doc(`teams/${teamId}/chat/${messageId}`);
+    const cur = await ref.get();
+    if (!cur.exists) return { ok: true, deleted: 0 };
+    const v = cur.data() || {};
+    await ref.delete();
+    // לוג מכוון: מחיקה על-ידי מי שאינו הכותב היא פעולה שצריך שיישאר ממנה עקבות
+    console.log(`superAdminChat delete team=${teamId} msg=${messageId} by=${email} author=${v.name || "?"}`);
+    return { ok: true, deleted: 1 };
+  }
+
+  throw new HttpsError("invalid-argument", "op לא חוקי");
+});
 // ═══════════════════════════════════════════════════════════════════════════════
 // שלב 4 — תזכורות אמיתיות (Web Push) + מייל תקציר שגיאות
 // ═══════════════════════════════════════════════════════════════════════════════

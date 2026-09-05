@@ -22,3 +22,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .env
+
+# לוגי דיבוג של ה-CLI — עלולים להכיל טוקנים, והריפו ציבורי
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
