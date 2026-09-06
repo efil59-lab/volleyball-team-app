@@ -15,9 +15,7 @@ import PlayerHome from "../site/PlayerHome";
 import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import ReminderCard from "../components/ReminderCard";
-import EnablePushModal from "../components/EnablePushModal";
 import Confetti from "../components/Confetti";
-import { pushSupport, pushEnabledLocally } from "../lib/push";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
 function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
@@ -105,22 +103,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── הנעה להפעלת התראות ───────────────────────────────────────────────────
-  // חוזר בכל יום עד שהיא מפעילה. פעם ביום ולא בכל פתיחה: שחקנית שנכנסת
-  // שלוש פעמים ביום לסמן הגעה לא צריכה שלושה חלונות, וההתמדה נשמרת גם כך.
-  const [pushNag, setPushNag] = useState(false);
-  useEffect(() => {
-    const sup = pushSupport();
-    if (sup === "no-vapid" || sup === "unsupported") return; // אין מה להציע
-    if (pushEnabledLocally(`p${player.id}`)) return;         // כבר הפעילה כאן
-    const key = `pushNag_${player.id}_${todayStr()}`;
-    try {
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, "1");
-    } catch { /* ללא localStorage — מציגים, ולא נתקעים */ }
-    setPushNag(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // חלון ההנעה להפעלת התראות הוסר (6.9.26) — ראה הערה מקבילה ב-home.jsx.
 
   // ── התראת כניסה למנהלת ──────────────────────────────────────────────────
   // הגעה למסך הזה = השחקנית נכנסה, בין אם בחרה את שמה ובין אם נכנסה אוטומטית
@@ -881,9 +864,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       {confetti && <Confetti key={confetti} variant={confetti} colors={confettiColors} onDone={() => setConfetti(null)} />}
 
       {/* אחרי פופאפי הכניסה (יום הולדת, מחיאות כפיים) — קודם הדברים הנעימים */}
-      {pushNag && entryPopups.length === 0 && (
-        <EnablePushModal playerId={player.id} pc={pc} notify={notify} onClose={() => setPushNag(false)} />
-      )}
       {entryPopups.length > 0 && (() => {
         const top = entryPopups[0];
         const icon = top.kind === "applause" ? "👏" : top.kind === "attendance" ? "📋" : top.kind === "otherBirthday" ? "🎂" : top.kind === "birthdayReceived" ? "🎉" : "🎂";
