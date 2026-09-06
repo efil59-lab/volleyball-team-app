@@ -1,5 +1,6 @@
 import { S } from "../styles/S";
 import { WHATS_NEW } from "../lib/constants";
+import PromoBanner from "../components/PromoBanner";
 
 // ── HELP SCREEN ───────────────────────────────────────────────────────────────
 function HelpScreen({ pc, sc, settings, onBack }) {
@@ -81,6 +82,8 @@ function AboutScreen({ pc, sc, settings, onBack }) {
           </div>
           <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 12 }}>{WHATS_NEW.versionName || `גרסה ${WHATS_NEW.version}`}</div>
         </div>
+
+        <PromoBanner pc={pc} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 4px 10px" }}>
           <span style={{ fontSize: 20 }}>❓</span>
