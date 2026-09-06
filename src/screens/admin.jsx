@@ -5,7 +5,7 @@ import { S } from "../styles/S";
 import { KEYS, DEFAULT_TEAM } from "../lib/constants";
 import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay, DEFAULT_INVITE, buildInvite,
-  isBirthdayToday, isBirthdayTomorrow, ageFromBirthday,
+  isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, attendanceWords, eventPhase, eventStateLabel,
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
@@ -13,6 +13,7 @@ import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
 import { AttModal, CalEventRow, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
+import useNow from "../lib/useNow";
 import { useIsDesktop, SiteChrome, AdminStrip } from "../site/Site";
 import PlayersDesktop from "../site/PlayersDesktop";
 
@@ -354,7 +355,11 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   // ותיקון מראש הוא ניחוש. דיאלוג הארכוב מבקש מהמנהלת לאמת את הנתונים —
   // עד היום לא הייתה לה שום דרך לתקן את מה שגילתה באימות (הרשימה הייתה
   // לקריאה בלבד), וזה היה חצי פיצ'ר.
+  const evNow = useNow();
+  const evPhase = eventPhase(nextEvent, evNow);
   const eventPassed = !!nextEvent && isPastEv(nextEvent);
+  // אחרי שהאירוע קרה המספרים הם דיווח, לא תחזית
+  const evWords = attendanceWords(eventPassed ? "done" : "before");
 
   const evLabel = nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "";
 
@@ -512,13 +517,21 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     <>
       <BirthdayBanners />
       <div style={S.card}>
-        <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+          {evPhase !== "before" && (
+            <span style={{ flexShrink: 0, borderRadius: 20, padding: "3px 11px", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap",
+              background: evPhase === "live" ? "#dcfce7" : "#f1f5f9", color: evPhase === "live" ? "#166534" : "#64748b" }}>
+              {eventStateLabel(nextEvent, evPhase).pill}
+            </span>
+          )}
+        </div>
         <div style={{ fontWeight: 800, fontSize: 15, margin: "3px 0" }}>{formatDate(nextEvent.date)} • {nextEvent.time}</div>
         <div style={{ color: "#64748b", fontSize: 13 }}>📍 {nextEvent.location}</div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-        {[["coming","מגיעות","#22c55e"],["notcoming","לא מגיעות","#ef4444"],["pending","טרם ענו","#f5a623"]].map(([s,label,color]) => (
+        {[["coming",evWords.coming,"#22c55e"],["notcoming",evWords.notcoming,"#ef4444"],["pending",evWords.pending,"#f5a623"]].map(([s,label,color]) => (
           <button key={s} onClick={() => setAttModal(s)}
             style={{ flex: 1, background: "white", border: `2px solid ${color}30`, borderRadius: 12, padding: "10px 4px", cursor: "pointer", textAlign: "center" }}>
             <div style={{ fontSize: 24, fontWeight: 800, color }}>{countAtt(s)}</div>
@@ -527,19 +540,19 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         ))}
       </div>
 
-      {countAtt("pending") > 0 && (
+      {!eventPassed && countAtt("pending") > 0 && (
         <button onClick={sendWAReminder}
           style={{ width: "100%", padding: "10px", background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
           💬 שלח וואטסאפ אישי לשחקניות שלא סימנו הגעה ({countAtt("pending")})
         </button>
       )}
-      {countAtt("pending") > 0 && (
+      {!eventPassed && countAtt("pending") > 0 && (
         <button onClick={shareGroupReminder}
           style={{ width: "100%", padding: "10px", background: "white", color: "#16a34a", border: "2px solid #25D366", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
           📢 תזכורת קבוצתית עם שמות החוסרות ({countAtt("pending")})
         </button>
       )}
-      {countAtt("pending") > 0 && (
+      {!eventPassed && countAtt("pending") > 0 && (
         <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginBottom: 14, fontStyle: "italic" }}>
           הטקסט: "היי, ראיתי שלא סימנת הגעה לאימון/משחק למחר. את מתכוונת להגיע?"
         </div>
@@ -595,7 +608,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
                 )}
               </div>
               <div style={{ fontSize: 18 }}>
-                {status === "coming" ? "✅" : status === "notcoming" ? "❌" : <span style={{ color: "#94a3b8", fontSize: 13 }}>טרם ענתה</span>}
+                {status === "coming" ? "✅" : status === "notcoming" ? "❌" : <span style={{ color: "#94a3b8", fontSize: 13 }}>{eventPassed ? "לא סימנה" : "טרם ענתה"}</span>}
               </div>
             </div>
             {open && (
@@ -644,7 +657,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     <>
       {attModal && (
         <AttModal
-          title={attModal === "coming" ? "✅ מגיעות" : attModal === "notcoming" ? "❌ לא מגיעות" : "⏳ טרם ענו"}
+          title={attModal === "coming" ? `✅ ${evWords.coming}` : attModal === "notcoming" ? `❌ ${evWords.notcoming}` : `⏳ ${evWords.pending}`}
           list={getList(attModal)} players={players.map(p => ({ ...p, ...(playerProfiles[p.id] || {}) }))}
           attendance={attendance} eventId={nextEvent.id}
           onClose={() => setAttModal(null)} pc={pc} sc={sc} />
@@ -663,13 +676,13 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           {summaryBlock}
           {pending.length > 0 && (
             <div className="st-dash-pend">
-              <h3>טרם ענו · {pending.length}</h3>
+              <h3>{evWords.pending} · {pending.length}</h3>
               {pending.map(p => {
                 const wa = (playerProfiles[p.id] || {}).whatsapp;
                 return (
                   <div key={p.id} className="st-dash-pend-row">
                     <span>{p.name}</span>
-                    {wa && (
+                    {wa && !eventPassed && (
                       <button onClick={() => window.open(`https://wa.me/${String(wa).replace(/\D/g, "")}?text=${encodeURIComponent(`היי ${p.name}, ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`)}`, "_blank")}
                         title={`נדנוד ל${p.name}`}>💬</button>
                     )}
