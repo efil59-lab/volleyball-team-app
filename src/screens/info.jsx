@@ -1,4 +1,5 @@
 import { S } from "../styles/S";
+import { useIsDesktop } from "../site/Site";
 import { WHATS_NEW } from "../lib/constants";
 import PromoBanner from "../components/PromoBanner";
 
@@ -51,6 +52,7 @@ function HelpScreen({ pc, sc, settings, onBack }) {
 // עוברת דרך מסך הבית ולא הייתה רואה אותו אחרת). אז בלי הכותרת הכחולה
 // ובלי "חזור" — הניווט התחתון הוא הדרך לצאת.
 function AboutScreen({ pc, sc, settings, onBack, embedded = false }) {
+  const isDesk = useIsDesktop();
   const faq = [
     { q: "איך מתקינים את האפליקציה על הנייד?", a: "אנדרואיד (Chrome): תפריט ⋮ ← 'הוסף למסך הבית'. אייפון (Safari): כפתור שיתוף ↑ ← 'הוסף למסך הבית'. כך האפליקציה תיפתח ישירות ומהר יותר." },
     { q: "איך נכנסים בפעם הראשונה?", a: "לחצי על שמך ברשימה במסך הבית, בחרי סיסמה אישית (לפחות 6 תווים) והוסיפי פרטי קשר. מהפעם הבאה — רק שם וסיסמה." },
@@ -67,9 +69,9 @@ function AboutScreen({ pc, sc, settings, onBack, embedded = false }) {
     { q: "הנתונים שלי מאובטחים?", a: "כן. לכל שחקנית חשבון אישי ומאובטח, וכל אחת רואה ועורכת רק את הפרטים שלה. הסיסמאות מאוחסנות בצורה מוצפנת ואינן גלויות לאיש." },
   ];
 
-  const body = (
+  const identity = (
       <>
-        <div style={{ ...S.card, marginBottom: 14, textAlign: "center", padding: "20px 16px" }}>
+        <div style={{ ...S.card, marginBottom: isDesk && !embedded ? 0 : 14, textAlign: "center", padding: "20px 16px" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: pc, marginBottom: 4 }}>{settings.teamName || "הקבוצה שלי"}</div>
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>אפליקציה לניהול קבוצת הכדורשת</div>
           <div style={{ display: "inline-block", background: `${pc}10`, borderRadius: 10, padding: "8px 16px" }}>
@@ -80,29 +82,55 @@ function AboutScreen({ pc, sc, settings, onBack, embedded = false }) {
         </div>
 
         <PromoBanner pc={pc} />
+      </>
+  );
 
+  const qa = (
+      <>
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 4px 10px" }}>
           <span style={{ fontSize: 20 }}>❓</span>
           <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 16 }}>שאלות ותשובות</span>
         </div>
-        {faq.map((item, i) => (
-          <div key={i} style={{ ...S.card, marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, color: pc, fontSize: 14, marginBottom: 5 }}>{item.q}</div>
-            <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8, whiteSpace: "pre-line" }}>{item.a}</div>
+        <div className={isDesk && !embedded ? "st-ab-faq" : undefined}>
+          {faq.map((item, i) => (
+            <div key={i} style={{ ...S.card, marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, color: pc, fontSize: 14, marginBottom: 5 }}>{item.q}</div>
+              <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8, whiteSpace: "pre-line" }}>{item.a}</div>
+            </div>
+          ))}
+          <div className={isDesk && !embedded ? "st-ab-thanks" : undefined}
+            style={{ background: `${sc}30`, borderRadius: 14, padding: 16, textAlign: "center", marginTop: 8 }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>💙</div>
+            <div style={{ fontSize: 13, color: pc, fontWeight: 600 }}>תודה שאתן חלק מהקבוצה!</div>
           </div>
-        ))}
-
-        <div style={{ background: `${sc}30`, borderRadius: 14, padding: 16, textAlign: "center", marginTop: 8 }}>
-          <div style={{ fontSize: 24, marginBottom: 6 }}>💙</div>
-          <div style={{ fontSize: 13, color: pc, fontWeight: 600 }}>תודה שאתן חלק מהקבוצה!</div>
         </div>
       </>
   );
+
+  const body = <>{identity}{qa}</>;
 
   if (embedded) return (
     <div>
       <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: "0 0 10px" }}>ℹ️ אודות</h3>
       {body}
+    </div>
+  );
+
+  // דסקטופ: רוחב קריאה מוגבל, כרטיס הזהות בצד, והשאלות בשתי עמודות
+  if (isDesk) return (
+    <div style={{ minHeight: "100vh" }}>
+      <div className="st-ab-hero" style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, position: "relative" }}>
+        <button onClick={onBack} style={{ position: "absolute", right: 20, top: 18, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
+        <div className="st-ab-hero-in">
+          <div className="st-ab-ball">🏐</div>
+          <h2 style={{ color: "white", fontWeight: 800 }}>אודות</h2>
+          <p style={{ color: "rgba(255,255,255,0.85)", margin: 0 }}>{settings.teamName}</p>
+        </div>
+      </div>
+      <div className="st-ab-wrap">
+        <aside className="st-ab-side">{identity}</aside>
+        <div className="st-ab-main">{qa}</div>
+      </div>
     </div>
   );
 

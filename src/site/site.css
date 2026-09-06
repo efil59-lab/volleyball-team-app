@@ -788,6 +788,29 @@
   .st-stt-track i { display: block; height: 100%; border-radius: 99px; }
   .st-stt-tot td { background: var(--color-bg, #f1f5f9); font-weight: 800; color: var(--st-pc, #1a237e); border-bottom: 0; }
 
+
+  /* ── אודות ─────────────────────────────────────────────────────────── */
+  .st-ab-hero { padding: 42px 24px 46px; }
+  .st-ab-hero-in { max-width: 1120px; margin: 0 auto; text-align: right; }
+  .st-ab-hero .st-ab-ball { font-size: 40px; }
+  .st-ab-hero h2 { font-size: 2.1rem; margin: 6px 0 4px; }
+  .st-ab-hero p { font-size: 15px; }
+
+  .st-ab-wrap {
+    max-width: 1120px; margin: 0 auto; padding: 26px 24px 60px;
+    display: grid; grid-template-columns: 330px 1fr; gap: 30px; align-items: start;
+  }
+  .st-ab-side { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .st-ab-main h3 { margin: 0 0 14px; }
+  /* השאלות בשתי עמודות: 13 כרטיסים בטור אחד הם גלילה ארוכה בלי סיבה,
+     ושורת טקסט ברוחב מסך מלא כמעט בלתי קריאה. */
+  .st-ab-faq {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 12px; align-items: start;
+  }
+  .st-ab-faq > div { margin: 0 !important; }
+  .st-ab-thanks { grid-column: 1 / -1; }
+
   /* באנר העדכון ממורכז — אין סרגל שהוא צריך להתחמק ממנו */
   .app-shell.st-app .update-bar {
     left: 50% !important; right: auto !important;
