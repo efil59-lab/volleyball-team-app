@@ -252,7 +252,7 @@ function AdminPanel(props) {
     </>),
   };
   const tabBody = (
-        <div className={"tab-body" + (tab === "matrix" || tab === "players" ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+        <div className={"tab-body" + (["matrix","players","attendance"].includes(tab) ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {tab === "attendance" && <AdminAttendance {...props} />}
           {tab === "events" && <AdminEvents {...props} />}
           {tab === "players" && <AdminPlayers {...props} />}
@@ -324,6 +324,7 @@ function AdminPanel(props) {
 
 // ── ADMIN ATTENDANCE ──────────────────────────────────────────────────────────
 function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings, notify }) {
+  const isDesk = useIsDesktop();
   const [attModal, setAttModal] = useState(null);
   const [editRow, setEditRow] = useState(null);   // playerId שפתוח לתיקון סימון
   const [waAfter, setWaAfter] = useState(null);   // { player, text } — הצעת וואטסאפ אחרי תיקון
@@ -504,8 +505,11 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     }
   }
 
-  return (
-    <div>
+  // ── סיכום ופעולות ────────────────────────────────────────────────────────
+  // במובייל זה יושב מעל הרשימה; בדסקטופ זה עובר לעמודה צדית, כדי שהרשימה
+  // תקבל את הרוחב ושהמנהלת תראה את המספרים ואת הרשימה באותו מבט.
+  const summaryBlock = (
+    <>
       <BirthdayBanners />
       <div style={S.card}>
         <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
@@ -540,7 +544,11 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           הטקסט: "היי, ראיתי שלא סימנת הגעה לאימון/משחק למחר. את מתכוונת להגיע?"
         </div>
       )}
+    </>
+  );
 
+  const listBlock = (
+    <>
       {/* הרשימה: לקריאה עד שהאירוע חלף, ומאותו רגע — לחיצה על שורה מתקנת סימון */}
       {/* מעבר לאירוע שעבר וטרם אורכב — אחרת הוא בלתי-נגיש מחצות ועד הארכוב */}
       {showSwitch && (
@@ -634,6 +642,11 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         </div>
       )}
 
+    </>
+  );
+
+  const modals = (
+    <>
       {attModal && (
         <AttModal
           title={attModal === "coming" ? "✅ מגיעות" : attModal === "notcoming" ? "❌ לא מגיעות" : "⏳ טרם ענו"}
@@ -641,6 +654,46 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           attendance={attendance} eventId={nextEvent.id}
           onClose={() => setAttModal(null)} pc={pc} sc={sc} />
       )}
+    </>
+  );
+
+  // בדסקטופ: הרשימה מקבלת את הרוחב, והסיכום עובר לצד. מי שטרם ענתה מקבלת
+  // כאן שורה משלה עם כפתור נדנוד — בסרגל העליון יש רק המספר, ולנדנד צריך שם.
+  if (isDesk) {
+    const pending = getList("pending");
+    return (
+      <div className="st-dash">
+        <div className="st-dash-main">{listBlock}</div>
+        <aside className="st-dash-side">
+          {summaryBlock}
+          {pending.length > 0 && (
+            <div className="st-dash-pend">
+              <h3>טרם ענו · {pending.length}</h3>
+              {pending.map(p => {
+                const wa = (playerProfiles[p.id] || {}).whatsapp;
+                return (
+                  <div key={p.id} className="st-dash-pend-row">
+                    <span>{p.name}</span>
+                    {wa && (
+                      <button onClick={() => window.open(`https://wa.me/${String(wa).replace(/\D/g, "")}?text=${encodeURIComponent(`היי ${p.name}, ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`)}`, "_blank")}
+                        title={`נדנוד ל${p.name}`}>💬</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </aside>
+        {modals}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {summaryBlock}
+      {listBlock}
+      {modals}
     </div>
   );
 }
