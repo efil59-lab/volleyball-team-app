@@ -736,15 +736,24 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   }
 
   const [archiveDialog, setArchiveDialog] = useState(null); // האירוע שממתין לאישור ארכוב
-  const [verified, setVerified] = useState(false);
 
-  async function lockToArchive(ev) {
-    const attData = Object.entries(attendance).filter(([k]) => k.startsWith(`${ev.id}_`)).map(([k, v]) => ({ playerId: parseInt(k.split("_")[1]), ...v }));
+  async function lockToArchive(ev, attMap) {
+    const att = attMap || attendance;
+    const attData = Object.entries(att).filter(([k]) => k.startsWith(`${ev.id}_`)).map(([k, v]) => ({ playerId: parseInt(k.split("_")[1]), ...v }));
     await upd.archive([...archive, { ...ev, archivedAt: new Date().toISOString(), verified: true, verifiedBy: auth.currentUser?.email || "מנהל/ת", attendanceData: attData }]);
     await upd.events(events.filter(e => e.id !== ev.id));
   }
 
-  function openArchiveDialog(ev) { setVerified(false); setArchiveDialog(ev); }
+  // התיקונים נשמרים מקומית עד לחיצה על "ארכב", ולא בכל הקשה. שתי סיבות:
+  // כתיבה לכל הקשה דורסת את הקודמת (upd.attendance כותב את המפה כולה, וה-prop
+  // עוד לא התרענן בין שתי הקשות מהירות), ו"ביטול" צריך באמת לבטל.
+  // צופה (מאמנת) אינה מסמנת נוכחות ואינה נספרת
+  const roster = players.filter(p => !p.viewer);
+  const [archEdits, setArchEdits] = useState({}); // playerId -> "coming" | "notcoming"
+  function openArchiveDialog(ev) { setArchEdits({}); setArchiveDialog(ev); }
+  const archStatus = (ev, p) => (p.id in archEdits)
+    ? archEdits[p.id]
+    : ((attendance[`${ev.id}_${p.id}`] || {}).status || null);
 
   // כמה זמן עבר מתחילת האירוע — רק לאירוע של היום. אין לנו שעת סיום, רק שעת
   // התחלה, ולכן אי אפשר לדעת אם האירוע נגמר. אבל אפשר להגיד כמה זמן עבר,
@@ -767,10 +776,52 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
     // המקף ב-"ו-" משמש לפני ספרה בלבד; לפני מילה הוא נכתב מחובר ("ודקה")
     return `לפני ${hw} ${r === 1 ? "ודקה" : `ו-${r} דקות`}`;
   }
+  function editTextFor(lbl, from, to) {
+    if (to === "coming") {
+      return from === "notcoming"
+        ? `סימנת שלא תגיעי ל${lbl}, והמנהלת עדכנה שהגעת.`
+        : `המנהלת עדכנה שהגעת ל${lbl}. לא סימנת מראש, וזה נרשם לך כהגעה.`;
+    }
+    return from === "coming"
+      ? `המנהלת עדכנה שלא הגעת ל${lbl}, למרות שאישרת הגעה.`
+      : `המנהלת עדכנה שלא הגעת ל${lbl}.`;
+  }
+
   async function confirmArchiveDialog() {
     const ev = archiveDialog;
+    if (!ev) return;
     setArchiveDialog(null);
-    if (ev) await lockToArchive(ev);
+    const lbl = `${ev.type === "training" ? "אימון" : "משחק"} ${formatShort(ev.date)}`;
+    const by = (auth.currentUser && auth.currentUser.email) || "מנהל/ת";
+    // מפה אחת עם כל התיקונים — כתיבה אחת, ובלי סיכון לדריסה בין הקשות
+    const next = { ...attendance };
+    const changed = [];
+    for (const p of roster) {
+      if (!(p.id in archEdits)) continue;
+      const key = `${ev.id}_${p.id}`;
+      const cur = next[key] || {};
+      const from = cur.status || null;
+      const to = archEdits[p.id];
+      if (from === to) continue;
+      next[key] = { ...cur, status: to, adminEdit: { by, at: new Date().toISOString(), from } };
+      changed.push({ p, from, to });
+    }
+    if (changed.length) await upd.attendance(next);
+    // ההודעות אחרי הכתיבה — שחקנית שסימונה שונה צריכה לדעת, גם אם היא
+    // תראה את זה רק בכניסה הבאה.
+    for (const { p, from, to } of changed) {
+      const body = editTextFor(lbl, from, to);
+      try {
+        await upd.personalNotifAdd(p.id, {
+          id: `att_${ev.id}_${p.id}_${Date.now()}`, type: "attendance",
+          text: body, seen: false, date: todayStr(),
+        });
+      } catch (err) { console.error("attendance notif:", err); }
+      notifyTeamPushRemote("📋 עדכון נוכחות", body, p.id);
+    }
+    await lockToArchive(ev, next);
+    if (changed.length) notify(`${changed.length === 1 ? "תיקון אחד נשמר" : `${changed.length} תיקונים נשמרו`} · האירוע אורכב 🔒`, { icon: "✅" });
+    else notify("האירוע אורכב 🔒", { icon: "✅" });
   }
 
   // ── ביטול אימון/משחק ──
@@ -835,7 +886,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
     <div>
       {archiveDialog && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-          <div style={{ background: "white", borderRadius: 16, padding: 18, maxWidth: 340, width: "100%", boxSizing: "border-box", boxShadow: "0 8px 30px rgba(0,0,0,0.2)" }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 18, maxWidth: 400, width: "100%", maxHeight: "88vh", overflowY: "auto", boxSizing: "border-box", boxShadow: "0 8px 30px rgba(0,0,0,0.2)" }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>ארכוב אירוע</div>
             <div style={{ fontSize: 14, color: "#64748b", marginBottom: 12 }}>{archiveDialog.type === "training" ? "🏋️ אימון" : "🏆 משחק"} · {formatDate(archiveDialog.date)} · {archiveDialog.time}</div>
             {(() => {
@@ -848,17 +899,59 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 </div>
               );
             })()}
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, cursor: "pointer", marginBottom: 8 }}>
-              <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} style={{ width: 20, height: 20, accentColor: "#16a34a", cursor: "pointer", flexShrink: 0, marginTop: 1 }} />
-              <span style={{ fontSize: 13, color: "#92400e", fontWeight: 600, lineHeight: 1.4 }}>אימתתי את נתוני ההגעה של השחקניות לאירוע זה</span>
-            </label>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16 }}>חובה לסמן — הנתונים נכנסים לסטטיסטיקה האישית של השחקניות.</div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button disabled={!verified} onClick={confirmArchiveDialog}
-                style={{ flex: 1, padding: 12, background: verified ? pc : "#cbd5e1", color: "white", border: "none", borderRadius: 10, cursor: verified ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 800 }}>🔒 ארכב</button>
-              <button onClick={() => setArchiveDialog(null)}
-                style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14 }}>ביטול</button>
-            </div>
+            {(() => {
+              // סדר קבוע: מי שלא ענתה ראשונה — היא הסיכון האמיתי, כי בלי סימון
+              // היא נכנסת לסטטיסטיקה כמי שלא הגיעה. הסדר נגזר מ-attendance
+              // בלבד ולא מהתיקונים, כדי שהשורה לא תקפוץ מתחת לאצבע בזמן תיקון.
+              const order = [...roster].sort((a, b) => {
+                const sa = (attendance[`${archiveDialog.id}_${a.id}`] || {}).status || null;
+                const sb = (attendance[`${archiveDialog.id}_${b.id}`] || {}).status || null;
+                return (sa === null ? 0 : 1) - (sb === null ? 0 : 1);
+              });
+              const came = roster.filter(p => archStatus(archiveDialog, p) === "coming").length;
+              const pend = roster.filter(p => archStatus(archiveDialog, p) === null).length;
+              return (
+                <>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "#1e293b" }}>מי הגיעה?</span>
+                    <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>{came} מתוך {roster.length}</span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8, lineHeight: 1.5 }}>
+                    {pend > 0
+                      ? `${pend === 1 ? "שחקנית אחת לא סימנה" : `${pend} שחקניות לא סימנו`} — הן ייכנסו כמי שלא הגיעו. תקני מה שצריך ולחצי ארכב.`
+                      : "עברי על הרשימה, תקני מה שצריך ולחצי ארכב."}
+                  </div>
+                  <div style={{ maxHeight: "42vh", overflowY: "auto", margin: "0 -4px 12px", padding: "0 4px" }}>
+                    {order.map(p => {
+                      const st = archStatus(archiveDialog, p);
+                      const orig = (attendance[`${archiveDialog.id}_${p.id}`] || {}).status || null;
+                      const touched = p.id in archEdits && archEdits[p.id] !== orig;
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 9, marginBottom: 4, background: st === null ? "#fffbeb" : "transparent", border: st === null ? "1px solid #fde68a" : "1px solid transparent" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                            {st === null && <div style={{ fontSize: 10.5, color: "#b45309", fontWeight: 700 }}>לא סימנה</div>}
+                            {touched && <div style={{ fontSize: 10.5, color: "#2563eb", fontWeight: 700 }}>✏️ תוקן</div>}
+                          </div>
+                          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                            <button onClick={() => setArchEdits(e => ({ ...e, [p.id]: "coming" }))}
+                              style={{ width: 40, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 800, border: st === "coming" ? "2px solid #16a34a" : "1px solid #e2e8f0", background: st === "coming" ? "#dcfce7" : "white", color: st === "coming" ? "#166534" : "#cbd5e1" }}>✓</button>
+                            <button onClick={() => setArchEdits(e => ({ ...e, [p.id]: "notcoming" }))}
+                              style={{ width: 40, padding: "7px 0", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 800, border: st === "notcoming" ? "2px solid #ef4444" : "1px solid #e2e8f0", background: st === "notcoming" ? "#fee2e2" : "white", color: st === "notcoming" ? "#b91c1c" : "#cbd5e1" }}>✗</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={confirmArchiveDialog}
+                      style={{ flex: 1.4, padding: 12, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>🔒 ארכב · {came} הגיעו</button>
+                    <button onClick={() => setArchiveDialog(null)}
+                      style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14 }}>ביטול</button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
