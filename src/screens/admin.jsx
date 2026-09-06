@@ -868,19 +868,9 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   const pastArchivable = [...events].filter(canArchiveEv).sort((a, b) => a.date.localeCompare(b.date));
   const pastPendingResult = [...events].filter(e => e.date < todayStr() && e.type === "game" && !e.outcome);
 
-  // ארכוב כל האירועים הניתנים לארכוב שעברו בלחיצה אחת — כתיבה אחת לכל מערך (ללא מצבי מרוץ)
-  async function archiveAllPast() {
-    const past = events.filter(canArchiveEv);
-    if (past.length === 0) return;
-    const by = auth.currentUser?.email || "מנהל/ת";
-    const newEntries = past.map(ev => {
-      const attData = Object.entries(attendance).filter(([k]) => k.startsWith(`${ev.id}_`)).map(([k, v]) => ({ playerId: parseInt(k.split("_")[1]), ...v }));
-      return { ...ev, archivedAt: new Date().toISOString(), verified: true, verifiedBy: by, attendanceData: attData };
-    });
-    await upd.archive([...archive, ...newEntries]);
-    // נשמרים ב-events: אירועים עתידיים + משחקים שעברו וממתינים לתוצאה
-    await upd.events(events.filter(e => !canArchiveEv(e)));
-  }
+  // "ארכב הכל" הוסר (6.9.26): הוא ארכב אירועים בלי להציג את רשימת ההגעה,
+  // כלומר עקף בדיוק את האימות שדיאלוג הארכוב קיים בשבילו. ארכוב נעשה מהכרטיס
+  // של כל אירוע, אחד-אחד, כשמי שהגיעה מוצגת לפני האישור.
 
   return (
     <div>
@@ -994,9 +984,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: 14, marginBottom: 14 }}>
           {pastArchivable.length > 0 && <>
             <div style={{ fontSize: 14, fontWeight: 800, color: "#92400e", marginBottom: 4 }}>⚠️ {pastArchivable.length === 1 ? "אירוע שעבר וטרם אורכב" : `${pastArchivable.length} אירועים שעברו וטרם אורכבו`}</div>
-            <div style={{ fontSize: 12, color: "#b45309", marginBottom: 10 }}>נוכחות נכנסת לסטטיסטיקה רק אחרי ארכוב. אפשר לארכב כל אחד בנפרד, או הכל בלחיצה אחת:</div>
-            <button onClick={() => askConfirm(`לארכב ${pastArchivable.length} אירועים שעברו? הנוכחות שלהם תיכנס לסטטיסטיקה.`, archiveAllPast)}
-              style={{ background: "#f59e0b", color: "white", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>🔒 ארכב הכל ({pastArchivable.length})</button>
+            <div style={{ fontSize: 12, color: "#b45309" }}>נוכחות נכנסת לסטטיסטיקה רק אחרי ארכוב. ארכבי כל אירוע מהכרטיס שלו למטה — הרשימה של מי שהגיעה מוצגת לפני האישור.</div>
           </>}
           {pastPendingResult.length > 0 && (
             <div style={{ fontSize: 12, color: "#b45309", fontWeight: 700, marginTop: pastArchivable.length > 0 ? 12 : 0, paddingTop: pastArchivable.length > 0 ? 10 : 0, borderTop: pastArchivable.length > 0 ? "1px solid #fed7aa" : "none" }}>🏆 {pastPendingResult.length === 1 ? "משחק שעבר ממתין לתוצאה" : `${pastPendingResult.length} משחקים שעברו ממתינים לתוצאה`} — מלאי את התוצאה בכרטיס המשחק כדי שניתן יהיה לארכב אותו.</div>
