@@ -7,7 +7,7 @@ import { pushSupport, pushEnabledLocally, enablePush, disablePush } from "../lib
 // למנהלת: גם סיכום הגעה בבוקר האירוע. מוצג רק כשהפיצ'ר מוגדר (VAPID קיים).
 // הזרימה: לחיצה על "הפעילי" ← מסך-הכנה ("הטלפון ישאל — לחצי אפשר") ← השאלה של
 // הדפדפן. ההכנה קריטית: בלי הסבר, חלק מהמשתמשות דוחות את השאלה ונחסמות.
-export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn }) {
+export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, onEnabled }) {
   const who = role === "admin" ? "admin" : `p${playerId}`;
   const [busy, setBusy] = useState(false);
   const [on, setOn] = useState(() => pushEnabledLocally(who));
@@ -44,6 +44,7 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn })
     const res = await enablePush(role, playerId);
     if (res.ok) {
       setOn(true);
+      onEnabled && onEnabled(); // סוגר את חלון ההנעה, אם הכרטיס מוצג בתוכו
       notify && notify("התזכורות הופעלו במכשיר הזה 🔔", { icon: "🔔", okLabel: "מעולה" });
     } else if (res.reason === "denied") {
       setRecheck(x => x + 1); // יציג את כרטיס ה"חסום" עם ההוראות

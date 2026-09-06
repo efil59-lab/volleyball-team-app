@@ -13,6 +13,8 @@ import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, B
 import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
 import ReminderCard from "../components/ReminderCard";
+import EnablePushModal from "../components/EnablePushModal";
+import { pushSupport, pushEnabledLocally } from "../lib/push";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
 function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
@@ -86,6 +88,23 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
         upd.personalNotifSetItems(player.id, items);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── הנעה להפעלת התראות ───────────────────────────────────────────────────
+  // חוזר בכל יום עד שהיא מפעילה. פעם ביום ולא בכל פתיחה: שחקנית שנכנסת
+  // שלוש פעמים ביום לסמן הגעה לא צריכה שלושה חלונות, וההתמדה נשמרת גם כך.
+  const [pushNag, setPushNag] = useState(false);
+  useEffect(() => {
+    const sup = pushSupport();
+    if (sup === "no-vapid" || sup === "unsupported") return; // אין מה להציע
+    if (pushEnabledLocally(`p${player.id}`)) return;         // כבר הפעילה כאן
+    const key = `pushNag_${player.id}_${todayStr()}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch { /* ללא localStorage — מציגים, ולא נתקעים */ }
+    setPushNag(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -830,6 +849,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       <div className="app-main">
       <style>{`@keyframes chatDotPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.45); } }`}</style>
       {/* Entry popups: self birthday, others' birthday (send greeting), applause, received greetings */}
+      {/* אחרי פופאפי הכניסה (יום הולדת, מחיאות כפיים) — קודם הדברים הנעימים */}
+      {pushNag && entryPopups.length === 0 && (
+        <EnablePushModal playerId={player.id} pc={pc} notify={notify} onClose={() => setPushNag(false)} />
+      )}
       {entryPopups.length > 0 && (() => {
         const top = entryPopups[0];
         const icon = top.kind === "applause" ? "👏" : top.kind === "attendance" ? "📋" : top.kind === "otherBirthday" ? "🎂" : top.kind === "birthdayReceived" ? "🎉" : "🎂";
