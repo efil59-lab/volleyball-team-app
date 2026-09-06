@@ -35,11 +35,17 @@
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--color-border, #e2e8f0);
   }
+  /* מסטהד בשתי שורות: מותג + חיפוש + חשבון למעלה, הניווט בשורה משלו מתחת.
+     בשורה אחת זה פשוט לא נכנס — לפאנל יש 9 לשוניות, והן צרכו 854px בזמן
+     שנשארו להן כ-600. התוצאה הייתה חיתוך שקט ("סט..." במקום סטטיסטיקה).
+     עם שורה מלאה (1240px) כולן נכנסות בשורה אחת, וזו גם אנטומיה מוכרת של
+     אתר: פס עליון ומתחתיו פס ניווט. */
   .st-head-in {
     max-width: 1240px; margin: 0 auto;
-    padding: 0 42px;
-    height: 68px;
+    padding: 10px 42px;
+    min-height: 68px;
     display: flex; align-items: center; gap: 22px;
+    flex-wrap: wrap; row-gap: 6px;
   }
 
   .st-brand {
@@ -105,12 +111,16 @@
   /* ── ניווט ─────────────────────────────────────────────────────────────── */
   /* הניווט הוא שנדחס כשיש הרבה לשוניות; אם עדיין לא נכנס — הוא נגלל לרוחב
      בלי פס גלילה גלוי, במקום לדחוף החוצה את החשבון או את החיפוש. */
+  /* עוטף, לא גולל. קודם היה overflow-x:auto עם scrollbar-width:none — כלומר
+     לשוניות פשוט נחתכו בלי שום סימן שיש עוד ("סט..." במקום סטטיסטיקה, דווח
+     5.9.26). בפאנל יש 9 לשוניות, ובכל רוחב הן חייבות להיות נגישות. */
   .st-nav {
     display: flex; align-items: center; gap: 2px;
-    flex: 1 1 auto; min-width: 0; margin-right: auto;
-    overflow-x: auto; scrollbar-width: none;
+    flex: 1 1 100%; order: 3; min-width: 0;   /* שורה משלו, מתחת לפס העליון */
+    flex-wrap: wrap; row-gap: 4px;            /* רשת ביטחון: עוטף ולא נחתך */
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    padding-top: 6px;
   }
-  .st-nav::-webkit-scrollbar { display: none; }
   /* אותו כלל לכפתור-לשונית ולקישור-עוגן — הם צריכים להיראות זהים בשורה אחת */
   .st-nav-link {
     position: relative;

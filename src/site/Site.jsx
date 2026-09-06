@@ -102,10 +102,18 @@ function SearchBox({ ctx, onPick, placeholder }) {
 }
 
 // גלילה לעוגן בתוך .st-root — לא window.scrollTo: החלון עצמו לא נגלל כאן.
-// scroll-margin-top ב-CSS הוא מה שמונע מהכותרת לנחות מתחת למסטהד הדביק.
+// הקיזוז נמדד מגובה המסטהד בפועל ולא ממספר קבוע: מאז שהניווט עוטף לשורה
+// שנייה הגובה משתנה לפי הרוחב ומספר הלשוניות, וכל קבוע היה נכון ברוחב אחד
+// בלבד. scroll-margin-top ב-CSS נשאר כרשת ביטחון.
 function scrollToAnchor(id) {
   const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!el) return;
+  const root = document.querySelector(".st-root");
+  if (!root) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  const head = document.querySelector(".st-head");
+  const offset = (head ? head.getBoundingClientRect().height : 0) + 12;
+  const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - offset;
+  root.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
 // ── מסטהד ───────────────────────────────────────────────────────────────────
