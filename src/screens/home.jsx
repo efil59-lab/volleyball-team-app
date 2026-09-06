@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
@@ -9,9 +9,11 @@ import { uploadProfilePhoto } from "../lib/images";
 import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
 import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
+import EnablePushModal from "../components/EnablePushModal";
+import { pushSupport, pushEnabledLocally } from "../lib/push";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, upd, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
+function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
   const isDesktop = useIsDesktop();
   const lpRef = useRef();
   const gridRef = useRef();
@@ -52,6 +54,30 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
     </div>
   );
 
+  // ── הנעה להפעלת התראות, גם מדלת הכניסה ──────────────────────────────────
+  // החלון נבנה תחילה רק במסך השחקנית — אבל שחקנית שהמכשיר זוכר אותה מסמנת
+  // הגעה מכאן ויוצאת, בלי להיכנס למסך האישי אף פעם. כלומר מי שהכי נוח לה
+  // עם האפליקציה היא בדיוק זו שלא ראתה את הבקשה (7 מתוך 13 עדיין בלי
+  // התראות, 6.9.26). אותו מפתח יומי משמש בשני המסכים, כדי שלא תקבל פעמיים.
+  const [pushNag, setPushNag] = useState(false);
+  useEffect(() => {
+    if (!me) return; // ברשימת הבחירה עוד לא יודעים מי היא
+    const sup = pushSupport();
+    if (sup === "no-vapid" || sup === "unsupported") return;
+    if (pushEnabledLocally(`p${me.id}`)) return;
+    const key = `pushNag_${me.id}_${todayStr()}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch { /* ללא localStorage — מציגים */ }
+    setPushNag(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me && me.id]);
+
+  const pushModal = pushNag && me
+    ? <EnablePushModal playerId={me.id} pc={pc} notify={notify} onClose={() => setPushNag(false)} />
+    : null;
+
   // אישור הגעה מדלת הכניסה — משותף לשני המצבים ולשתי הפריסות.
   // מוגדר כאן ולא בתוך if(me) כי גם שכבת הדסקטופ צריכה אותו.
   async function rsvpFor(player, status) {
@@ -76,6 +102,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
     return (
       <div className="app-shell st-app" style={{ minHeight: "100vh" }}>
         <div className="app-main">
+          {pushModal}
           <HomeSite
             me={me} players={players} playerProfiles={playerProfiles} attendance={attendance}
             settings={settings} nextEvent={nextEvent}
@@ -110,6 +137,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
     }
     return (
       <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
+        {pushModal}
         {header}
 
         <div style={{ padding: "14px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
