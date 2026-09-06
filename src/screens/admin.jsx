@@ -12,7 +12,7 @@ import ReminderCard from "../components/ReminderCard";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
-import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
+import { AttModal, CalEventRow, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import { useIsDesktop, SiteChrome, AdminStrip } from "../site/Site";
 import PlayersDesktop from "../site/PlayersDesktop";
 
@@ -1088,14 +1088,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 10 }}>{formatDate(calSelected)}</div>
                   {evs.map(ev => (
-                    <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
-                      <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק")} · {ev.time}</div>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
-                      </div>
-                      {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
-                    </div>
+                    <CalEventRow key={ev.id} ev={ev} players={players} pc={pc} bg="white" />
                   ))}
                   {bdays.map(p => (
                     <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>

@@ -9,7 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
-import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
+import { AttModal, CalEventRow, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
 import { AboutScreen } from "./info";
@@ -712,14 +712,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 8 }}>{formatDate(calSelected)}</div>
                     {selInfo.evs.length === 0 && selInfo.bdays.length === 0 && <div style={{ fontSize: 13, color: "#94a3b8" }}>אין אירועים ביום זה.</div>}
                     {selInfo.evs.map(ev => (
-                      <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, opacity: ev.cancelled ? 0.6 : 1 }}>
-                        <span style={{ fontSize: 22 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>{ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק")} · {ev.time}</div>
-                          <div style={{ fontSize: 12, color: "#64748b" }}>📍 {ev.location}</div>
-                        </div>
-                        {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>בוטל</span>}
-                      </div>
+                      <CalEventRow key={ev.id} ev={ev} players={players} pc={pc} bg="white" />
                     ))}
                     {selInfo.bdays.map(p => (
                       <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>

@@ -128,6 +128,50 @@ function NotifTicker({ notifs, pc, sc }) {
   );
 }
 
+// שורת אירוע בלוח. אירוע שאורכב נושא attendanceData — צילום מצב הנוכחות
+// שנשמר ברגע הארכוב — ולכן לחיצה עליו מציגה מי השתתפה בפועל. זו האמת
+// ההיסטורית, והיא לא משתנה גם אם רשימת השחקניות השתנתה מאז.
+function CalEventRow({ ev, players = [], pc, bg = "white", dateLabel }) {
+  const [open, setOpen] = useState(false);
+  const snap = (ev && ev.attendanceData) || null;
+  const came = snap
+    ? snap.filter(a => a.status === "coming")
+      .map(a => { const p = players.find(x => String(x.id) === String(a.playerId)); return p ? p.name : null; })
+      .filter(Boolean)
+    : [];
+  const canOpen = !ev.cancelled && came.length > 0;
+  const title = ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק");
+  const sub = dateLabel || (ev.location ? `📍 ${ev.location}` : "");
+  const Tag = canOpen ? "button" : "div";
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <Tag onClick={canOpen ? () => setOpen(o => !o) : undefined}
+        style={{ width: "100%", textAlign: "right", fontFamily: "inherit", border: "none", boxSizing: "border-box",
+          display: "flex", alignItems: "center", gap: 10, background: bg,
+          borderRadius: open ? "10px 10px 0 0" : 10, padding: "10px 12px",
+          opacity: ev.cancelled ? 0.6 : 1, cursor: canOpen ? "pointer" : "default" }}>
+        <span style={{ fontSize: 22, flexShrink: 0 }}>{ev.type === "training" ? "🏋️" : "🏆"}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: ev.cancelled ? "line-through" : "none" }}>
+            {title}{ev.time && !dateLabel ? ` · ${ev.time}` : ""}
+          </div>
+          {sub && <div style={{ fontSize: 12, color: "#64748b" }}>{sub}</div>}
+          {ev.outcome && <div style={{ marginTop: 4 }}><OutcomeBadge outcome={ev.outcome} result={ev.result} /></div>}
+          {canOpen && <div style={{ fontSize: 12, fontWeight: 800, color: pc, marginTop: 4 }}>👥 {came.length} השתתפו {open ? "▲" : "▼"}</div>}
+        </div>
+        {ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>בוטל</span>}
+      </Tag>
+      {open && (
+        <div style={{ background: bg, borderRadius: "0 0 10px 10px", padding: "0 12px 12px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {came.map((n, i) => (
+            <span key={i} style={{ background: "#dcfce7", color: "#166534", borderRadius: 20, padding: "4px 11px", fontSize: 12.5, fontWeight: 700 }}>{n}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // תג תוצאה צבעוני — ניצחון/הפסד/תיקו + ציון אופציונלי
 // מסך "כל האירועים מסוג X" — נפתח בלחיצה על פריט במקרא הלוח. משותף למנהל ולשחקנית.
 // kind: "training" | "game" | "birthday" | "cancelled". משחקים נשלפים מהפתוחים + הארכיון (כולל תוצאה).
@@ -157,19 +201,21 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
       }));
   } else {
     const today = todayStr();
+    // כולל אירועים שעברו: הם נשארים בלוח אחרי הארכוב, וזו הדרך להגיע אליהם
+    // ולראות מי השתתפה. עתידיים ראשונים (הקרוב תחילה), ואז מה שהיה (החדש תחילה).
     const base = kind === "cancelled"
       ? allEvents.filter(e => e.cancelled)
-      : allEvents.filter(e => e.type === kind && !e.cancelled && (e.date || "") >= today); // רק עתידיים
-    rows = base
-      .sort((a, b) => kind === "cancelled"
-        ? (b.date || "").localeCompare(a.date || "")   // בוטלו: מהחדש לישן
-        : (a.date || "").localeCompare(b.date || ""))  // עתידיים: הקרוב ביותר ראשון
-      .map(ev => ({
-        key: "e" + ev.id, ev,
-        icon: ev.type === "training" ? "🏋️" : "🏆",
-        title: ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק"),
-        dateLabel: formatDate(ev.date) + (ev.time ? ` · ${ev.time}` : ""),
-      }));
+      : allEvents.filter(e => e.type === kind && !e.cancelled);
+    const byDate = (dir) => (a, b) => dir * (a.date || "").localeCompare(b.date || "");
+    const ordered = kind === "cancelled"
+      ? [...base].sort(byDate(-1))
+      : [...base.filter(e => (e.date || "") >= today).sort(byDate(1)),
+         ...base.filter(e => (e.date || "") < today).sort(byDate(-1))];
+    rows = ordered.map(ev => ({
+      key: "e" + ev.id, ev,
+      past: (ev.date || "") < today,
+      dateLabel: formatDate(ev.date) + (ev.time ? ` · ${ev.time}` : ""),
+    }));
   }
 
   return (
@@ -181,15 +227,23 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
         </div>
         <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
           {rows.length === 0 && <Empty icon={meta.icon} text={`אין ${meta.label} להצגה`} />}
-          {rows.map(r => (
-            <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 10, background: r.ev && r.ev.cancelled ? "#fef2f2" : "#f8fafc", borderRadius: 12, padding: "10px 12px" }}>
-              <span style={{ fontSize: 22, flexShrink: 0 }}>{r.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", textDecoration: r.ev && r.ev.cancelled ? "line-through" : "none" }}>{r.title}</div>
-                <div style={{ fontSize: 12, color: "#64748b" }}>{r.dateLabel}</div>
-                {r.ev && r.ev.outcome && <div style={{ marginTop: 4 }}><OutcomeBadge outcome={r.ev.outcome} result={r.ev.result} /></div>}
-              </div>
-              {r.ev && r.ev.cancelled && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>בוטל</span>}
+          {rows.map((r, i) => (
+            <div key={r.key}>
+              {r.past && !rows[i - 1]?.past && rows[i - 1] && (
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#94a3b8", margin: "6px 2px 6px" }}>שהיו</div>
+              )}
+              {r.ev
+                ? <CalEventRow ev={r.ev} players={players} pc={pc} dateLabel={r.dateLabel}
+                    bg={r.ev.cancelled ? "#fef2f2" : "#f8fafc"} />
+                : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8fafc", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
+                    <span style={{ fontSize: 22, flexShrink: 0 }}>{r.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{r.title}</div>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>{r.dateLabel}</div>
+                    </div>
+                  </div>
+                )}
             </div>
           ))}
         </div>
@@ -310,4 +364,4 @@ function SideRail({ items, moreItems = [], active, onChange, pc, teamName, onHom
   );
 }
 
-export { Confirm, AttModal, PurchaseBanner, NotifTicker, LegendEventsModal, OutcomeBadge, Empty, Label, Collapsible, BottomNav, SideRail };
+export { Confirm, AttModal, PurchaseBanner, NotifTicker, LegendEventsModal, CalEventRow, OutcomeBadge, Empty, Label, Collapsible, BottomNav, SideRail };
