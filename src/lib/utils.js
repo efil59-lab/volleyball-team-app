@@ -55,11 +55,15 @@ function eventPhase(ev, now = new Date()) {
 
 // התווית על הכרטיס + המשפט שמחליף את כפתורי האישור.
 // אין תוספת "לא ניתן לשנות תשובה": אין כפתור, אז זה ברור מאליו.
+//
+// pillShort = מסך הבית, pill = המסך האישי. במסך הבית הכרטיס תמציתי
+// ו"החל" מספיק; במסך האישי יש מקום למשפט מלא.
 function eventStateLabel(ev, phase) {
   const noun = ev && ev.type === "game" ? "המשחק" : "האימון";
-  if (phase === "live") return { pill: "▶️ מתקיים כעת", line: `${noun} מתקיים כעת`, icon: "▶️" };
-  if (phase === "done") return { pill: "✓ הסתיים", line: `${noun} הסתיים`, icon: "🏐" };
-  return { pill: `⏳ ${countdownLabel(ev && ev.date)}`, line: "", icon: "" };
+  if (phase === "live") return { pill: "▶️ מתקיים כעת", pillShort: "▶️ החל", line: `${noun} מתקיים כעת`, icon: "▶️" };
+  if (phase === "done") return { pill: "✓ הסתיים", pillShort: "✓ הסתיים", line: `${noun} הסתיים`, icon: "🏐" };
+  const counting = `⏳ ${countdownLabel(ev && ev.date)}`;
+  return { pill: counting, pillShort: counting, line: "", icon: "" };
 }
 
 // זיהוי iOS/iPadOS — שם signInWithPopup לא אמין (ITP מאבד את תוצאת ה-popup)

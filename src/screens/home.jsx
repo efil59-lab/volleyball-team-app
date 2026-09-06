@@ -158,7 +158,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "4px 11px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</span>
-                  <span style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, transition: "background 0.35s" }}>{evState.pill}</span>
+                  <span style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, transition: "background 0.35s" }}>{evState.pillShort}</span>
                 </div>
                 <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginBottom: 4, lineHeight: 1.3 }}>{formatDate(nextEvent.date)} · {nextEvent.time}</div>
                 <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 14, marginBottom: 12 }}>📍 {nextEvent.location}</div>
@@ -241,7 +241,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
               </div>
               <div style={{ color: sc, fontSize: 12, fontWeight: 700, marginTop: 2 }}>בחרי את שמך לאישור הגעה ←</div>
             </div>
-            <div style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>{evState.pill}</div>
+            <div style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>{evState.pillShort}</div>
           </button>
         </div>
       )}

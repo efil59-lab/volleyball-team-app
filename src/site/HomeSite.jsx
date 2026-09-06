@@ -20,7 +20,7 @@ function Leaf({ ev }) {
       <div className="st-p-leaf-h">{d.toLocaleDateString("he-IL", { weekday: "long" })}</div>
       <div className="st-p-leaf-d st-num">{d.getDate()}</div>
       <div className="st-p-leaf-m">{HE_MONTHS[d.getMonth()]}</div>
-      <div className="st-p-leaf-t">{eventStateLabel(ev, eventPhase(ev)).pill.replace(/^[^ ]+ /, "")}</div>
+      <div className="st-p-leaf-t">{eventStateLabel(ev, eventPhase(ev)).pillShort.replace(/^[^ ]+ /, "")}</div>
     </div>
   );
 }
