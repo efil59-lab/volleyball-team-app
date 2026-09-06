@@ -7,9 +7,12 @@ import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "..
 import { playerEmail, emailAuth } from "../lib/auth";
 import { uploadProfilePhoto } from "../lib/images";
 import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
+import { useIsDesktop } from "../site/Site";
+import HomeSite from "../site/HomeSite";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
 function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, upd, pc, sc, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
+  const isDesktop = useIsDesktop();
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
@@ -48,6 +51,48 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
       </div>
     </div>
   );
+
+  // אישור הגעה מדלת הכניסה — משותף לשני המצבים ולשתי הפריסות.
+  // מוגדר כאן ולא בתוך if(me) כי גם שכבת הדסקטופ צריכה אותו.
+  async function rsvpFor(player, status) {
+    const authed = auth.currentUser && !auth.currentUser.isAnonymous;
+    if (!authed || !nextEvent || !player) { onSelectPlayer(player); return; }
+    const key = `${nextEvent.id}_${player.id}`;
+    const cur = attendance[key] || {};
+    if (cur.status === status) return;
+    await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+  }
+
+  // ── שכבת הדסקטופ ────────────────────────────────────────────────────────
+  // כל מה שמתחת ל-1100×600 ממשיך בדיוק כפי שהיה — הפריסה הניידת לא נגעה בה.
+  if (isDesktop) {
+    const bdayOthers = players.filter(p => (!me || p.id !== me.id) && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
+    const lp = {
+      onPointerDown: () => { lpRef.current = setTimeout(() => { onSuperAdmin && onSuperAdmin(); }, 1000); },
+      onPointerUp: () => clearTimeout(lpRef.current),
+      onPointerLeave: () => clearTimeout(lpRef.current),
+      onContextMenu: (e) => e.preventDefault(),
+    };
+    return (
+      <div className="app-shell st-app" style={{ minHeight: "100vh" }}>
+        <div className="app-main">
+          <HomeSite
+            me={me} players={players} playerProfiles={playerProfiles} attendance={attendance}
+            settings={settings} nextEvent={nextEvent}
+            myStatus={me && nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).status : null}
+            activeNotifs={activeNotifs} bdayOthers={bdayOthers}
+            onRSVP={(s) => rsvpFor(me, s)}
+            onSelectPlayer={onSelectPlayer}
+            onOpenMine={() => onSelectPlayer(me)}
+            onOpenTab={() => onSelectPlayer(me)}
+            onSwitchUser={() => setForceRoster(true)}
+            onAdmin={onAdmin} onAbout={onAbout} onPurchase={onPurchase} pc={pc} sc={sc}
+            superAdminHandlers={lp}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // ── מצב א': דשבורד אישי (מכשיר זכור) ──
   if (me) {
