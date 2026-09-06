@@ -14,6 +14,7 @@ import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
 import ReminderCard from "../components/ReminderCard";
 import EnablePushModal from "../components/EnablePushModal";
+import Confetti from "../components/Confetti";
 import { pushSupport, pushEnabledLocally } from "../lib/push";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
@@ -34,6 +35,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const [editWhatsapp, setEditWhatsapp] = useState("");
   const [editBirthday, setEditBirthday] = useState("");
   const [entryPopups, setEntryPopups] = useState([]); // birthday + applause greetings shown once on entry
+  // קונפטי: מלא כשזה יום ההולדת שלה או כשהיא מגלה שבירכו אותה, ופרץ קצר
+  // כאישור אחרי ששלחה ברכה. נשלט מכאן ולא מתוך הפופאפ עצמו, כי הפרץ צריך
+  // לשרוד את סגירת הפופאפ ששלח אותו. מוצהר לפני האפקטים שמשתמשים בו.
+  const [confetti, setConfetti] = useState(null); // "fall" | "burst" | null
+  const confettiColors = [pc, sc, "#ffffff", sc, pc];
   const galleryRef = useRef();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [galleryUploading, setGalleryUploading] = useState(false); // מצב טעינה לכפתור ההעלאה
@@ -82,6 +88,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     }
     if (popups.length > 0) {
       setEntryPopups(popups);
+      // יום ההולדת שלה, או הרגע שבו היא מגלה שבירכו אותה
+      if (popups.some(x => x.kind === "birthday" || x.kind === "birthdayReceived")) setConfetti("fall");
       // Mark applause + birthday notifs as seen
       if (myNotifs.length > 0) {
         const items = (personalNotifs[player.id] || []).map(n => (n.type === "applause" || n.type === "birthday" || n.type === "attendance") ? { ...n, seen: true } : n);
@@ -137,6 +145,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       localStorage.setItem(key, "1");
     }
     dismissTopPopup();
+    setConfetti("burst"); // אישור קצר: הברכה יצאה
   }
 
   // צופה (מאמנת) מחוץ לכל ספירת נוכחות — היא לא מסמנת, ולכן לא "טרם ענתה".
@@ -849,6 +858,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       <div className="app-main">
       <style>{`@keyframes chatDotPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.45); } }`}</style>
       {/* Entry popups: self birthday, others' birthday (send greeting), applause, received greetings */}
+      {confetti && <Confetti key={confetti} variant={confetti} colors={confettiColors} onDone={() => setConfetti(null)} />}
+
       {/* אחרי פופאפי הכניסה (יום הולדת, מחיאות כפיים) — קודם הדברים הנעימים */}
       {pushNag && entryPopups.length === 0 && (
         <EnablePushModal playerId={player.id} pc={pc} notify={notify} onClose={() => setPushNag(false)} />
