@@ -1003,7 +1003,13 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                       <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e" }}>יום ההולדת של {p.name}</div>
                     </div>
                   ))}
-                  <button onClick={() => startAdd(calSelected)} style={{ width: "100%", padding: 11, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, marginTop: 4 }}>➕ אירוע חדש ביום זה</button>
+                  {calSelected >= todayStr() ? (
+                    <button onClick={() => startAdd(calSelected)} style={{ width: "100%", padding: 11, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 800, marginTop: 4 }}>➕ אירוע חדש ביום זה</button>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", marginTop: 4, lineHeight: 1.5 }}>
+                      היום הזה כבר עבר — אירוע חדש נקבע מהיום והלאה.
+                    </div>
+                  )}
                 </div>
               );
             })()}
