@@ -183,11 +183,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
                 </button>
               </div>
               </>)}
-              <div style={{ textAlign: "center", marginTop: 10 }}>
-                <button onClick={() => onSelectPlayer(me)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.85)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
-                  {myStatus ? "נשמר ✓ · מי עוד מגיעה? להוספת הערה ולרשימות ←" : "מי עוד מגיעה? לרשימות המלאות ←"}
-                </button>
-              </div>
+              {/* היה כאן קישור "מי עוד מגיעה?" — כפול לכרטיס "המסך האישי שלי"
+                  שמופיע ממש מתחת, ולראש הכרטיס שהוא ממילא לחיץ. */}
             </div>
           ) : (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
