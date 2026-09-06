@@ -1072,7 +1072,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
               {ev.outcome && <div style={{ marginTop: 4 }}><OutcomeBadge outcome={ev.outcome} result={ev.result} /></div>}
               {ev.cancelled && <div style={{ display: "inline-block", background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 800, marginTop: 4 }}>❌ בוטל</div>}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+            {!isPast && <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
               {ev.cancelled
                 ? <button onClick={() => undoCancel(ev)}
                     style={{ background: "#dcfce7", color: "#166534", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>↩️ ביטול הביטול</button>
@@ -1084,8 +1084,30 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 style={{ background: "#eff6ff", color: "#2563eb", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>✏️ עריכה</button>
               <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
                 style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11 }}>🗑 מחק</button>
-            </div>
+            </div>}
           </div>
+
+          {isPast && (
+            <div style={{ marginTop: 12 }}>
+              {ev.cancelled ? (
+                <button onClick={() => undoCancel(ev)}
+                  style={{ width: "100%", padding: 12, background: "#dcfce7", color: "#166534", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>↩️ ביטול הביטול</button>
+              ) : (ev.type !== "game" || ev.outcome) ? (
+                <button onClick={() => openArchiveDialog(ev)}
+                  style={{ width: "100%", padding: 13, background: "#f59e0b", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontWeight: 800 }}>🔒 ארכוב האירוע</button>
+              ) : (
+                // משחק שעבר בלי תוצאה: כפתור הארכוב לא קיים, ועד היום שום דבר
+                // לא אמר למה. הכרטיס צעק "ממתין לארכוב" בלי שום פעולה בתוכו.
+                <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "11px 12px", textAlign: "center", fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
+                  📊 הזיני תוצאה למטה כדי לארכב
+                </div>
+              )}
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <button onClick={() => askConfirm("למחוק אירוע זה?", () => upd.events(events.filter(e => e.id !== ev.id)))}
+                  style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>🗑 מחיקת האירוע</button>
+              </div>
+            </div>
+          )}
           {editId === ev.id && editEv && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: pc, marginBottom: 8 }}>✏️ עריכת אירוע</div>
