@@ -66,7 +66,10 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
   async function sendTest() {
     setTesting(true);
     const r = await testPushRemote(playerId);
-    setTestRes(r.ok && r.sent > 0 ? "sent" : r.reason === "no-tokens" ? "none" : "fail");
+    // permission-denied הוא מצב משלו: המכשיר מחובר לחשבון אחר (למשל מנהלת
+    // שפתחה את המסך של שחקנית). זו ההגנה עובדת, לא תקלה — ואסור שתיראה ככשל.
+    const denied = String(r.reason || "").includes("permission-denied");
+    setTestRes(r.ok && r.sent > 0 ? "sent" : r.reason === "no-tokens" ? "none" : denied ? "other" : "fail");
     setTestErr(r.ok ? "" : String(r.reason || ""));
     setTesting(false);
   }
@@ -104,6 +107,11 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 12px", marginBottom: 8, fontSize: 13, color: "#b91c1c", fontWeight: 600, textAlign: "center" }}>
             השליחה נכשלה. אפשר לנסות שוב בעוד רגע.
             {testErr && <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 500, marginTop: 3, direction: "ltr" }}>{testErr}</div>}
+          </div>
+        )}
+        {testRes === "other" && (
+          <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: 10, padding: "10px 12px", marginBottom: 8, fontSize: 13, color: "#475569", fontWeight: 600, textAlign: "center", lineHeight: 1.5 }}>
+            המכשיר הזה מחובר לחשבון אחר, אז אי אפשר לשלוח מכאן. הבדיקה עובדת מהטלפון של השחקנית עצמה.
           </div>
         )}
         <div style={{ display: "flex", gap: 8 }}>
@@ -217,6 +225,7 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
             </button>
             {testRes === "sent" && <div style={{ fontSize: 11.5, color: "#166534", fontWeight: 700, marginTop: 3, lineHeight: 1.45 }}>✓ נשלחה — הסתכלי על ההתראות. לא רואה? נעלי את המסך ונסי שוב.</div>}
             {testRes === "none" && <div style={{ fontSize: 11.5, color: "#b45309", fontWeight: 700, marginTop: 3, lineHeight: 1.45 }}>המכשיר לא רשום אצלנו. בטלי והפעילי מחדש.</div>}
+            {testRes === "other" && <div style={{ fontSize: 11.5, color: "#64748b", fontWeight: 600, marginTop: 3, lineHeight: 1.45 }}>המכשיר מחובר לחשבון אחר — הבדיקה עובדת מהטלפון של השחקנית עצמה.</div>}
             {testRes === "fail" && (
               <div style={{ fontSize: 11.5, color: "#b91c1c", fontWeight: 700, marginTop: 3 }}>
                 השליחה נכשלה. נסי שוב בעוד רגע.
