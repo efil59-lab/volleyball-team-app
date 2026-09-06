@@ -217,16 +217,17 @@ function AdminPanel(props) {
   if (showWizard) {
     return <AdminOnboarding settings={settings} players={players} upd={upd} pc={pc} sc={sc} isPending={isPending} onFinish={() => setShowWizard(false)} />;
   }
-  // ניווט תחתון: 4 ראשיים + "עוד" (סקר, סטטיסטיקה, תמונות, הגדרות)
+  // ניווט תחתון: 4 ראשיים + "עוד". סטטיסטיקה עלתה לשורה הראשית ושחקניות
+  // ירדה ל"עוד" — ניהול הרשימה הוא משימת הקמה, הסטטיסטיקה נצפית שוב ושוב.
   const navItems = [
     { key: "attendance", icon: "📋", label: "נוכחות" },
     { key: "events", icon: "📅", label: "אירועים" },
-    { key: "players", icon: "👥", label: "שחקניות" },
     { key: "notifications", icon: "💬", label: "הודעות" },
+    { key: "archive", icon: "📊", label: "סטטיסטיקה" },
   ];
   const navMore = [
     { key: "polls", icon: "🗳️", label: "סקר" },
-    { key: "archive", icon: "📊", label: "סטטיסטיקה" },
+    { key: "players", icon: "👥", label: "שחקניות" },
     { key: "gallery", icon: "📸", label: "תמונות מהמשחק" },
     { key: "settings", icon: "⚙️", label: "הגדרות" },
   ];
