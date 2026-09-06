@@ -206,6 +206,17 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "#1e293b" }}>{on ? "תזכורות פעילות במכשיר הזה" : "תזכורות לטלפון"}</div>
         <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, marginTop: 2 }}>{label}</div>
+        {on && role === "player" && (
+          <div style={{ marginTop: 5 }}>
+            <button onClick={sendTest} disabled={testing}
+              style={{ background: "transparent", border: "none", padding: 0, color: pc, fontSize: 12, fontWeight: 700, cursor: testing ? "default" : "pointer", textDecoration: "underline" }}>
+              {testing ? "שולחת…" : "🔔 שלחי לי התראת בדיקה"}
+            </button>
+            {testRes === "sent" && <div style={{ fontSize: 11.5, color: "#166534", fontWeight: 700, marginTop: 3, lineHeight: 1.45 }}>✓ נשלחה — הסתכלי על ההתראות. לא רואה? נעלי את המסך ונסי שוב.</div>}
+            {testRes === "none" && <div style={{ fontSize: 11.5, color: "#b45309", fontWeight: 700, marginTop: 3, lineHeight: 1.45 }}>המכשיר לא רשום אצלנו. בטלי והפעילי מחדש.</div>}
+            {testRes === "fail" && <div style={{ fontSize: 11.5, color: "#b91c1c", fontWeight: 700, marginTop: 3 }}>השליחה נכשלה. נסי שוב בעוד רגע.</div>}
+          </div>
+        )}
       </div>
       <button onClick={() => (on ? turnOff() : setExplain(true))} disabled={busy}
         style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 10, border: "none", cursor: busy ? "default" : "pointer", fontSize: 13, fontWeight: 800,
