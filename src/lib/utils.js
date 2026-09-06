@@ -66,6 +66,19 @@ function eventStateLabel(ev, phase) {
   return { pill: counting, pillShort: counting, line: "", icon: "" };
 }
 
+// לפני האירוע המספרים הם תחזית, אחריו הם דיווח. אותם נתונים בדיוק,
+// זמן דקדוקי אחר — "8 מגיעות" מול "8 הגיעו". בלי זה המסך ממשיך לדבר
+// בעתיד על אימון שכבר קרה.
+function attendanceWords(phase) {
+  const done = phase !== "before";
+  return {
+    coming: done ? "הגיעו" : "מגיעות",
+    notcoming: done ? "לא הגיעו" : "לא מגיעות",
+    pending: done ? "לא סימנו" : "טרם ענו",
+    heading: done ? "מי הגיעה" : "מי מגיעה",
+  };
+}
+
 // זיהוי iOS/iPadOS — שם signInWithPopup לא אמין (ITP מאבד את תוצאת ה-popup)
 function isIOS() {
   if (typeof navigator === "undefined") return false;
@@ -168,4 +181,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { eventPhase, eventStateLabel, EVENT_MINUTES, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };

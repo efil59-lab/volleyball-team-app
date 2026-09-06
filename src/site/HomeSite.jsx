@@ -7,7 +7,7 @@
 // אותו הירו ואותו עלה-לוח-שנה כמו במסך השחקנית (PlayerHome), כדי ששני המסכים
 // ירגישו כאותו אתר. הפעולות מגיעות ב-props מאותו state של המסך הנייד.
 import { useState } from "react";
-import { eventPhase, eventStateLabel } from "../lib/utils";
+import { eventPhase, eventStateLabel, attendanceWords } from "../lib/utils";
 import "./site.css";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
@@ -178,15 +178,16 @@ export default function HomeSite({
             <>
               {nextEvent && (
                 <>
+                  {(() => { const w = attendanceWords(eventPhase(nextEvent)); return (
                   <div className="st-p-sh">
-                    <h2>מי מגיעה</h2>
-                    <span className="st-p-note">מתעדכן בזמן אמת</span>
+                    <h2>{w.heading}</h2>
+                    {eventPhase(nextEvent) === "before" && <span className="st-p-note">מתעדכן בזמן אמת</span>}
                     <span className="st-p-tally">
-                      <span><i style={{ background: "var(--color-success, #16a34a)" }} /><b className="st-num">{counts.coming}</b> מגיעות</span>
+                      <span><i style={{ background: "var(--color-success, #16a34a)" }} /><b className="st-num">{counts.coming}</b> {w.coming}</span>
                       <span><i style={{ background: "var(--color-danger, #ef4444)" }} /><b className="st-num">{counts.notcoming}</b> לא</span>
-                      <span><i style={{ background: "#cbd5e1" }} /><b className="st-num">{counts.pending}</b> טרם ענו</span>
+                      <span><i style={{ background: "#cbd5e1" }} /><b className="st-num">{counts.pending}</b> {w.pending}</span>
                     </span>
-                  </div>
+                  </div>); })()}
                   <div className="st-p-card st-p-faces-box">
                     <div className="st-p-faces">
                       {roster.map(p => {

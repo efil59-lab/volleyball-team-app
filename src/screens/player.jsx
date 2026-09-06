@@ -4,7 +4,7 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { S } from "../styles/S";
 import {
-  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel, attendanceWords,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
@@ -53,6 +53,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const nextEvent = getNextEvent(events);
   const evPhase = eventPhase(nextEvent, now);
   const evState = eventStateLabel(nextEvent, evPhase);
+  const evWords = attendanceWords(evPhase);
   const myKey = nextEvent ? `${nextEvent.id}_${player.id}` : null;
   const myRecord = myKey ? attendance[myKey] : null;
   const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
@@ -446,7 +447,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
                   {/* Clickable counters */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                    {[["coming", "מגיעות", "#22c55e"], ["notcoming", "לא מגיעות", "#ef4444"], ["pending", "טרם ענו", "#94a3b8"]].map(([s, label, color]) => (
+                    {[["coming", evWords.coming, "#22c55e"], ["notcoming", evWords.notcoming, "#ef4444"], ["pending", evWords.pending, "#94a3b8"]].map(([s, label, color]) => (
                       <button key={s} onClick={() => setAttModal(s)}
                         style={{ flex: 1, background: "white", border: `2px solid ${color}30`, borderRadius: 12, padding: "10px 4px", cursor: "pointer", textAlign: "center" }}>
                         <div style={{ fontSize: 26, fontWeight: 800, color }}>{countAtt(s)}</div>
@@ -457,7 +458,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
                   {/* Who's coming - collapsible */}
                   {getList("coming").length > 0 && (
-                    <Collapsible title="✅ מגיעות" count={getList("coming").length} accent="#16a34a" defaultOpen>
+                    <Collapsible title={`✅ ${evWords.coming}`} count={getList("coming").length} accent="#16a34a" defaultOpen>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {getList("coming").map(p => <span key={p.id} style={{ background: "#22c55e", color: "white", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600 }}>{p.name}</span>)}
                       </div>
@@ -471,7 +472,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     <div style={{ ...S.card, textAlign: "center" }}>
                       <div style={{ fontSize: 34, marginBottom: 4 }}>👁️</div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
-                        {countAtt("coming")} מתוך {roster.length} מגיעות
+                        {countAtt("coming")} מתוך {roster.length} {evWords.coming}
                       </div>
                       <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
                         הרשימה המלאה למטה. את רשומה כצופה ואינך מסמנת נוכחות.
@@ -495,7 +496,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>{evState.line}</div>
                       {myRecord?.status && (
                         <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>
-                          סימנת: <strong>{myRecord.status === "coming" ? "מגיעה" : "לא מגיעה"}</strong>
+                          רשום: <strong>{myRecord.status === "coming" ? "הגעת" : "לא הגעת"}</strong>
                         </div>
                       )}
                     </div>
@@ -999,7 +1000,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
       {attModal && nextEvent && (
         <AttModal
-          title={attModal === "coming" ? "✅ מגיעות" : attModal === "notcoming" ? "❌ לא מגיעות" : "⏳ טרם ענו"}
+          title={attModal === "coming" ? `✅ ${evWords.coming}` : attModal === "notcoming" ? `❌ ${evWords.notcoming}` : `⏳ ${evWords.pending}`}
           list={getList(attModal)} players={players.map(p => ({ ...p, ...(playerProfiles[p.id] || {}) }))}
           attendance={attendance} eventId={nextEvent.id}
           onClose={() => setAttModal(null)} pc={pc} sc={sc} />

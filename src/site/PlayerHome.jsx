@@ -6,7 +6,7 @@
 // הכל מגיע ב-props מאותו state של המסך הנייד. מסכי העומק (לוח מלא, תוצאות,
 // צ'אט מלא, גלריה) נשארים המסכים הקיימים — כאן רק התקצירים והקישור אליהם.
 import { useMemo } from "react";
-import { formatShort, countdownLabel, alreadyApplaudedToday } from "../lib/utils";
+import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords } from "../lib/utils";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
@@ -38,6 +38,7 @@ export default function PlayerHome({
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
   // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
   const isViewer = !!player.viewer;
+  const evWords = attendanceWords(evPhase);
   const roster = players.filter(p => !p.viewer);
   const my = myRecord?.status || null;
   const counts = useMemo(() => {
@@ -144,7 +145,7 @@ export default function PlayerHome({
                 {/* צופה אינה מסמנת נוכחות — במקום הכפתורים, המספר שבשבילו היא כאן */}
                 {isViewer ? (
                   <p className="st-p-saved" style={{ fontSize: "1.15rem", opacity: 1 }}>
-                    👁️ <b>{counts.coming}</b> מתוך {roster.length} מגיעות · {counts.pending} טרם ענו
+                    👁️ <b>{counts.coming}</b> מתוך {roster.length} {evWords.coming} · {counts.pending} {evWords.pending}
                   </p>
                 ) : evPhase !== "before" ? (
                   <p className="st-p-saved" style={{ fontSize: "1.15rem", opacity: 1 }}>{evState && evState.line}</p>
@@ -197,12 +198,12 @@ export default function PlayerHome({
         <section className="st-p-sec st-p-alt" id="st-team">
           <div className="st-p-wrap">
             <div className="st-p-sh">
-              <h2>מי מגיעה</h2>
-              <span className="st-p-note">מתעדכן בזמן אמת</span>
+              <h2>{evWords.heading}</h2>
+              {evPhase === "before" && <span className="st-p-note">מתעדכן בזמן אמת</span>}
               <span className="st-p-tally">
-                <span><i style={{ background: "var(--color-success, #16a34a)" }} /><b className="st-num">{counts.coming}</b> מגיעות</span>
+                <span><i style={{ background: "var(--color-success, #16a34a)" }} /><b className="st-num">{counts.coming}</b> {evWords.coming}</span>
                 <span><i style={{ background: "var(--color-danger, #ef4444)" }} /><b className="st-num">{counts.notcoming}</b> לא</span>
-                <span><i style={{ background: "#cbd5e1" }} /><b className="st-num">{counts.pending}</b> טרם ענו</span>
+                <span><i style={{ background: "#cbd5e1" }} /><b className="st-num">{counts.pending}</b> {evWords.pending}</span>
               </span>
             </div>
             <div className="st-p-card st-p-faces-box">
