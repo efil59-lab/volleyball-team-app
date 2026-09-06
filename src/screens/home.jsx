@@ -19,6 +19,10 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
+  // הערה לאישור ההגעה ישירות מכרטיס מסך הבית. עד היום היא הייתה רק במסך
+  // האישי, ומי שמסמנת רק מכאן — רוב הבנות — לא נתקלה בה מעולם.
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
   // שעון מתקתק — בלעדיו התווית לא תתחלף למי שהאפליקציה פתוחה בשעת האימון
   const now = useNow();
   const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
@@ -94,6 +98,14 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
     await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
   }
 
+  // שמירת הערה — כמו rsvpFor, מוגדרת כאן כדי שגם שכבת הדסקטופ תשתמש בה
+  async function saveNoteFor(player, text) {
+    if (!nextEvent || !player) return;
+    const key = `${nextEvent.id}_${player.id}`;
+    const cur = attendance[key] || {};
+    await upd.attendance({ ...attendance, [key]: { ...cur, note: text } });
+  }
+
   // ── שכבת הדסקטופ ────────────────────────────────────────────────────────
   // כל מה שמתחת ל-1100×600 ממשיך בדיוק כפי שהיה — הפריסה הניידת לא נגעה בה.
   if (isDesktop) {
@@ -114,6 +126,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             myStatus={me && nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).status : null}
             activeNotifs={activeNotifs} bdayOthers={bdayOthers}
             onRSVP={(s) => rsvpFor(me, s)}
+            onNote={me ? (t) => saveNoteFor(me, t) : null}
+            myNote={me && nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).note || "" : ""}
             onSelectPlayer={onSelectPlayer}
             onOpenMine={() => onSelectPlayer(me)}
             onOpenTab={() => onSelectPlayer(me)}
@@ -139,6 +153,15 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
       const cur = attendance[key] || {};
       if (cur.status === status) return; // כבר מסומן — אין מה לכתוב
       await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+      setNoteInput(cur.note || "");
+      setNoteOpen(true);
+    }
+    const myNote = nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).note || "" : "";
+    async function saveQuickNote() {
+      const key = `${nextEvent.id}_${me.id}`;
+      const cur = attendance[key] || {};
+      await upd.attendance({ ...attendance, [key]: { ...cur, note: noteInput.trim() } });
+      setNoteOpen(false);
     }
     return (
       <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
@@ -182,6 +205,27 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
                   {myStatus === "notcoming" ? "✗ לא מגיעה" : "❌ לא מגיעה"}
                 </button>
               </div>
+              {myStatus && (noteOpen ? (
+                <div style={{ marginTop: 10 }}>
+                  <input value={noteInput} onChange={e => setNoteInput(e.target.value)} autoFocus
+                    placeholder="הערה (אופציונלי) — למשל: מאחרת ב-15 דק'"
+                    style={{ width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: "none", fontSize: 14, fontFamily: "inherit" }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button onClick={saveQuickNote}
+                      style={{ flex: 1, padding: 10, background: sc, color: pc, border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>שמור</button>
+                    <button onClick={() => setNoteOpen(false)}
+                      style={{ flex: 1, padding: 10, background: "rgba(255,255,255,0.15)", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>דלג</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", marginTop: 10 }}>
+                  {myNote && <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12.5, fontStyle: "italic", marginBottom: 3 }}>"{myNote}"</div>}
+                  <button onClick={() => { setNoteInput(myNote); setNoteOpen(true); }}
+                    style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.85)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
+                    {myNote ? "✏️ עריכת הערה" : "✏️ הוספת הערה"}
+                  </button>
+                </div>
+              ))}
               </>)}
               {/* היה כאן קישור "מי עוד מגיעה?" — כפול לכרטיס "המסך האישי שלי"
                   שמופיע ממש מתחת, ולראש הכרטיס שהוא ממילא לחיץ. */}

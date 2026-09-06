@@ -6,11 +6,40 @@
 //
 // אותו הירו ואותו עלה-לוח-שנה כמו במסך השחקנית (PlayerHome), כדי ששני המסכים
 // ירגישו כאותו אתר. הפעולות מגיעות ב-props מאותו state של המסך הנייד.
+import { useState } from "react";
 import { eventPhase, eventStateLabel } from "../lib/utils";
 import "./site.css";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 const ini = (n) => String(n || "?").trim().slice(0, 2);
+
+// הערה לאישור ההגעה — אותה יכולת שיש בפריסה הניידת, כדי ששתי הפריסות
+// לא יתפצלו. מופיעה רק כל עוד יש מה לבחור: אחרי שהאירוע התחיל הכפתורים
+// נעלמים, ואיתם גם היא.
+function SiteNote({ note, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(note || "");
+  if (!open) {
+    return (
+      <p className="st-p-saved" style={{ marginTop: 6 }}>
+        {note ? <em style={{ opacity: 0.9 }}>"{note}" · </em> : null}
+        <button type="button" onClick={() => { setText(note || ""); setOpen(true); }}
+          style={{ background: "none", border: "none", color: "inherit", font: "inherit", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+          {note ? "עריכת הערה" : "הוספת הערה"}
+        </button>
+      </p>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <input value={text} onChange={e => setText(e.target.value)} autoFocus
+        placeholder="הערה (אופציונלי) — למשל: מאחרת ב-15 דק'"
+        style={{ flex: "1 1 220px", minWidth: 0, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.95)", color: "#1e293b", fontSize: 14, fontFamily: "inherit" }} />
+      <button type="button" onClick={() => { onSave(text.trim()); setOpen(false); }} className="st-p-rbtn" style={{ flex: "0 0 auto", padding: "10px 18px" }}>שמור</button>
+      <button type="button" onClick={() => setOpen(false)} className="st-p-rbtn" style={{ flex: "0 0 auto", padding: "10px 18px", opacity: 0.75 }}>דלג</button>
+    </div>
+  );
+}
 
 function Leaf({ ev }) {
   if (!ev) return null;
@@ -28,7 +57,7 @@ function Leaf({ ev }) {
 export default function HomeSite({
   me, players = [], playerProfiles = {}, attendance = {}, settings = {},
   nextEvent, myStatus, activeNotifs = [], bdayOthers = [],
-  onRSVP, onSelectPlayer, onOpenMine, onOpenTab, onSwitchUser,
+  onRSVP, onNote, myNote = "", onSelectPlayer, onOpenMine, onOpenTab, onSwitchUser,
   onAdmin, onAbout, onSuperAdmin, onPurchase, superAdminHandlers, pc, sc,
 }) {
   const roster = players.filter(p => !p.viewer);
@@ -89,6 +118,11 @@ export default function HomeSite({
                       {new Date(nextEvent.date + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long" })} · <b>{nextEvent.time}</b>
                       {nextEvent.location ? <> · {nextEvent.location}</> : null}
                     </p>
+                    {eventPhase(nextEvent) !== "before" ? (
+                      <p className="st-p-saved" style={{ fontSize: "1.15rem", opacity: 1 }}>
+                        {eventStateLabel(nextEvent, eventPhase(nextEvent)).line}
+                      </p>
+                    ) : (<>
                     <div className="st-p-rsvp">
                       <button className={"st-p-rbtn st-yes" + (myStatus === "coming" ? " st-on" : "")}
                         aria-pressed={myStatus === "coming"} onClick={() => onRSVP("coming")}>✅ אני מגיעה</button>
@@ -100,6 +134,8 @@ export default function HomeSite({
                         : myStatus === "notcoming" ? "נשמר — סימנת שאינך מגיעה. אפשר לשנות בכל רגע."
                           : "טרם אישרת הגעה"}
                     </p>
+                    {myStatus && onNote && <SiteNote note={myNote} onSave={onNote} />}
+                    </>)}
                   </>
                 ) : (
                   <p className="st-p-meta">כשהמנהלת תקבע אימון או משחק הוא יופיע כאן, ותקבלי תזכורת יום לפני.</p>
