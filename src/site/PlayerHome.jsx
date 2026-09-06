@@ -33,7 +33,7 @@ export default function PlayerHome({
   player, players = [], playerProfiles = {}, attendance = {}, archive = [],
   chat = [], polls = [], gallery = [], applause = [], nextEvent, myRecord,
   clapList = [], clapLabel = "", evPhase = "before", evState = null,
-  onRSVP, onVote, onApplause, onOpen,
+  onRSVP, onVote, onApplause, onOpen, onProfile,
 }) {
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
   // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
@@ -130,7 +130,15 @@ export default function PlayerHome({
       <section className="st-p-hero" id="st-next">
         <div className="st-p-hero-in">
           <div className="st-p-hero-main">
-            <p className="st-p-eyebrow">שלום {player.name} 👋</p>
+            <p className="st-p-eyebrow">
+              שלום {player.name} 👋
+              {onProfile && (
+                <button type="button" onClick={onProfile}
+                  style={{ marginInlineStart: 12, background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.3)", color: "inherit", borderRadius: 9, padding: "4px 11px", fontSize: "0.82em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  ✏️ פרופיל והתראות
+                </button>
+              )}
+            </p>
             {nextEvent ? (
               <>
                 <h1 className="st-p-h1">

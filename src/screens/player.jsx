@@ -391,9 +391,19 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     footerExtra: (<>
       <button onClick={() => goDesk("gallery")}>תמונות</button>
       {!isViewer && <button onClick={() => goDesk("polls")}>סקרים</button>}
-      <button onClick={() => { setEditPhone(prof.phone || ""); setEditEmail(prof.email || ""); setEditWhatsapp(prof.whatsapp || ""); setEditBirthday(prof.birthday || ""); setEditProfile(true); }}>עריכת פרופיל והתראות</button>
+      <button onClick={openProfileEditor}>עריכת פרופיל והתראות</button>
     </>),
   };
+  // פתיחת עורך הפרופיל — משותפת לכפתור בכותרת ולקישור בפוטר, כדי ששניהם
+  // ימלאו את אותם שדות ולא יתפצלו.
+  function openProfileEditor() {
+    setEditPhone(prof.phone || "");
+    setEditEmail(prof.email || "");
+    setEditWhatsapp(prof.whatsapp || "");
+    setEditBirthday(prof.birthday || "");
+    setEditProfile(true);
+  }
+
   const deskHomeBody = (
     <PlayerHome
       player={player} players={players} playerProfiles={playerProfiles}
@@ -406,6 +416,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       onVote={(pollId, i) => upd.pollVote(pollId, player.id, i)}
       onApplause={sendApplause}
       onOpen={goDesk}
+      onProfile={openProfileEditor}
     />
   );
   const tabBody = (
