@@ -328,8 +328,6 @@ function AdminPanel(props) {
 function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings, notify }) {
   const isDesk = useIsDesktop();
   const [attModal, setAttModal] = useState(null);
-  const [editRow, setEditRow] = useState(null);   // playerId שפתוח לתיקון סימון
-  const [waAfter, setWaAfter] = useState(null);   // { player, text } — הצעת וואטסאפ אחרי תיקון
   const [viewId, setViewId] = useState(null);     // אירוע שנבחר לצפייה במקום הקרוב
 
   // ── איזה אירוע מוצג כאן ──────────────────────────────────────────────────
@@ -363,71 +361,6 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   const evWords = attendanceWords(eventPassed ? "done" : "before");
 
   const evLabel = nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "";
-
-  // ההתערבות היחידה: מי שאישרה הגעה ולא הגיעה בפועל. במכוון אין כאן "סמני
-  // כהגיעה" ואין "נקה": מי שסימנה בעצמה — הסימון שלה נשאר שלה, ומי שלא ענתה
-  // כלל אינה עניין של נוכחות אלא של תזכורת. כל אפשרות נוספת רק פותחת פתח
-  // לטעויות ולוויכוחים על רשומות שאיש לא ביקש לגעת בהן.
-  // שני תיקונים, שניהם רק כשהמציאות לא תואמת את הרישום — ובשני הכיוונים:
-  //   אישרה ולא הגיעה  →  notcoming
-  //   הגיעה ולא סימנה  →  coming
-  // מי שסימנה "לא מגיעה" בעצמה לא ניתנת לשינוי: הסימון שלה שלה.
-  //
-  // הכיוון השני חשוב לא פחות מהראשון: מי שלא ענתה כלל נספרת בסטטיסטיקה בדיוק
-  // כמו מי שלא הגיעה (המכנה הוא כל האירועים בארכיון). בלי הכפתור הזה שחקנית
-  // שהגיעה ופשוט לא התעסקה עם האפליקציה נענשת על כך שלא התעסקה עם האפליקציה,
-  // וזה פוגע דווקא במי שהכי פחות טכנולוגית — ואין שום דרך לתקן.
-  async function setAttendedByAdmin(p, status) {
-    setEditRow(null);
-    const key = `${nextEvent.id}_${p.id}`;
-    const cur = attendance[key] || {};
-    const from = cur.status || null;
-    if (from === status) return;
-    // תיעוד: מי שינה, מתי, ומה היה קודם. בלי זה, בעוד חודשיים אף אחד לא יידע
-    // למה הרשומה נראית כך — והשחקנית תראה סתירה בין מה שסימנה לסטטיסטיקה.
-    const adminEdit = {
-      by: (auth.currentUser && auth.currentUser.email) || "מנהל/ת",
-      at: new Date().toISOString(),
-      from,
-    };
-    await upd.attendance({ ...attendance, [key]: { ...cur, status, adminEdit } });
-    await announce(p, status === "notcoming"
-      ? `המנהלת עדכנה שלא הגעת ל${evLabel}, למרות שאישרת הגעה.`
-      : `המנהלת עדכנה שהגעת ל${evLabel}. לא סימנת מראש, וזה נרשם לך כהגעה.`);
-    notify(status === "notcoming"
-      ? `${p.name} סומנה כמי שלא הגיעה, והיא קיבלה הודעה ✔`
-      : `${p.name} סומנה כמי שהגיעה, והיא קיבלה הודעה ✔`, { icon: "✅" });
-  }
-
-  // ביטול תיקון שגוי של המנהלת עצמה. זו לא "התערבות" נוספת אלא דרך חזרה
-  // מטעות — ובלעדיה שחקנית נשארת עם רישום שגוי שאין איך להסיר.
-  // מחזיר למה שהיה לפני (adminEdit.from), כולל "לא סימנה כלל" (null).
-  async function undoAdminEdit(p) {
-    setEditRow(null);
-    const key = `${nextEvent.id}_${p.id}`;
-    const cur = attendance[key] || {};
-    if (!cur.adminEdit) return;
-    const back = cur.adminEdit.from || null;
-    const { adminEdit: _drop, ...rest } = cur;
-    await upd.attendance({ ...attendance, [key]: { ...rest, status: back } });
-    await announce(p, `המנהלת ביטלה את העדכון — הנוכחות שלך ל${evLabel} חזרה ל${
-      back === "coming" ? '"הגעת"' : back === "notcoming" ? '"לא הגעת"' : '"לא סומן"'}.`);
-    notify(`התיקון של ${p.name} בוטל, והיא קיבלה הודעה ✔`, { icon: "↩️" });
-  }
-
-  // הודעה לשחקנית: התראה אישית באפליקציה (מגיעה גם למי שלא הפעילה פוש) +
-  // פוש למכשירים שלה בלבד, ואז הצעה לוואטסאפ כגיבוי ידני.
-  async function announce(p, body) {
-    try {
-      await upd.personalNotifAdd(p.id, {
-        id: `att_${nextEvent.id}_${Date.now()}`, type: "attendance",
-        text: body, seen: false, date: todayStr(),
-      });
-    } catch (e) { console.error("attendance notif:", e); }
-    notifyTeamPushRemote("📋 עדכון נוכחות", body, p.id);
-    const prof = playerProfiles[p.id] || {};
-    setWaAfter(prof.whatsapp ? { player: p, text: `היי ${p.name}, ${body}` } : null);
-  }
 
   // Birthday reminders for admin
   const birthdaysToday = players.filter(p => isBirthdayToday((playerProfiles[p.id] || {}).birthday));
@@ -585,15 +518,9 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         const rec = attendance[`${nextEvent.id}_${p.id}`];
         const status = rec?.status;
         const edited = rec?.adminEdit;
-        const open = editRow === p.id;
-        // ניתנת לפעולה: מי שאישרה הגעה (לסמן שלא הגיעה), מי שלא ענתה כלל
-        // (לסמן שהגיעה), או מי שכבר תוקנה (לבטל). מי שסימנה "לא מגיעה"
-        // בעצמה — לקריאה בלבד.
-        const actionable = eventPassed && (status === "coming" || !status || !!edited);
         return (
-          <div key={p.id} style={{ background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, border: `1px solid ${open ? pc : "#e2e8f0"}` }}>
-            <div onClick={() => actionable && setEditRow(open ? null : p.id)}
-              style={{ display: "flex", alignItems: "center", gap: 10, cursor: actionable ? "pointer" : "default" }}>
+          <div key={p.id} style={{ background: "white", borderRadius: 10, padding: "10px 12px", marginBottom: 8, border: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {prof.photo ? <img src={prof.photo} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
                 : <div style={{ width: 36, height: 36, borderRadius: "50%", background: pc, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>{p.name[0]}</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -612,44 +539,10 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
                 {status === "coming" ? "✅" : status === "notcoming" ? "❌" : <span style={{ color: "#94a3b8", fontSize: 13 }}>{eventPassed ? "לא סימנה" : "טרם ענתה"}</span>}
               </div>
             </div>
-            {open && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
-                {edited ? (
-                  <button onClick={() => undoAdminEdit(p)} style={{ width: "100%", padding: "10px", background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>
-                    ↩️ ביטול התיקון
-                  </button>
-                ) : status === "coming" ? (
-                  <button onClick={() => setAttendedByAdmin(p, "notcoming")} style={{ width: "100%", padding: "10px", background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 800 }}>
-                    ❌ אישרה הגעה אבל לא הגיעה
-                  </button>
-                ) : (
-                  <button onClick={() => setAttendedByAdmin(p, "coming")} style={{ width: "100%", padding: "10px", background: "#f0fdf4", color: "#166534", border: "1px solid #86efac", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 800 }}>
-                    ✅ לא סימנה אבל הגיעה
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         );
       })}
 
-      {/* גיבוי ידני: מי שלא הפעילה התראות לא תראה כלום עד שתיכנס לאפליקציה */}
-      {waAfter && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setWaAfter(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: 20, maxWidth: 340, width: "100%", boxSizing: "border-box", textAlign: "center" }}>
-            <div style={{ fontSize: 38 }}>💬</div>
-            <p style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "8px 0 6px" }}>לשלוח ל{waAfter.player.name} גם בוואטסאפ?</p>
-            <p style={{ fontSize: 12.5, color: "#64748b", margin: "0 0 14px", lineHeight: 1.5 }}>
-              היא כבר קיבלה התראה באפליקציה. וואטסאפ שימושי אם היא לא הפעילה התראות.
-            </p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { window.open(`https://wa.me/${(playerProfiles[waAfter.player.id] || {}).whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(waAfter.text)}`, "_blank"); setWaAfter(null); }}
-                style={{ flex: 1, padding: 12, background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 800 }}>💬 וואטסאפ</button>
-              <button onClick={() => setWaAfter(null)} style={{ flex: 1, padding: 12, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>לא צריך</button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </>
   );
