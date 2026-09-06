@@ -2,6 +2,67 @@ import { useState, useEffect } from "react";
 import { S } from "../styles/S";
 import { pushSupport, pushEnabledLocally, enablePush, disablePush } from "../lib/push";
 import { testPushRemote } from "../lib/db";
+import { isIOS } from "../lib/utils";
+
+// ── "איך מפעילים אצלי?" ─────────────────────────────────────────────────────
+// מסלול אחד בלבד, לפי סוג המכשיר. באנדרואיד ההתראות עובדות גם מהדפדפן;
+// באייפון הן לא עובדות בכלל עד שהאפליקציה מותקנת למסך הבית — זה תנאי,
+// לא המלצה. מדריך שמציג את שני המסלולים יחד גורם בדיוק לחצי שחייב את
+// שלב ההתקנה לדלג עליו. ההחלפה הידנית קיימת כרשת ביטחון: זיהוי לפי
+// דפדפן אינו מדויק תמיד.
+const HOWTO = {
+  and: [
+    { n: "1", t: "התקיני את האפליקציה (מומלץ)", d: "תפריט ⋮ בכרום ← 'הוסף למסך הבית'. ההתראות עובדות גם בלי זה, אבל האפליקציה נפתחת מהר יותר." },
+    { n: "2", t: 'לחצי "הפעילי 🔔" כאן למטה', d: "יופיע מסך הסבר קצר, ואחריו הטלפון ישאל." },
+    { n: "3", t: 'אשרי — "אפשר"', d: "זה הרגע היחיד שקשה לתקן: אם תלחצי 'חסום', הדפדפן יזכור וצריך לפתוח ידנית בהגדרות." },
+  ],
+  ios: [
+    { n: "!", req: true, t: "התקיני את האפליקציה — חובה", d: "בספארי: כפתור השיתוף ↑ ← 'הוסף למסך הבית'. באייפון התראות לא עובדות מהדפדפן, ובלי השלב הזה שום דבר אחר לא יעזור." },
+    { n: "2", t: "פתחי מהאייקון החדש", d: "לא מספארי — מהאייקון שנוסף למסך הבית. מבחינת האייפון זו אפליקציה אחרת." },
+    { n: "3", t: "חזרי לכאן ולחצי 'הפעילי 🔔'", d: "האייפון ישאל אם לאפשר התראות — לוחצים 'אפשר'." },
+  ],
+};
+
+function HowTo({ pc }) {
+  const [open, setOpen] = useState(false);
+  const [dev, setDev] = useState(() => (isIOS() ? "ios" : "and"));
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        style={{ background: "transparent", border: "none", padding: 0, marginTop: 6, color: pc, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>
+        ❓ איך מפעילים אצלי?
+      </button>
+    );
+  }
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #eef2f7" }}>
+      <div style={{ display: "flex", gap: 5, background: "#f1f5f9", borderRadius: 10, padding: 3, marginBottom: 10 }}>
+        {[["and", "🤖 אנדרואיד"], ["ios", "🍎 אייפון"]].map(([k, lbl]) => (
+          <button key={k} type="button" onClick={() => setDev(k)}
+            style={{ flex: 1, border: "none", borderRadius: 8, padding: "7px 4px", fontSize: 12.5, fontWeight: 800, cursor: "pointer",
+              background: dev === k ? "white" : "transparent", color: dev === k ? pc : "#64748b",
+              boxShadow: dev === k ? "0 1px 3px rgba(16,24,64,0.14)" : "none" }}>{lbl}</button>
+        ))}
+      </div>
+      {HOWTO[dev].map((st, i) => (
+        <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+          <div style={{ flex: "0 0 23px", height: 23, borderRadius: "50%", background: st.req ? "#dc2626" : pc, color: "white", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>{st.n}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", lineHeight: 1.4 }}>{st.t}</div>
+            <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.55, marginTop: 2 }}>{st.d}</div>
+          </div>
+        </div>
+      ))}
+      <div style={{ fontSize: 11.5, color: "#94a3b8", lineHeight: 1.5, marginBottom: 8 }}>
+        בסוף, אחרי האישור, יופיע כפתור לשליחת התראת בדיקה — כך תדעי שזה באמת עובד ולא רק נראה מופעל.
+      </div>
+      <button type="button" onClick={() => setOpen(false)}
+        style={{ background: "transparent", border: "none", padding: 0, color: "#94a3b8", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
+        סגירת ההסבר
+      </button>
+    </div>
+  );
+}
 
 // ── כרטיס "תזכורות" — הפעלה/ביטול של Web Push במכשיר הנוכחי ──────────────────
 // role: "player" | "admin". לשחקנית: תזכורת לפני אימון/משחק אם טרם אישרה.
@@ -132,9 +193,9 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
     return (
       <div style={{ ...S.card, display: "flex", gap: 12, alignItems: "flex-start" }}>
         <div style={{ fontSize: 26, flexShrink: 0 }}>🔔</div>
-        <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.55 }}>
-          <b>רוצה תזכורות לטלפון?</b> באייפון זה עובד רק מהאפליקציה המותקנת:
-          כפתור שיתוף ↑ ← "הוסף למסך הבית", ואז הפעילי תזכורות מכאן.
+        <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.55, minWidth: 0, flex: 1 }}>
+          <b>רוצה תזכורות לטלפון?</b> באייפון זה עובד רק מהאפליקציה המותקנת.
+          <HowTo pc={pc} />
         </div>
       </div>
     );
@@ -212,11 +273,12 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
   }
 
   return (
-    <div style={{ ...S.card, display: "flex", gap: 12, alignItems: "center" }}>
+    <div style={{ ...S.card, display: "flex", gap: 12, alignItems: "flex-start" }}>
       <div style={{ fontSize: 26, flexShrink: 0 }}>{on ? "🔔" : "🔕"}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "#1e293b" }}>{on ? "תזכורות פעילות במכשיר הזה" : "תזכורות לטלפון"}</div>
         <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, marginTop: 2 }}>{label}</div>
+        {!on && <HowTo pc={pc} />}
         {on && role === "player" && (
           <div style={{ marginTop: 5 }}>
             <button onClick={sendTest} disabled={testing}
