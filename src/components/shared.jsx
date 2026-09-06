@@ -257,11 +257,13 @@ function BottomNav({ items, moreItems = [], active, onChange, pc }) {
           <div onClick={e => e.stopPropagation()}
             style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "white", borderRadius: "20px 20px 0 0", padding: "14px 14px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", boxShadow: "0 -10px 40px rgba(0,0,0,0.2)" }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "#e2e8f0", margin: "0 auto 12px" }} />
+            {/* accent — פריט שאינו לשונית תפעולית (אודות). רקע בצבע הקבוצה
+                כדי שיבלוט מול הפריטים הרגילים שעל רקע לבן. */}
             {moreItems.map(m => (
               <button key={m.key} onClick={() => { onChange(m.key); setMoreOpen(false); }}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "13px 12px", background: active === m.key ? `${pc}0d` : "transparent", border: "none", borderRadius: 12, cursor: "pointer", textAlign: "right" }}>
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "13px 12px", background: m.accent ? pc : active === m.key ? `${pc}0d` : "transparent", border: "none", borderRadius: 12, cursor: "pointer", textAlign: "right", marginTop: m.accent ? 6 : 0 }}>
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
-                <span style={{ fontSize: 15, fontWeight: active === m.key ? 800 : 600, color: active === m.key ? pc : "#334155" }}>{m.label}</span>
+                <span style={{ fontSize: 15, fontWeight: m.accent || active === m.key ? 800 : 600, color: m.accent ? "white" : active === m.key ? pc : "#334155" }}>{m.label}</span>
               </button>
             ))}
           </div>

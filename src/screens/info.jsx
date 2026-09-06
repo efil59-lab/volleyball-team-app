@@ -47,7 +47,10 @@ function HelpScreen({ pc, sc, settings, onBack }) {
 }
 
 // ── ABOUT SCREEN ──────────────────────────────────────────────────────────────
-function AboutScreen({ pc, sc, settings, onBack }) {
+// embedded = אודות כלשונית בתוך המסך האישי (שחקנית שנכנסת ישר לשם לא
+// עוברת דרך מסך הבית ולא הייתה רואה אותו אחרת). אז בלי הכותרת הכחולה
+// ובלי "חזור" — הניווט התחתון הוא הדרך לצאת.
+function AboutScreen({ pc, sc, settings, onBack, embedded = false }) {
   const faq = [
     { q: "איך מתקינים את האפליקציה על הנייד?", a: "אנדרואיד (Chrome): תפריט ⋮ ← 'הוסף למסך הבית'. אייפון (Safari): כפתור שיתוף ↑ ← 'הוסף למסך הבית'. כך האפליקציה תיפתח ישירות ומהר יותר." },
     { q: "איך נכנסים בפעם הראשונה?", a: "לחצי על שמך ברשימה במסך הבית, בחרי סיסמה אישית (לפחות 6 תווים) והוסיפי פרטי קשר. מהפעם הבאה — רק שם וסיסמה." },
@@ -64,15 +67,8 @@ function AboutScreen({ pc, sc, settings, onBack }) {
     { q: "הנתונים שלי מאובטחים?", a: "כן. לכל שחקנית חשבון אישי ומאובטח, וכל אחת רואה ועורכת רק את הפרטים שלה. הסיסמאות מאוחסנות בצורה מוצפנת ואינן גלויות לאיש." },
   ];
 
-  return (
-    <div style={{ minHeight: "100vh" }}>
-      <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, padding: "28px 20px 36px", textAlign: "center", position: "relative" }}>
-        <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
-        <div style={{ fontSize: 48 }}>🏐</div>
-        <h2 style={{ color: "white", fontSize: 20, fontWeight: 800, margin: "8px 0 4px" }}>אודות</h2>
-        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, margin: 0 }}>{settings.teamName}</p>
-      </div>
-      <div style={{ padding: 16 }}>
+  const body = (
+      <>
         <div style={{ ...S.card, marginBottom: 14, textAlign: "center", padding: "20px 16px" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: pc, marginBottom: 4 }}>{settings.teamName || "הקבוצה שלי"}</div>
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>אפליקציה לניהול קבוצת הכדורשת</div>
@@ -100,6 +96,26 @@ function AboutScreen({ pc, sc, settings, onBack }) {
           <div style={{ fontSize: 24, marginBottom: 6 }}>💙</div>
           <div style={{ fontSize: 13, color: pc, fontWeight: 600 }}>תודה שאתן חלק מהקבוצה!</div>
         </div>
+      </>
+  );
+
+  if (embedded) return (
+    <div>
+      <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: "0 0 10px" }}>ℹ️ אודות</h3>
+      {body}
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}cc)`, padding: "28px 20px 36px", textAlign: "center", position: "relative" }}>
+        <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
+        <div style={{ fontSize: 48 }}>🏐</div>
+        <h2 style={{ color: "white", fontSize: 20, fontWeight: 800, margin: "8px 0 4px" }}>אודות</h2>
+        <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, margin: 0 }}>{settings.teamName}</p>
+      </div>
+      <div style={{ padding: 16 }}>
+        {body}
       </div>
     </div>
   );

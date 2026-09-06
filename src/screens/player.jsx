@@ -12,6 +12,7 @@ import { compressImage, uploadProfilePhoto } from "../lib/images";
 import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
+import { AboutScreen } from "./info";
 import ReminderCard from "../components/ReminderCard";
 import EnablePushModal from "../components/EnablePushModal";
 import Confetti from "../components/Confetti";
@@ -286,13 +287,16 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       { key: "games", icon: "🏆", label: "תוצאות" },
       { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
     ];
-  // לצופה אין "עוד" בכלל — הסקר הוא של השחקניות, והגלריה כבר בניווט הראשי.
-  // BottomNav מסתיר את לשונית "עוד" כשהרשימה ריקה.
+  // לצופה אין סקר — הוא של השחקניות — והגלריה כבר בניווט הראשי, אז נשאר
+  // לה רק אודות. אודות נמצא כאן ולא רק במסך הבית כי שחקנית שהמכשיר זוכר
+  // אותה נוחתת ישר במסך האישי ולעולם לא עוברת במסך הבית (דווח 6.9.26).
+  const aboutItem = { key: "about", icon: "ℹ️", label: "אודות", accent: true };
   const navMore = isViewer
-    ? []
+    ? [aboutItem]
     : [
       { key: "polls", icon: "🗳️", label: "סקר" },
       { key: "gallery", icon: "📸", label: "תמונות" },
+      aboutItem,
     ];
 
   async function sendChat() {
@@ -785,6 +789,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           {/* ── POLLS TAB ── */}
           {tab === "polls" && !isViewer && (
             <PlayerPolls polls={polls} player={player} players={players} upd={upd} pc={pc} sc={sc} />
+          )}
+
+          {/* ── ABOUT TAB ── */}
+          {tab === "about" && (
+            <AboutScreen pc={pc} sc={sc} settings={settings} embedded />
           )}
 
           {/* ── GALLERY TAB ── */}
