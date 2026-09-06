@@ -566,11 +566,6 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           ← חזרה לאירוע הקרוב
         </button>
       )}
-      {eventPassed && (
-        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: "#92400e", lineHeight: 1.5 }}>
-          ⏱️ ה{evLabel} כבר עבר. אם מישהי <b>אישרה ולא הגיעה</b>, או <b>הגיעה ולא סימנה</b> — לחצי עליה ותקני. היא תקבל הודעה, והתיקון יתועד.
-        </div>
-      )}
       {roster.map(p => {
         const prof = playerProfiles[p.id] || {};
         const rec = attendance[`${nextEvent.id}_${p.id}`];
@@ -908,8 +903,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                   </div>
                   <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8, lineHeight: 1.5 }}>
                     {pend > 0
-                      ? `${pend === 1 ? "שחקנית אחת לא סימנה" : `${pend} שחקניות לא סימנו`} — הן ייכנסו כמי שלא הגיעו. תקני מה שצריך ולחצי ארכב.`
-                      : "עברי על הרשימה, תקני מה שצריך ולחצי ארכב."}
+                      ? `${pend === 1 ? "שחקנית אחת לא סימנה" : `${pend} שחקניות לא סימנו`} — הן ייכנסו כמי שלא הגיעו. תקני מה שצריך ולחצי ארכב. מי שתיקנת תקבל הודעה.`
+                      : "עברי על הרשימה, תקני מה שצריך ולחצי ארכב. מי שתיקנת תקבל הודעה."}
                   </div>
                   <div style={{ maxHeight: "42vh", overflowY: "auto", margin: "0 -4px 12px", padding: "0 4px" }}>
                     {order.map(p => {
