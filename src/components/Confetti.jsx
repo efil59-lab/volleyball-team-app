@@ -32,8 +32,11 @@ export default function Confetti({ colors = [], variant = "fall", onDone }) {
 
     const pal = (colors.length ? colors : ["#1a237e", "#f5c842", "#ffffff"]);
     const burst = variant === "burst";
-    const N = burst ? 40 : 90;
-    const LIFE = burst ? 1200 : 2600;
+    // אותה כמות בשני המצבים. הפרץ התחיל ב-40 והרגיש דליל לצד הנפילה (הערת
+    // אפי אחרי שראה את שניהם) — 90 מנקודה אחת צפוף יותר מ-90 לרוחב המסך,
+    // וזו בדיוק ההרגשה החגיגית שרצינו.
+    const N = 90;
+    const LIFE = burst ? 1400 : 2600;
 
     const parts = Array.from({ length: N }, (_, i) => {
       if (burst) {
