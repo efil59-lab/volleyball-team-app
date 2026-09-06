@@ -32,7 +32,7 @@ function Face({ p, prof, status, isMe }) {
 export default function PlayerHome({
   player, players = [], playerProfiles = {}, attendance = {}, archive = [],
   chat = [], polls = [], gallery = [], applause = [], nextEvent, myRecord,
-  clapList = [], clapLabel = "",
+  clapList = [], clapLabel = "", evPhase = "before", evState = null,
   onRSVP, onVote, onApplause, onOpen,
 }) {
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
@@ -59,9 +59,9 @@ export default function PlayerHome({
       weekday: d.toLocaleDateString("he-IL", { weekday: "long" }),
       day: d.getDate(),
       month: HE_MONTHS[d.getMonth()],
-      when: countdownLabel(nextEvent.date),
+      when: evState ? evState.pill.replace(/^[^ ]+ /, "") : countdownLabel(nextEvent.date),
     };
-  }, [nextEvent]);
+  }, [nextEvent, evPhase, evState]);
 
   // ── העונה שלי ────────────────────────────────────────────────────────────
   const season = useMemo(() => {
@@ -146,6 +146,8 @@ export default function PlayerHome({
                   <p className="st-p-saved" style={{ fontSize: "1.15rem", opacity: 1 }}>
                     👁️ <b>{counts.coming}</b> מתוך {roster.length} מגיעות · {counts.pending} טרם ענו
                   </p>
+                ) : evPhase !== "before" ? (
+                  <p className="st-p-saved" style={{ fontSize: "1.15rem", opacity: 1 }}>{evState && evState.line}</p>
                 ) : (
                   <>
                     <div className="st-p-rsvp">

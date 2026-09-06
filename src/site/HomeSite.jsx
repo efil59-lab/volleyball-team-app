@@ -6,7 +6,7 @@
 //
 // אותו הירו ואותו עלה-לוח-שנה כמו במסך השחקנית (PlayerHome), כדי ששני המסכים
 // ירגישו כאותו אתר. הפעולות מגיעות ב-props מאותו state של המסך הנייד.
-import { countdownLabel } from "../lib/utils";
+import { eventPhase, eventStateLabel } from "../lib/utils";
 import "./site.css";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
@@ -20,7 +20,7 @@ function Leaf({ ev }) {
       <div className="st-p-leaf-h">{d.toLocaleDateString("he-IL", { weekday: "long" })}</div>
       <div className="st-p-leaf-d st-num">{d.getDate()}</div>
       <div className="st-p-leaf-m">{HE_MONTHS[d.getMonth()]}</div>
-      <div className="st-p-leaf-t">{countdownLabel(ev.date)}</div>
+      <div className="st-p-leaf-t">{eventStateLabel(ev, eventPhase(ev)).pill.replace(/^[^ ]+ /, "")}</div>
     </div>
   );
 }

@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
-import { getNextEvent, formatDate, formatShort, countdownLabel, todayStr, isBirthdayToday } from "../lib/utils";
+import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel } from "../lib/utils";
+import useNow from "../lib/useNow";
 import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
 import { uploadProfilePhoto } from "../lib/images";
@@ -18,8 +19,12 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   const lpRef = useRef();
   const gridRef = useRef();
   const [forceRoster, setForceRoster] = useState(false);
+  // שעון מתקתק — בלעדיו התווית לא תתחלף למי שהאפליקציה פתוחה בשעת האימון
+  const now = useNow();
   const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
   const nextEvent = getNextEvent(events || []);
+  const evPhase = eventPhase(nextEvent, now);
+  const evState = eventStateLabel(nextEvent, evPhase);
   // שחקנית שהמכשיר "זוכר" — אם קיימת, מציגים דשבורד אישי (מצב א'); אחרת רשימת בחירה (מצב ב')
   // rememberPlayer נשמר רק לאחר כניסה מוצלחת — עדות מספקת בלי לדרוש setupDone שאולי טרם נטען.
   const me = !forceRoster ? players.find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1") : null;
@@ -153,11 +158,15 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "4px 11px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</span>
-                  <span style={{ background: sc, color: pc, borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</span>
+                  <span style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, transition: "background 0.35s" }}>{evState.pill}</span>
                 </div>
                 <div style={{ color: "white", fontSize: 18, fontWeight: 800, marginBottom: 4, lineHeight: 1.3 }}>{formatDate(nextEvent.date)} · {nextEvent.time}</div>
                 <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 14, marginBottom: 12 }}>📍 {nextEvent.location}</div>
               </button>
+              {/* אחרי שהאירוע התחיל אין יותר אישור הגעה — רק מה שקורה עכשיו */}
+              {evPhase !== "before" ? (
+              <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: 12, textAlign: "center", color: "rgba(255,255,255,0.9)", fontSize: 14, fontWeight: 700 }}>{evState.line}</div>
+              ) : (<>
               {/* אישור הגעה בלחיצה אחת — נשמר מיד; הכפתור הפעיל מסומן במילוי מלא */}
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => quickRSVP("coming")}
@@ -173,6 +182,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
                   {myStatus === "notcoming" ? "✗ לא מגיעה" : "❌ לא מגיעה"}
                 </button>
               </div>
+              </>)}
               <div style={{ textAlign: "center", marginTop: 10 }}>
                 <button onClick={() => onSelectPlayer(me)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.85)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
                   {myStatus ? "נשמר ✓ · מי עוד מגיעה? להוספת הערה ולרשימות ←" : "מי עוד מגיעה? לרשימות המלאות ←"}
@@ -231,7 +241,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
               </div>
               <div style={{ color: sc, fontSize: 12, fontWeight: 700, marginTop: 2 }}>בחרי את שמך לאישור הגעה ←</div>
             </div>
-            <div style={{ background: sc, color: pc, borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>{countdownLabel(nextEvent.date)}</div>
+            <div style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>{evState.pill}</div>
           </button>
         </div>
       )}

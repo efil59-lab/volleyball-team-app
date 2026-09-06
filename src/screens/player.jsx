@@ -4,7 +4,7 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { S } from "../styles/S";
 import {
-  formatDate, formatShort, getNextEvent, countdownLabel, todayStr, monthDay,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
@@ -13,6 +13,7 @@ import { AttModal, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, B
 import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
 import { AboutScreen } from "./info";
+import useNow from "../lib/useNow";
 import ReminderCard from "../components/ReminderCard";
 import EnablePushModal from "../components/EnablePushModal";
 import Confetti from "../components/Confetti";
@@ -48,7 +49,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const photoRef = useRef();
 
   const prof = playerProfiles[player.id] || {};
+  const now = useNow();
   const nextEvent = getNextEvent(events);
+  const evPhase = eventPhase(nextEvent, now);
+  const evState = eventStateLabel(nextEvent, evPhase);
   const myKey = nextEvent ? `${nextEvent.id}_${player.id}` : null;
   const myRecord = myKey ? attendance[myKey] : null;
   const activeNotifs = notifications.filter(n => n.active && !(n.type === "cancel" && n.expiresOn && n.expiresOn < todayStr()));
@@ -413,6 +417,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       gallery={gallery} applause={applause}
       nextEvent={nextEvent} myRecord={myRecord}
       clapList={lastEventAttendees} clapLabel={lastEventLabel}
+      evPhase={evPhase} evState={evState}
       onRSVP={handleRSVP}
       onVote={(pollId, i) => upd.pollVote(pollId, player.id, i)}
       onApplause={sendApplause}
@@ -429,7 +434,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
-                      <div style={{ background: sc, color: pc, borderRadius: 20, padding: "6px 14px", fontSize: 14, fontWeight: 800 }}>⏳ {countdownLabel(nextEvent.date)}</div>
+                      <div style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "6px 14px", fontSize: 14, fontWeight: 800, transition: "background 0.35s" }}>{evState.pill}</div>
                     </div>
                     <div style={{ color: "white", fontSize: 21, fontWeight: 800, marginBottom: 8, lineHeight: 1.3 }}>{formatDate(nextEvent.date)}</div>
                     <div style={{ display: "flex", gap: 16, color: "rgba(255,255,255,0.92)", fontSize: 15, flexWrap: "wrap" }}>
@@ -481,6 +486,18 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
                         האירוע כבר עבר, ולכן הסימון נקבע על ידי המנהלת. יש טעות? דברי איתה.
                       </div>
+                    </div>
+                  ) : evPhase !== "before" ? (
+                    // האירוע התחיל — אין יותר אישור הגעה. בלי הסבר: אין כפתור,
+                    // אז "לא ניתן לשנות" הוא ברור מאליו.
+                    <div style={{ ...S.card, textAlign: "center" }}>
+                      <div style={{ fontSize: 34, marginBottom: 6 }}>{evState.icon}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>{evState.line}</div>
+                      {myRecord?.status && (
+                        <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>
+                          סימנת: <strong>{myRecord.status === "coming" ? "מגיעה" : "לא מגיעה"}</strong>
+                        </div>
+                      )}
                     </div>
                   ) : myRecord?.status ? (
                     <div style={{ ...S.card, textAlign: "center" }}>

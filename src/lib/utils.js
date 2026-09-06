@@ -26,6 +26,42 @@ function countdownLabel(d) {
   if (n === 2) return "מחרתיים";
   return `עוד ${n} ימים`;
 }
+// ── מצב האירוע ביחס לשעה עכשיו ──────────────────────────────────────────────
+// לאירוע אין שעת סיום במערכת, ולכן מניחים משך קבוע.
+// אחרי שהאירוע התחיל "אישור הגעה" כבר אינו תחזית אלא דיווח, והדיווח שייך
+// למנהלת שנמצאת באולם — ולכן הכפתורים נסגרים ולא רק משנים צבע. שחקנית
+// שלוחצת "מגיעה" בשעה 18:00 מזיזה בדיוק את המספרים שמארכבים באותו ערב.
+const EVENT_MINUTES = 120;
+
+function hhmmToMin(t) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || "").trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+}
+
+// "before" (טרם התחיל) | "live" (מתקיים כעת) | "done" (הסתיים)
+function eventPhase(ev, now = new Date()) {
+  if (!ev || !ev.date) return "before";
+  const td = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (ev.date > td) return "before";
+  if (ev.date < td) return "done";
+  // אירוע היום בלי שעה — לא יודעים מתי התחיל, אז לא מקפיאים כלום.
+  // בלי זה ברירת המחדל 00:00 הייתה מסמנת אותו "הסתיים" כבר בבוקר.
+  if (!ev.time) return "before";
+  const start = hhmmToMin(ev.time);
+  const cur = now.getHours() * 60 + now.getMinutes();
+  if (cur < start) return "before";
+  return cur < start + EVENT_MINUTES ? "live" : "done";
+}
+
+// התווית על הכרטיס + המשפט שמחליף את כפתורי האישור.
+// אין תוספת "לא ניתן לשנות תשובה": אין כפתור, אז זה ברור מאליו.
+function eventStateLabel(ev, phase) {
+  const noun = ev && ev.type === "game" ? "המשחק" : "האימון";
+  if (phase === "live") return { pill: "▶️ מתקיים כעת", line: `${noun} מתקיים כעת`, icon: "▶️" };
+  if (phase === "done") return { pill: "✓ הסתיים", line: `${noun} הסתיים`, icon: "🏐" };
+  return { pill: `⏳ ${countdownLabel(ev && ev.date)}`, line: "", icon: "" };
+}
+
 // זיהוי iOS/iPadOS — שם signInWithPopup לא אמין (ITP מאבד את תוצאת ה-popup)
 function isIOS() {
   if (typeof navigator === "undefined") return false;
@@ -128,4 +164,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { eventPhase, eventStateLabel, EVENT_MINUTES, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
