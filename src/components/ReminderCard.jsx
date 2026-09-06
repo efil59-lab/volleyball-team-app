@@ -20,6 +20,7 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
   const [justOn, setJustOn] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testRes, setTestRes] = useState(null);   // "sent" | "none" | "fail"
+  const [testErr, setTestErr] = useState("");     // קוד השגיאה, לאבחון
   const support = pushSupport();
 
   // ── ריפוי-עצמי של הרישום בשרת ────────────────────────────────────────────
@@ -66,6 +67,7 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
     setTesting(true);
     const r = await testPushRemote(playerId);
     setTestRes(r.ok && r.sent > 0 ? "sent" : r.reason === "no-tokens" ? "none" : "fail");
+    setTestErr(r.ok ? "" : String(r.reason || ""));
     setTesting(false);
   }
 
@@ -101,6 +103,7 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
         {testRes === "fail" && (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 12px", marginBottom: 8, fontSize: 13, color: "#b91c1c", fontWeight: 600, textAlign: "center" }}>
             השליחה נכשלה. אפשר לנסות שוב בעוד רגע.
+            {testErr && <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 500, marginTop: 3, direction: "ltr" }}>{testErr}</div>}
           </div>
         )}
         <div style={{ display: "flex", gap: 8 }}>
@@ -214,7 +217,12 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
             </button>
             {testRes === "sent" && <div style={{ fontSize: 11.5, color: "#166534", fontWeight: 700, marginTop: 3, lineHeight: 1.45 }}>✓ נשלחה — הסתכלי על ההתראות. לא רואה? נעלי את המסך ונסי שוב.</div>}
             {testRes === "none" && <div style={{ fontSize: 11.5, color: "#b45309", fontWeight: 700, marginTop: 3, lineHeight: 1.45 }}>המכשיר לא רשום אצלנו. בטלי והפעילי מחדש.</div>}
-            {testRes === "fail" && <div style={{ fontSize: 11.5, color: "#b91c1c", fontWeight: 700, marginTop: 3 }}>השליחה נכשלה. נסי שוב בעוד רגע.</div>}
+            {testRes === "fail" && (
+              <div style={{ fontSize: 11.5, color: "#b91c1c", fontWeight: 700, marginTop: 3 }}>
+                השליחה נכשלה. נסי שוב בעוד רגע.
+                {testErr && <span style={{ color: "#94a3b8", fontWeight: 500, direction: "ltr" }}> ({testErr})</span>}
+              </div>
+            )}
           </div>
         )}
       </div>

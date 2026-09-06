@@ -307,7 +307,7 @@ async function testPushRemote(playerId) {
     return r.data || { ok: false };
   } catch (e) {
     console.error("testPushRemote:", e);
-    return { ok: false, reason: "error" };
+    return { ok: false, reason: e && e.code ? String(e.code) : "error", msg: e && e.message };
   }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
