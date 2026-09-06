@@ -428,6 +428,33 @@ exports.notifyTeamPush = onCall(async (request) => {
   return { ok: true, sent, targeted: tokens.length };
 });
 
+// ── התראת בדיקה שהשחקנית שולחת לעצמה ────────────────────────────────────────
+// למה דרך השרת ולא showNotification מקומי: התראה מקומית מוכיחה רק שההרשאה
+// ניתנה. המקרה שנשבר בשטח (5.9.26) היה טוקן שנדרס בשרת — הכרטיס הציג
+// "פעיל", אף התראה לא הגיעה, ובדיקה מקומית הייתה עוברת בהצלחה ומטעה.
+// כאן נבדק כל הצינור: טוקן רשום, FCM מוסר, ה-SW מציג.
+exports.testPush = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "נדרשת התחברות");
+  const { teamId, playerId } = request.data || {};
+  if (!teamId || playerId === undefined) throw new HttpsError("invalid-argument", "חסר teamId/playerId");
+  const pid = Number(playerId);
+  // רק לעצמה — אחרת כל משתמשת מחוברת יכולה להקפיץ התראות לאחרות
+  const mem = await db.doc(`teams/${teamId}/members/${request.auth.uid}`).get();
+  if (!mem.exists || Number(mem.data().playerId) !== pid)
+    throw new HttpsError("permission-denied", "לא השחקנית הזו");
+  const all = await getTeamPushTokens(teamId);
+  const tokens = all.filter((t) => hasRole(t, "player") && String(t.playerId) === String(pid));
+  console.log(`testPush team=${teamId} pid=${pid} tokens=${tokens.length}/${all.length}`);
+  if (!tokens.length) return { ok: false, reason: "no-tokens" };
+  const { sent } = await sendPush(tokens, {
+    title: "🏐 בדיקה — ההתראות עובדות!",
+    body: "מעכשיו תקבלי תזכורת לפני כל אימון ומשחק.",
+    url: `/?team=${teamId}`,
+    tag: `test_${teamId}_${pid}_${Date.now()}`,
+  });
+  return { ok: true, sent, targeted: tokens.length };
+});
+
 // ── מי הפעילה התראות ומי לא (מנהלת בלבד) ────────────────────────────────────
 // מחזיר ספירות בלבד, לא טוקנים: ללקוח אין שום סיבה לראות טוקן דחיפה של מישהי
 // אחרת, וקריאה דרך פונקציה חוסכת גם פתיחה של pushTokens בכללי ה-Firestore.

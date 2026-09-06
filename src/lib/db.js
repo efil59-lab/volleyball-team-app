@@ -226,6 +226,7 @@ const callDeleteFn = httpsCallable(functions, "adminDeletePlayer");
 const callResetToSetupFn = httpsCallable(functions, "adminResetPlayerToSetup");
 const callDeleteTeamFn = httpsCallable(functions, "adminDeleteTeam");
 const callNotifyPushFn = httpsCallable(functions, "notifyTeamPush");
+const callTestPushFn = httpsCallable(functions, "testPush");
 const callNotifyNewTeamFn = httpsCallable(functions, "notifyNewTeam");
 const callNotifyPlayerJoinedFn = httpsCallable(functions, "notifyPlayerJoined");
 const callNotifyPlayerActivityFn = httpsCallable(functions, "notifyPlayerActivity");
@@ -296,6 +297,18 @@ async function adminDeleteTeamRemote(teamId) {
 async function notifyTeamPushRemote(title, body, playerId) {
   try { await callNotifyPushFn({ teamId: CURRENT_TEAM, title, body, url: "/?team=" + CURRENT_TEAM, playerId }); }
   catch (e) { console.error("notifyTeamPushRemote:", e); }
+}
+// התראת בדיקה שהשחקנית שולחת לעצמה, מיד אחרי ההפעלה. מחזיר { ok, sent }
+// כדי שהכרטיס יוכל להבדיל בין "נשלח" ל"אין טוקן רשום" — שני מצבים שנראים
+// זהים למשתמשת ומשמעותם הפוכה.
+async function testPushRemote(playerId) {
+  try {
+    const r = await callTestPushFn({ teamId: CURRENT_TEAM, playerId });
+    return r.data || { ok: false };
+  } catch (e) {
+    console.error("testPushRemote:", e);
+    return { ok: false, reason: "error" };
+  }
 }
 // אינדקס שטוח לכל הקבוצות — לסופר-אדמין (במקום לסרוק collection group). נכתב ביצירה/עדכון.
 async function syncTeamIndex(teamId) {
@@ -488,7 +501,7 @@ export {
   loadUserTeam, saveUserTeam, inviteKey, loadInvite, saveInvite,
   saveJoinRequest, loadJoinRequests, deleteJoinRequest,
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
-  adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote,
+  adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote, testPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
   superAdminChatList, superAdminChatDelete, adminPushStatusRemote,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,

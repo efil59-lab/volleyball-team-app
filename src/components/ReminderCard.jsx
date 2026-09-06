@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { S } from "../styles/S";
 import { pushSupport, pushEnabledLocally, enablePush, disablePush } from "../lib/push";
+import { testPushRemote } from "../lib/db";
 
 // ── כרטיס "תזכורות" — הפעלה/ביטול של Web Push במכשיר הנוכחי ──────────────────
 // role: "player" | "admin". לשחקנית: תזכורת לפני אימון/משחק אם טרם אישרה.
@@ -13,6 +14,12 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
   const [on, setOn] = useState(() => pushEnabledLocally(who));
   const [explain, setExplain] = useState(false); // מסך-ההכנה לפני שאלת הדפדפן
   const [, setRecheck] = useState(0);            // "בדקי שוב" אחרי שחרור חסימה
+  // שלב הבדיקה: מוצג מיד אחרי הפעלה מוצלחת. "הופעל" הוא הבטחה, התראה שמגיעה
+  // בפועל היא הוכחה — ובדיוק ההבדל הזה נשבר בשטח (הכרטיס הציג "פעיל" בזמן
+  // שהטוקן בשרת נדרס, ואף התראה לא הגיעה).
+  const [justOn, setJustOn] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testRes, setTestRes] = useState(null);   // "sent" | "none" | "fail"
   const support = pushSupport();
 
   // ── ריפוי-עצמי של הרישום בשרת ────────────────────────────────────────────
@@ -44,8 +51,9 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
     const res = await enablePush(role, playerId);
     if (res.ok) {
       setOn(true);
-      onEnabled && onEnabled(); // סוגר את חלון ההנעה, אם הכרטיס מוצג בתוכו
-      notify && notify("התזכורות הופעלו במכשיר הזה 🔔", { icon: "🔔", okLabel: "מעולה" });
+      // בכוונה לא סוגרים כאן את חלון ההנעה: קודם שלב הבדיקה, וממנו סוגרים.
+      if (role === "player") setJustOn(true);
+      else { onEnabled && onEnabled(); notify && notify("התזכורות הופעלו במכשיר הזה 🔔", { icon: "🔔", okLabel: "מעולה" }); }
     } else if (res.reason === "denied") {
       setRecheck(x => x + 1); // יציג את כרטיס ה"חסום" עם ההוראות
     } else if (res.reason !== "dismissed") {
@@ -54,11 +62,59 @@ export default function ReminderCard({ role, playerId, pc, notify, hideWhenOn, o
     setBusy(false);
   }
 
+  async function sendTest() {
+    setTesting(true);
+    const r = await testPushRemote(playerId);
+    setTestRes(r.ok && r.sent > 0 ? "sent" : r.reason === "no-tokens" ? "none" : "fail");
+    setTesting(false);
+  }
+
   async function turnOff() {
     setBusy(true);
     await disablePush(role, playerId);
     setOn(false);
     setBusy(false);
+  }
+
+  // שלב הבדיקה — אחרי הפעלה מוצלחת, לפני שסוגרים
+  if (justOn) {
+    return (
+      <div style={{ ...S.card }}>
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 34 }}>🔔</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#166534" }}>ההתראות הופעלו!</div>
+          <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>
+            רוצה לוודא שזה באמת עובד? שלחי לעצמך התראה עכשיו.
+          </div>
+        </div>
+        {testRes === "sent" && (
+          <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: "10px 12px", marginBottom: 8, fontSize: 13, color: "#166534", fontWeight: 700, textAlign: "center", lineHeight: 1.5 }}>
+            ✓ נשלחה! הסתכלי על ההתראות בטלפון.<br />
+            <span style={{ fontWeight: 500, fontSize: 12 }}>לא רואה? ייתכן שהיא מוסתרת כי האפליקציה פתוחה — נעלי את המסך ונסי שוב.</span>
+          </div>
+        )}
+        {testRes === "none" && (
+          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 12px", marginBottom: 8, fontSize: 13, color: "#92400e", fontWeight: 600, textAlign: "center", lineHeight: 1.5 }}>
+            המכשיר עדיין לא רשום אצלנו. נסי לסגור ולפתוח את האפליקציה, ואז שוב.
+          </div>
+        )}
+        {testRes === "fail" && (
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 12px", marginBottom: 8, fontSize: 13, color: "#b91c1c", fontWeight: 600, textAlign: "center" }}>
+            השליחה נכשלה. אפשר לנסות שוב בעוד רגע.
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={sendTest} disabled={testing}
+            style={{ flex: 1.3, padding: 12, borderRadius: 10, border: "none", cursor: testing ? "default" : "pointer", fontSize: 14, fontWeight: 800, background: testing ? "#cbd5e1" : pc, color: "white" }}>
+            {testing ? "שולחת..." : testRes ? "🔔 שלחי שוב" : "🔔 שלחי לי התראת בדיקה"}
+          </button>
+          <button onClick={() => { setJustOn(false); onEnabled && onEnabled(); }}
+            style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, background: "#f1f5f9", color: "#64748b" }}>
+            {testRes === "sent" ? "סיימתי" : "דלגי"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (support === "ios-install") {
