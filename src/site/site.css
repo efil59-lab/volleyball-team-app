@@ -747,6 +747,47 @@
 
   @media (max-width: 1240px) { .st-dash { grid-template-columns: minmax(0, 1fr) 280px; } }
 
+  /* ── טבלת הסטטיסטיקה ─────────────────────────────────────────────────────
+     כרטיס לכל שחקנית נותן שורה אחת בכל פעם; להשוות שתיים אומר לגלול. טבלה
+     מציגה את כולן במבט אחד, וכותרת שנלחצת קובעת לפי מה משווים. */
+  .st-stt-card {
+    background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(16, 24, 64, 0.05), 0 10px 30px rgba(16, 24, 64, 0.06);
+  }
+  .st-stt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+  .st-stt th {
+    background: var(--color-bg, #f1f5f9); text-align: right; padding: 0;
+    border-bottom: 1px solid var(--color-border, #e2e8f0); white-space: nowrap;
+  }
+  .st-stt th button {
+    width: 100%; text-align: right; background: none; border: 0; cursor: pointer;
+    padding: 11px 14px; font-family: inherit; font-size: 12.5px; font-weight: 700;
+    color: var(--color-text-muted, #64748b);
+  }
+  .st-stt th button:hover { color: var(--st-pc, #1a237e); }
+  .st-stt th.st-on button { color: var(--st-pc, #1a237e); }
+  .st-stt td { padding: 9px 14px; border-bottom: 1px solid var(--color-border, #e2e8f0); }
+  .st-stt tbody tr:hover td { background: var(--color-bg, #f1f5f9); }
+  .st-stt-rank { width: 40px; padding: 11px 14px !important; color: var(--color-text-faint, #94a3b8); font-weight: 700; text-align: center !important; }
+  .st-stt-name { font-weight: 600; color: var(--color-text, #1e293b); display: flex; align-items: center; gap: 9px; }
+  .st-stt-name img, .st-stt-av {
+    width: 28px; height: 28px; border-radius: 50%; flex: 0 0 auto; object-fit: cover;
+    display: grid; place-items: center; font-size: 11px; font-weight: 700;
+    background: var(--st-pc, #1a237e); color: var(--st-sc, #f5c842);
+  }
+  .st-stt-pct { font-weight: 800; }
+  .st-stt-pct.st-hi { color: var(--color-success, #16a34a); }
+  .st-stt-pct.st-mid { color: #b45309; }
+  .st-stt-pct.st-lo { color: var(--color-danger, #ef4444); }
+  .st-stt-bar { width: 200px; }
+  .st-stt-track {
+    display: block; height: 8px; border-radius: 99px; overflow: hidden;
+    background: var(--color-border, #e2e8f0);
+  }
+  .st-stt-track i { display: block; height: 100%; border-radius: 99px; }
+  .st-stt-tot td { background: var(--color-bg, #f1f5f9); font-weight: 800; color: var(--st-pc, #1a237e); border-bottom: 0; }
+
   /* באנר העדכון ממורכז — אין סרגל שהוא צריך להתחמק ממנו */
   .app-shell.st-app .update-bar {
     left: 50% !important; right: auto !important;

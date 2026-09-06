@@ -252,7 +252,7 @@ function AdminPanel(props) {
     </>),
   };
   const tabBody = (
-        <div className={"tab-body" + (["matrix","players","attendance"].includes(tab) ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+        <div className={"tab-body" + (["matrix","players","attendance","archive"].includes(tab) ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {tab === "attendance" && <AdminAttendance {...props} />}
           {tab === "events" && <AdminEvents {...props} />}
           {tab === "players" && <AdminPlayers {...props} />}
@@ -1735,8 +1735,18 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
 
 // ── ARCHIVE & STATS ───────────────────────────────────────────────────────────
 function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
+  const isDesk = useIsDesktop();
   const [view, setView] = useState("stats"); // "stats" | "table"
   const [exporting, setExporting] = useState(false);
+  // מיון הטבלה בדסקטופ. ברירת המחדל זהה לכרטיסים במובייל — אחוז הגעה יורד —
+  // כך שהמעבר בין המכשירים לא מפתיע. לחיצה חוזרת על אותה כותרת הופכת כיוון.
+  const [sortKey, setSortKey] = useState("pct");
+  const [sortDir, setSortDir] = useState(-1);
+  function setSort(k) {
+    if (k === sortKey) { setSortDir(d => -d); return; }
+    setSortKey(k);
+    setSortDir(k === "name" ? 1 : -1); // שם עולה (א׳→ת׳), מספרים יורדים
+  }
   const total = archive.length;
   const roster = players.filter(p => !p.viewer);
   const stats = roster.map(p => {
@@ -1744,6 +1754,14 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
     return { ...p, ...(playerProfiles[p.id]||{}), attended, pct: total > 0 ? Math.round((attended / total) * 100) : 0 };
   }).sort((a, b) => b.pct - a.pct);
   const avg = stats.length ? Math.round(stats.reduce((s, p) => s + p.pct, 0) / stats.length) : 0;
+  // שובר-שוויון קבוע לפי שם: בלעדיו שחקניות עם אותו אחוז מחליפות מקום בכל
+  // רינדור, והטבלה "רועדת" בלי סיבה.
+  const sortedStats = [...stats].sort((a, b) => {
+    const val = p => sortKey === "name" ? p.name : sortKey === "missed" ? total - p.attended : p[sortKey];
+    const av = val(a), bv = val(b);
+    const cmp = typeof av === "string" ? av.localeCompare(bv, "he") : av - bv;
+    return cmp !== 0 ? cmp * sortDir : String(a.name).localeCompare(String(b.name), "he");
+  });
 
   // Column totals - how many came per event
   const colTotals = archive.map(ev =>
@@ -1869,7 +1887,53 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
 
 
       {/* Stats view */}
-      {view === "stats" && (
+      {/* בדסקטופ: טבלה ממוינת. הכרטיסים במובייל נותנים שורה אחת לכל שחקנית,
+          כלומר להשוות שתיים אומר לגלול ביניהן. טבלה מציגה את כולן במבט אחד,
+          ולחיצה על כותרת עמודה משנה את סדר ההשוואה. */}
+      {view === "stats" && isDesk && (
+        <div className="st-stt-card">
+          <table className="st-stt">
+            <thead>
+              <tr>
+                <th className="st-stt-rank">#</th>
+                {[["name", "שחקנית"], ["pct", "אחוז הגעה"], ["attended", "הגיעה"], ["missed", "החמיצה"]].map(([k, label]) => (
+                  <th key={k} className={sortKey === k ? "st-on" : ""}>
+                    <button onClick={() => setSort(k)}>{label}{sortKey === k ? (sortDir === 1 ? " ↑" : " ↓") : ""}</button>
+                  </th>
+                ))}
+                <th className="st-stt-bar">התפלגות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedStats.map((p, i) => (
+                <tr key={p.id}>
+                  <td className="st-stt-rank">{i + 1}</td>
+                  <td className="st-stt-name">
+                    {p.photo ? <img src={p.photo} alt="" /> : <span className="st-stt-av">{String(p.name).slice(0, 2)}</span>}
+                    {p.name}
+                  </td>
+                  <td className={"st-num st-stt-pct " + (p.pct >= 80 ? "st-hi" : p.pct >= 50 ? "st-mid" : "st-lo")}>{p.pct}%</td>
+                  <td className="st-num">{p.attended}</td>
+                  <td className="st-num">{total - p.attended}</td>
+                  <td className="st-stt-bar">
+                    <span className="st-stt-track"><i style={{ width: p.pct + "%", background: p.pct >= 80 ? "#16a34a" : p.pct >= 50 ? sc : "#ef4444" }} /></span>
+                  </td>
+                </tr>
+              ))}
+              <tr className="st-stt-tot">
+                <td className="st-stt-rank" />
+                <td className="st-stt-name">ממוצע הקבוצה</td>
+                <td className="st-num">{avg}%</td>
+                <td className="st-num">{stats.reduce((s, p) => s + p.attended, 0)}</td>
+                <td className="st-num">{stats.length * total - stats.reduce((s, p) => s + p.attended, 0)}</td>
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {view === "stats" && !isDesk && (
         <div>
           {stats.map((p, i) => (
             <div key={p.id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
