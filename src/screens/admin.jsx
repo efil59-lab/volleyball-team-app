@@ -14,6 +14,7 @@ import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
 import { AttModal, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import { useIsDesktop, SiteChrome, AdminStrip } from "../site/Site";
+import PlayersDesktop from "../site/PlayersDesktop";
 
 // ── ADMIN GALLERY (מחיקה גורפת למנהל) ─────────────────────────────────────────
 function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
@@ -251,7 +252,7 @@ function AdminPanel(props) {
     </>),
   };
   const tabBody = (
-        <div className={"tab-body" + (tab === "matrix" ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+        <div className={"tab-body" + (tab === "matrix" || tab === "players" ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {tab === "attendance" && <AdminAttendance {...props} />}
           {tab === "events" && <AdminEvents {...props} />}
           {tab === "players" && <AdminPlayers {...props} />}
@@ -1101,7 +1102,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
 }
 
 // ── ADMIN PLAYERS ─────────────────────────────────────────────────────────────
-function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify }) {
+function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askConfirm, notify }) {
+  const isDesk = useIsDesktop();
   const [newName, setNewName] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [editData, setEditData] = useState({});
@@ -1219,6 +1221,22 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
       </div>
       {/* מי עדיין בלי התראות — הן לא יקבלו תזכורת לפני אימון ולא עדכון נוכחות.
           מוצג רק כשיש כאלה, כדי שהכרטיס ייעלם מעצמו כשהכל מסודר. */}
+      {/* בדסקטופ: רשימה מימין ופרופיל משמאל, במקום כרטיסים שנפתחים ודוחפים
+          את כל השאר למטה. אותה לוגיקה בדיוק — רק פריסה אחרת. */}
+      {isDesk ? (
+        <PlayersDesktop
+          players={players} playerProfiles={playerProfiles} archive={archive} pushBy={pushBy}
+          selectedId={expanded} onSelect={id => { const p = players.find(x => String(x.id) === String(id)); if (p) startEdit(p); }}
+          editData={editData} setEditData={setEditData} onSaveEdit={saveEdit} onStartEdit={startEdit}
+          onPhoto={handlePhoto} fileRefs={fileRefs}
+          onResetPassword={p => askConfirm(`לאפס את הסיסמה של ${p.name}? תיווצר סיסמה זמנית שתעבירי לה, והיא תבחר סיסמה חדשה בכניסה הבאה.`, () => resetPassword(p))}
+          onResetToSetup={p => askConfirm(`להחזיר את ${p.name} לכניסה ראשונה? הסיסמה והפרטים שלה יימחקו, והיא תיכנס עם הקישור של הקבוצה כמו שחקנית חדשה — תבחר סיסמה ותמלא פרטים. השם שלה נשאר ברשימה.`, () => resetToSetup(p))}
+          onDelete={p => askConfirm(`למחוק לצמיתות את ${p.name}? הפעולה תמחק את חשבונה, הפרופיל וכל הנתונים שלה — לא ניתן לשחזר.`, () => deletePlayerFull(p))}
+          onToggleViewer={toggleViewer}
+          pc={pc}
+        />
+      ) : null}
+
       {noPush.length > 0 && (
         <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 14px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -1235,7 +1253,7 @@ function AdminPlayers({ players, playerProfiles, upd, pc, sc, askConfirm, notify
           </div>
         </div>
       )}
-      {players.map(p => {
+      {!isDesk && players.map(p => {
         const prof = playerProfiles[p.id] || {};
         const hasPush = pushBy ? !!pushBy[String(p.id)] : null;
         return (
