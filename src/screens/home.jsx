@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
-import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts } from "../lib/utils";
+import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf } from "../lib/utils";
 import useNow from "../lib/useNow";
 import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
@@ -88,7 +88,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   // ── שכבת הדסקטופ ────────────────────────────────────────────────────────
   // כל מה שמתחת ל-1100×600 ממשיך בדיוק כפי שהיה — הפריסה הניידת לא נגעה בה.
   if (isDesktop) {
-    const bdayOthers = players.filter(p => (!me || p.id !== me.id) && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
+    const bdayOthers = rosterOf(players).filter(p => (!me || p.id !== me.id) && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
     const lp = {
       onPointerDown: () => { lpRef.current = setTimeout(() => { onSuperAdmin && onSuperAdmin(); }, 1000); },
       onPointerUp: () => clearTimeout(lpRef.current),
@@ -121,7 +121,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   // ── מצב א': דשבורד אישי (מכשיר זכור) ──
   if (me) {
     const myStatus = nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).status : null;
-    const bdayOthers = players.filter(p => p.id !== me.id && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
+    const bdayOthers = rosterOf(players).filter(p => p.id !== me.id && isBirthdayToday((playerProfiles[p.id] || {}).birthday));
     // אישור הגעה בלחיצה אחת מהמסך הראשי. דורש חיבור אמיתי (מייל) — אחרת עוברים דרך
     // מסך הסיסמה כרגיל (onSelectPlayer), כדי לא להיחסם בכללי ה-Firestore.
     async function quickRSVP(status) {

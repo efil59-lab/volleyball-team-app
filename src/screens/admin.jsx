@@ -363,8 +363,8 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   const evLabel = nextEvent ? `${nextEvent.type === "training" ? "אימון" : "משחק"} ${formatShort(nextEvent.date)}` : "";
 
   // Birthday reminders for admin
-  const birthdaysToday = players.filter(p => isBirthdayToday((playerProfiles[p.id] || {}).birthday));
-  const birthdaysTomorrow = players.filter(p => isBirthdayTomorrow((playerProfiles[p.id] || {}).birthday));
+  const birthdaysToday = rosterOf(players).filter(p => isBirthdayToday((playerProfiles[p.id] || {}).birthday));
+  const birthdaysTomorrow = rosterOf(players).filter(p => isBirthdayTomorrow((playerProfiles[p.id] || {}).birthday));
 
   const BirthdayBanners = () => (
     <>

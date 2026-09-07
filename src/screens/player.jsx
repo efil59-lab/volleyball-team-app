@@ -793,7 +793,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
           {/* ── POLLS TAB ── */}
           {tab === "polls" && !isViewer && (
-            <PlayerPolls polls={polls} player={player} players={players} upd={upd} pc={pc} sc={sc} />
+            <PlayerPolls polls={polls} player={player} players={roster} upd={upd} pc={pc} sc={sc} />
           )}
 
           {/* ── ABOUT TAB ── */}
