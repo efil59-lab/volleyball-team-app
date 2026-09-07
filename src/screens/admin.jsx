@@ -1225,6 +1225,21 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
     upd.players(players.filter(x => x.id !== p.id));
   }
 
+  const cardRefs = useRef({});
+  // גלילה אל הפאנל שנפתח: מספיק כדי לחשוף את תחתיתו מעל סרגל הניווט, אבל
+  // אף פעם לא מעבר לראש הכרטיס — בכרטיס גבוה מהמסך זה היה מסתיר את השם.
+  useEffect(() => {
+    if (!expanded) return;
+    const el = cardRefs.current[expanded];
+    if (!el) return;
+    const NAV = 92; // סרגל תחתון + נשימה
+    const r = el.getBoundingClientRect();
+    const need = r.bottom - (window.innerHeight - NAV);
+    if (need <= 0) return;
+    const maxUp = Math.max(0, r.top - 12);
+    window.scrollBy({ top: Math.min(need, maxUp), behavior: "smooth" });
+  }, [expanded]);
+
   function startEdit(p) {
     const prof = playerProfiles[p.id] || {};
     setExpanded(p.id);
@@ -1322,7 +1337,7 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
         const prof = playerProfiles[p.id] || {};
         const hasPush = pushBy ? !!pushBy[String(p.id)] : null;
         return (
-          <div key={p.id} style={{ ...S.card, marginBottom: 8 }}>
+          <div key={p.id} ref={el => { cardRefs.current[p.id] = el; }} style={{ ...S.card, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ position: "relative", cursor: "pointer", flexShrink: 0 }} onClick={() => fileRefs.current[p.id]?.click()}>
                 {prof.photo ? <img src={prof.photo} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: `2px solid ${sc}` }} />
