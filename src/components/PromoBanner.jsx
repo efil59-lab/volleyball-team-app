@@ -7,20 +7,24 @@ import { useEffect, useState } from "react";
  * מרגישה כמו פרסומת שנדחפה. גובה 46px — נראה, ולא מתחרה בתוכן.
  *
  * להוספת אפליקציה: שורה אחת ב-APPS. הנקודות והסבב מתעדכנים לבד.
+ *
+ * הקישורים נושאים utm_source=keduroshet: בלי זה ביקור מהאפליקציה נספר
+ * ב-GA4 כ-"ישיר", כי אפליקציה מותקנת (PWA) לא שולחת referrer. עם התיוג
+ * הוא מופיע כ-keduroshet / app-banner בדוח רכישת התנועה.
  */
 const APPS = [
   {
     icon: "📺",
     name: "טלוויזיה.נט",
     pitch: "הסדרות שגדלנו עליהן",
-    url: "https://televizia.net",
+    url: "https://televizia.net/?utm_source=keduroshet&utm_medium=app-banner&utm_campaign=promo",
     bg: "linear-gradient(100deg,#0f172a,#3f2a12 70%,#7c5410)",
   },
   {
     icon: "🇬🇧",
     name: "English Master",
     pitch: "אנגלית בעברית, בקצב שלך",
-    url: "https://english-master-efil59-labs-projects.vercel.app",
+    url: "https://english-master-efil59-labs-projects.vercel.app/?utm_source=keduroshet&utm_medium=app-banner&utm_campaign=promo",
     bg: "linear-gradient(100deg,#065f46,#0d9488 70%,#14b8a6)",
   },
 ];
