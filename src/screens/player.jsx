@@ -139,10 +139,13 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   // צופה (מאמנת) מחוץ לכל ספירת נוכחות — היא לא מסמנת, ולכן לא "טרם ענתה".
   const isViewer = !!player.viewer;
-  // חשבון בדיקה: צ׳אט ותמונות הם התוכן היחיד שדגל על השחקנית לא יכול
-  // להסתיר — הודעה ותמונה מגיעות לכל 13 השחקניות בשיחה ובגלריה אמיתיות.
-  // לכן הן פשוט לא זמינות לו: עדיף למנוע מלנקות אחר כך.
   const isGhost = !!player.ghost;
+  // noSocial = כל מה שיוצא החוצה ומגיע לשחקניות אחרות: צ׳אט, תמונות,
+  // סקר ומחיאות כפיים. שני סוגי חשבון חסומים בו, מסיבות שונות:
+  //   צופה — אינה חלק מהמרחב של השחקניות.
+  //   בדיקה — כל פעולה שלו נוגעת באנשים אמיתיים: הודעה מגיעה לשיחה,
+  //           תמונה לגלריה, הצבעה משנה תוצאה, ומחיאה שולחת התראה אישית.
+  //           דגל על השחקנית מסתיר ספירות, לא פעולות. לכן חוסמים במקור.
   const noSocial = isViewer || isGhost;
   const roster = rosterOf(players);
   function countAtt(status) {
@@ -267,28 +270,21 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   // ניווט תחתון: 4 ראשיים + "עוד" (תוצאות משחקים, סקר). נקודה אדומה על צ'אט עם הודעות שלא נקראו.
   // צופה (מאמנת): רואה מי מגיעה, הלוח והתוצאות. בלי צ'אט — הוא מרחב של
   // השחקניות, ולא נכון שמי שלא משחקת תשב בו.
-  const navItems = isViewer
-    ? [
-      { key: "event", icon: "📋", label: "נוכחות" },
-      { key: "calendar", icon: "🗓️", label: "לוח" },
-      { key: "games", icon: "🏆", label: "תוצאות" },
-      { key: "gallery", icon: "📸", label: "תמונות" },
-    ]
-    : [
-      { key: "event", icon: "📋", label: "נוכחות" },
-      { key: "calendar", icon: "🗓️", label: "לוח" },
-      { key: "games", icon: "🏆", label: "תוצאות" },
-      ...(isGhost ? [] : [{ key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat }]),
-    ];
+  const navItems = [
+    { key: "event", icon: "📋", label: "נוכחות" },
+    { key: "calendar", icon: "🗓️", label: "לוח" },
+    { key: "games", icon: "🏆", label: "תוצאות" },
+    ...(noSocial ? [] : [{ key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat }]),
+  ];
   // לצופה אין סקר — הוא של השחקניות — והגלריה כבר בניווט הראשי, אז נשאר
   // לה רק אודות. אודות נמצא כאן ולא רק במסך הבית כי שחקנית שהמכשיר זוכר
   // אותה נוחתת ישר במסך האישי ולעולם לא עוברת במסך הבית (דווח 6.9.26).
   const aboutItem = { key: "about", icon: "ℹ️", label: "אודות", accent: true };
-  const navMore = isViewer
+  const navMore = noSocial
     ? [aboutItem]
     : [
       { key: "polls", icon: "🗳️", label: "סקר" },
-      ...(isGhost ? [] : [{ key: "gallery", icon: "📸", label: "תמונות" }]),
+      { key: "gallery", icon: "📸", label: "תמונות" },
       aboutItem,
     ];
 
@@ -550,7 +546,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   )}
 
                   {/* 👏 Applause — collapsible */}
-                  {!isViewer && lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
+                  {!noSocial && lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
                     <Collapsible title="👏 כל הכבוד לחברות" count={lastEventAttendees.filter(p => p.id !== player.id).length} accent={pc}>
                       <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>שלחי מחיאות כפיים למי שהגיעה ל{lastEventLabel} (פעם ביום לכל אחת)</div>
                       {lastEventAttendees.filter(p => p.id !== player.id).map(p => {
@@ -797,7 +793,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           })()}
 
           {/* ── POLLS TAB ── */}
-          {tab === "polls" && !isViewer && (
+          {tab === "polls" && !noSocial && (
             <PlayerPolls polls={polls} player={player} players={roster} upd={upd} pc={pc} sc={sc} />
           )}
 
@@ -807,7 +803,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           )}
 
           {/* ── GALLERY TAB ── */}
-          {tab === "gallery" && !isGhost && (
+          {tab === "gallery" && !noSocial && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>

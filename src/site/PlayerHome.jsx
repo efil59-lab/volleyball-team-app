@@ -38,7 +38,7 @@ export default function PlayerHome({
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
   // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
   const isViewer = !!player.viewer;
-  // ראה הערה מקבילה ב-player.jsx: לחשבון בדיקה אין צ׳אט ואין תמונות
+  // ראה הערה מקבילה ב-player.jsx: צ׳אט, תמונות, סקר ומחיאות כפיים
   const noSocial = isViewer || !!player.ghost;
   const evWords = attendanceWords(evPhase);
   const roster = rosterOf(players);
@@ -294,7 +294,7 @@ export default function PlayerHome({
               </div>
             </article>}
 
-            {!isViewer && <article className="st-p-card">
+            {!noSocial && <article className="st-p-card">
               <div className="st-p-ch">🗳️ סקר פעיל
                 {poll ? <span className="st-p-sp">{pollTotal} {pollTotal === 1 ? "הצביעה" : "הצביעו"}</span> : null}
               </div>
@@ -328,7 +328,7 @@ export default function PlayerHome({
               </div>
             </article>}
 
-            {!player.ghost && <article className="st-p-card">
+            {!noSocial && <article className="st-p-card">
               <div className="st-p-ch">📸 תמונות אחרונות
                 <button className="st-p-sp st-p-link" onClick={() => onOpen("gallery")}>לגלריה ←</button>
               </div>
@@ -350,7 +350,7 @@ export default function PlayerHome({
 
           </div>
 
-          {!isViewer && clapTargets.list.length > 0 && (
+          {!noSocial && clapTargets.list.length > 0 && (
             <div className="st-p-card st-p-clap">
               <span className="st-p-clap-i" aria-hidden>👏</span>
               <span className="st-p-clap-t">
