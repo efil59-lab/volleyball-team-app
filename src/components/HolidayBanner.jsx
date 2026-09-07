@@ -95,6 +95,9 @@ export default function HolidayBanner({ slim = false, hide = false }) {
   if (hide) return null;
   const h = holidayFor();
   if (!h) return null;
+  // slim מגיע משני מקומות: מהקורא (מסך צר), ומהטבלה עצמה — חול המועד מוגדר
+  // דק מלכתחילה, בכל מסך.
+  slim = slim || !!h.slim;
 
   const bg = h.bg.length > 2
     ? `linear-gradient(105deg, ${h.bg[0]}, ${h.bg[1]} 58%, ${h.bg[2]})`
