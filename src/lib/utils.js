@@ -98,6 +98,25 @@ function showGhosts() {
   catch { return false; }
 }
 
+// ── מכשיר אחד זוכר שחקנית אחת ───────────────────────────────────────────────
+// הדגל נשמר כמפתח פר-שחקנית (rememberPlayer_<id>), והאפליקציה בוחרת את
+// הראשונה שנמצאת. אם נכנסו במכשיר לשתי שחקניות, שני הדגלים קיימים —
+// והבחירה נופלת לפי סדר המערך, בעוד ההזדהות מול Firebase היא של האחרת.
+// התוצאה: הממשק מציג שם אחד והשרת רואה אחר. זה מה שהחזיר permission-denied
+// בהתראת הבדיקה, פעמיים, ונראה כמו תקלה בפיצ'ר (6-7.9.26).
+// לכן כל כניסה מוצלחת מנקה את הדגלים של האחרות.
+function rememberOnly(playerId) {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("rememberPlayer_")) localStorage.removeItem(k);
+    }
+    if (playerId !== null && playerId !== undefined) {
+      localStorage.setItem("rememberPlayer_" + playerId, "1");
+    }
+  } catch { /* ללא localStorage — פשוט לא זוכרים */ }
+}
+
 // זיהוי iOS/iPadOS — שם signInWithPopup לא אמין (ITP מאבד את תוצאת ה-popup)
 function isIOS() {
   if (typeof navigator === "undefined") return false;
@@ -200,4 +219,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };

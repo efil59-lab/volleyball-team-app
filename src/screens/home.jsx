@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
-import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf } from "../lib/utils";
+import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf, rememberOnly } from "../lib/utils";
 import useNow from "../lib/useNow";
 import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
@@ -319,8 +319,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
     if (!pass.trim()) { setLoginError(true); setTimeout(() => setLoginError(false), 1500); return; }
     const res = await emailAuth(playerEmail(CURRENT_TEAM, player.id), pass);
     if (res.ok) {
-      if (remember) localStorage.setItem("rememberPlayer_" + player.id, "1");
-      else localStorage.removeItem("rememberPlayer_" + player.id);
+      rememberOnly(remember ? player.id : null);
       await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player); // כריכת uid אמיתי ↔ playerId
       // נכנסה עם סיסמה זמנית אחרי איפוס → חובה לבחור סיסמה חדשה
       if ((playerProfiles[player.id] || {}).mustChangePassword) { setForceChange(true); return; }
@@ -378,6 +377,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
     }
     // כריכת חברות עם ה-uid האמיתי לפני כתיבת הפרופיל (כדי שכללי שלב 5 יתירו את הכתיבה)
     await bindPlayerMembership(CURRENT_TEAM, auth.currentUser?.uid, player);
+    rememberOnly(null); // המכשיר עבר לשחקנית הזו — דגל של אחרת הוא שריד מטעה
     const updated = {
       ...playerProfiles,
       [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true }

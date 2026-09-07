@@ -4,7 +4,7 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { S } from "../styles/S";
 import {
-  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel, attendanceWords, rosterOf,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel, attendanceWords, rosterOf, rememberOnly,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
@@ -929,7 +929,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       {!isDesk && (
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
-        <button onClick={() => { localStorage.removeItem("rememberPlayer_" + player.id); onLogout ? onLogout() : onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
+        <button onClick={() => { rememberOnly(null); onLogout ? onLogout() : onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
         <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
           {prof.photo
             ? <img src={prof.photo} style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
