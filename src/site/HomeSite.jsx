@@ -241,8 +241,8 @@ export default function HomeSite({
                         ? <img className="st-h-pb-av" src={prof.photo} alt="" />
                         : <span className="st-h-pb-av">{ini(p.name)}</span>}
                       <span className="st-h-pb-t">
-                        <b>{p.name}</b>
-                        <span>{prof.setupDone ? "כניסה עם סיסמה" : "כניסה ראשונה"}</span>
+                        <b>{p.viewer ? "👁️ " : ""}{p.name}</b>
+                        <span>{p.viewer ? "צופה · " : ""}{prof.setupDone ? "כניסה עם סיסמה" : "כניסה ראשונה"}</span>
                       </span>
                     </button>
                   );

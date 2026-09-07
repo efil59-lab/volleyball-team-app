@@ -278,7 +278,9 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
                     ? <img src={prof.photo} style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: `2px solid ${sc}` }} />
                     : <div style={{ width: 50, height: 50, borderRadius: "50%", background: `linear-gradient(135deg, ${pc}, ${pc}99)`, color: sc, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, border: `2px solid ${sc}` }}>{p.name[0]}</div>
                   }
-                  <span style={{ fontSize: 12, fontWeight: 700, color: pc, textAlign: "center", overflowWrap: "anywhere", maxWidth: "100%" }}>{p.name}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: pc, textAlign: "center", overflowWrap: "anywhere", maxWidth: "100%" }}>
+                    {p.viewer && <span title="צופה — אינה מסמנת נוכחות">👁️ </span>}{p.name}
+                  </span>
                 </button>
               );
             })}

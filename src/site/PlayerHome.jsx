@@ -233,8 +233,8 @@ export default function PlayerHome({
         </section>
       )}
 
-      {/* ── העונה שלי ────────────────────────────────────────────────────── */}
-      <section className="st-p-sec" id="st-season">
+      {/* ── העונה שלי — לצופה אין, ראה הערה ב-player.jsx ─────────────────── */}
+      {!isViewer && <section className="st-p-sec" id="st-season">
         <div className="st-p-wrap">
           <div className="st-p-sh">
             <h2>העונה שלי</h2>
@@ -267,7 +267,7 @@ export default function PlayerHome({
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
       {/* ── מהקבוצה ──────────────────────────────────────────────────────── */}
       <section className="st-p-sec st-p-alt" id="st-feed">

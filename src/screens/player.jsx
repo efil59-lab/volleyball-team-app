@@ -364,7 +364,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const deskAnchors = [
     { id: "st-next", label: "האירוע הקרוב" },
     ...(nextEvent ? [{ id: "st-team", label: "מי מגיעה" }] : []),
-    { id: "st-season", label: "העונה שלי" },
+    ...(isViewer ? [] : [{ id: "st-season", label: "העונה שלי" }]),
     { id: "st-feed", label: "מהקבוצה" },
   ];
   const deskDeepItems = [
@@ -577,8 +577,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
               {!isViewer && <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />}
 
-              {/* 📊 Personal stats — based on archived (verified) events only */}
-                  {(() => {
+              {/* 📊 Personal stats — based on archived (verified) events only.
+                  לצופה אין: היא אינה מסמנת נוכחות, וכל המספרים היו אפס —
+                  לא "עדיין אין נתונים" אלא מדד שלא חל עליה. */}
+                  {!isViewer && (() => {
                     const arch = archive || [];
                     const calc = type => {
                       const evs = arch.filter(a => a.type === type);
