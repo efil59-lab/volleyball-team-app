@@ -63,6 +63,15 @@ function isYomHaatzmaut(h, date) {
 // ── הטבלה ───────────────────────────────────────────────────────────────────
 // הסדר קובע: הראשון שמתאים מנצח. ימי הזיכרון לפני יום העצמאות בכוונה.
 const HOLIDAYS = [
+  // אלול תמיד 29 יום, ולכן המרחק ל־א׳ תשרי הוא בדיוק 30 פחות היום בחודש.
+  { key: "pre-rosh", kind: "hag", match: (h) => h.m === "Elul" && h.d >= 25 && h.d <= 28,
+    title: "שנה טובה ומתוקה 🍯",
+    sub: (h) => {
+      const n = 30 - h.d;
+      return `ראש השנה בעוד ${n === 2 ? "יומיים" : n + " ימים"} — שתהיה לכולנו שנה של בריאות וניצחונות`;
+    },
+    art: "apple", bg: ["#b45309", "#dc2626", "#f5c842"] },
+
   { key: "erev-rosh", kind: "hag", match: (h) => h.m === "Elul" && h.d === 29,
     title: "ערב ראש השנה — שנה טובה ומתוקה 🍯",
     sub: "שתהיה לכולנו שנה של בריאות, ניצחונות והמון כיף על המגרש",
@@ -136,7 +145,9 @@ function holidayFor(date = new Date()) {
   const found = HOLIDAYS.find((x) => {
     try { return x.match(h, date); } catch { return false; }
   });
-  return found ? { ...found, heb: h } : null;
+  if (!found) return null;
+  const sub = typeof found.sub === "function" ? found.sub(h) : found.sub;
+  return { ...found, sub, heb: h };
 }
 
 export { holidayFor, hebDate, HOLIDAYS };
