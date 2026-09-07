@@ -6,7 +6,7 @@
 // הכל מגיע ב-props מאותו state של המסך הנייד. מסכי העומק (לוח מלא, תוצאות,
 // צ'אט מלא, גלריה) נשארים המסכים הקיימים — כאן רק התקצירים והקישור אליהם.
 import { useMemo } from "react";
-import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords } from "../lib/utils";
+import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf } from "../lib/utils";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
@@ -39,7 +39,7 @@ export default function PlayerHome({
   // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
   const isViewer = !!player.viewer;
   const evWords = attendanceWords(evPhase);
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
   const my = myRecord?.status || null;
   const counts = useMemo(() => {
     if (!nextEvent) return { coming: 0, notcoming: 0, pending: roster.length };

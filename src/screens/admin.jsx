@@ -5,7 +5,7 @@ import { S } from "../styles/S";
 import { KEYS, DEFAULT_TEAM } from "../lib/constants";
 import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay, DEFAULT_INVITE, buildInvite,
-  isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, attendanceWords, eventPhase, eventStateLabel,
+  isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, attendanceWords, eventPhase, eventStateLabel, rosterOf,
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
@@ -398,7 +398,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 
   // צופה (מאמנת) אינה מסמנת נוכחות, ולכן היא מחוץ לכל ספירה — אחרת היא הייתה
   // נצברת לנצח ב"טרם ענו" ומעוותת גם את מספר המגיעות.
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
   const countAtt = s => s === "pending"
     ? roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length
     : roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === s).length;
@@ -650,7 +650,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   // כתיבה לכל הקשה דורסת את הקודמת (upd.attendance כותב את המפה כולה, וה-prop
   // עוד לא התרענן בין שתי הקשות מהירות), ו"ביטול" צריך באמת לבטל.
   // צופה (מאמנת) אינה מסמנת נוכחות ואינה נספרת
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
   const [archEdits, setArchEdits] = useState({}); // playerId -> "coming" | "notcoming"
   function openArchiveDialog(ev) { setArchEdits({}); setArchiveDialog(ev); }
   const archStatus = (ev, p) => (p.id in archEdits)
@@ -1170,7 +1170,7 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
   // null = עדיין נטען; אז לא מציגים "בלי התראות" כדי לא להאשים בטעות.
   const [pushBy, setPushBy] = useState(null);
   useEffect(() => { adminPushStatusRemote().then(r => setPushBy(r ? (r.byPlayer || {}) : {})); }, []);
-  const noPush = pushBy ? players.filter(p => !p.viewer && !pushBy[String(p.id)]) : [];
+  const noPush = pushBy ? rosterOf(players).filter(p => !pushBy[String(p.id)]) : [];
 
   async function handlePhoto(id, e) {
     const file = e.target.files[0]; if (!file) return;
@@ -1243,6 +1243,13 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
     await upd.players(players.map(x => x.id === p.id ? { ...x, viewer: !x.viewer } : x));
   }
 
+  // משתתפת רפאים: חשבון בדיקה שמתנהג כמו שחקנית לכל דבר — מסמנת הגעה,
+  // מקבלת התראות, כותבת בצ׳אט — אבל אינה נספרת בשום מספר או סטטיסטיקה
+  // ואינה מופיעה ברשימת הבחירה. בלי זה כל בדיקה מזייפת את נתוני הקבוצה.
+  async function toggleGhost(p) {
+    await upd.players(players.map(x => x.id === p.id ? { ...x, ghost: !x.ghost } : x));
+  }
+
   return (
     <div>
       {resetMsg && (
@@ -1290,6 +1297,7 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
           onResetToSetup={p => askConfirm(`להחזיר את ${p.name} לכניסה ראשונה? הסיסמה והפרטים שלה יימחקו, והיא תיכנס עם הקישור של הקבוצה כמו שחקנית חדשה — תבחר סיסמה ותמלא פרטים. השם שלה נשאר ברשימה.`, () => resetToSetup(p))}
           onDelete={p => askConfirm(`למחוק לצמיתות את ${p.name}? הפעולה תמחק את חשבונה, הפרופיל וכל הנתונים שלה — לא ניתן לשחזר.`, () => deletePlayerFull(p))}
           onToggleViewer={toggleViewer}
+          onToggleGhost={toggleGhost}
           pc={pc}
         />
       ) : null}
@@ -1334,6 +1342,7 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
                 <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
                   {prof.device && <span style={{ fontSize: 11, fontWeight: 600, color: "#64748b", background: "#f1f5f9", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>{prof.device}</span>}
                   {p.viewer && <span title="צופה בלבד — אינה מסמנת נוכחות" style={{ fontSize: 11, fontWeight: 800, color: "#3730a3", background: "#e0e7ff", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>👁️ צופה</span>}
+                  {p.ghost && <span title="חשבון בדיקה — אינו נספר בשום מספר" style={{ fontSize: 11, fontWeight: 800, color: "#6b21a8", background: "#f3e8ff", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>👻 בדיקה</span>}
                   {hasPush === false && <span title="לא הפעילה התראות" style={{ fontSize: 11, fontWeight: 700, color: "#b45309", background: "#fef3c7", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>🔕</span>}
                   {prof.whatsapp && <button onClick={() => window.open(`https://wa.me/${prof.whatsapp.replace(/\D/g,"")}`, "_blank")} style={{ fontSize: 11, background: "#25D366", color: "white", borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>💬 WA</button>}
                   {prof.email && <button onClick={() => window.open(`mailto:${prof.email}`, "_blank")} style={{ fontSize: 11, background: `${pc}20`, color: pc, borderRadius: 6, padding: "2px 7px", border: "none", cursor: "pointer", fontWeight: 600 }}>✉️ מייל</button>}
@@ -1383,6 +1392,19 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
                     style={{ flexShrink: 0, border: "none", borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 12.5, fontWeight: 800,
                       background: p.viewer ? "#e0e7ff" : "#f1f5f9", color: p.viewer ? "#3730a3" : "#64748b" }}>
                     {p.viewer ? "👁️ צופה" : "🏐 שחקנית"}
+                  </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b" }}>👻 חשבון בדיקה</div>
+                    <div style={{ fontSize: 11.5, color: "#94a3b8", lineHeight: 1.5 }}>
+                      מתנהגת כמו שחקנית לכל דבר — מסמנת הגעה, מקבלת התראות, כותבת בצ׳אט — אבל אינה נספרת בשום מספר או סטטיסטיקה, ואינה מופיעה ברשימת הבחירה. להגיע אליה: הוסיפי <b style={{ direction: "ltr", unicodeBidi: "embed" }}>?test=1</b> לכתובת.
+                    </div>
+                  </div>
+                  <button onClick={() => toggleGhost(p)}
+                    style={{ flexShrink: 0, border: "none", borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+                      background: p.ghost ? "#f3e8ff" : "#f1f5f9", color: p.ghost ? "#6b21a8" : "#64748b" }}>
+                    {p.ghost ? "👻 בדיקה" : "רגילה"}
                   </button>
                 </div>
                 {/* פעולות החשבון — נדירות, ולכן כאן ולא בשורה. כאן גם יש מקום
@@ -1646,7 +1668,7 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
   // סדר הרשימה כמו בכל שאר המסכים ובכוונה לא לפי אחוזים: מיון לפי אחוז הגעה
   // משנה את סדר השורות בכל תיקון, והשורה בורחת מתחת לסמן באמצע העבודה.
   // הדירוג לפי אחוזים נמצא בלשונית "סטטיסטיקה", שם הוא לא מתנגש בעריכה.
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
   const rows = roster.map(p => {
     const came = evs.filter(ev => statusOf(ev, p.id) === "coming").length;
     return { ...p, came, pct: evs.length ? Math.round((came / evs.length) * 100) : 0 };
@@ -1752,7 +1774,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
     setSortDir(k === "name" ? 1 : -1); // שם עולה (א׳→ת׳), מספרים יורדים
   }
   const total = archive.length;
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
   const stats = roster.map(p => {
     const attended = archive.filter(ev => ev.attendanceData?.find(a => a.playerId === p.id && a.status === "coming")).length;
     return { ...p, ...(playerProfiles[p.id]||{}), attended, pct: total > 0 ? Math.round((attended / total) * 100) : 0 };

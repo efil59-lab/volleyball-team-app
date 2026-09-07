@@ -4,7 +4,7 @@ import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { S } from "../styles/S";
 import {
-  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel, attendanceWords,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel, attendanceWords, rosterOf,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
@@ -139,7 +139,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   // צופה (מאמנת) מחוץ לכל ספירת נוכחות — היא לא מסמנת, ולכן לא "טרם ענתה".
   const isViewer = !!player.viewer;
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
   function countAtt(status) {
     if (!nextEvent) return 0;
     if (status === "pending") return roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status).length;

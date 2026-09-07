@@ -16,7 +16,7 @@ export default function PlayersDesktop({
   selectedId, onSelect,
   editData, setEditData, onSaveEdit, onStartEdit,
   onPhoto, fileRefs,
-  onResetPassword, onResetToSetup, onDelete, onToggleViewer,
+  onResetPassword, onResetToSetup, onDelete, onToggleViewer, onToggleGhost,
   pc,
 }) {
   const [q, setQ] = useState("");
@@ -70,7 +70,7 @@ export default function PlayersDesktop({
                   <b>{p.name}</b>
                   <span>
                     {pr.device || "—"}
-                    {p.viewer ? " · 👁️ צופה" : ""}
+                    {p.viewer ? " · 👁️ צופה" : ""}{p.ghost ? " · 👻 בדיקה" : ""}
                     {hasPush(p) === false ? " · 🔕" : ""}
                   </span>
                 </span>
@@ -101,6 +101,7 @@ export default function PlayersDesktop({
                 <div className="st-pl-chips">
                   {prof.device && <span className="st-pl-chip">{prof.device}</span>}
                   {sel.viewer && <span className="st-pl-chip st-view">👁️ צופה</span>}
+                  {sel.ghost && <span className="st-pl-chip st-view">👻 בדיקה</span>}
                   {hasPush(sel) === false && <span className="st-pl-chip st-warn">🔕 ללא התראות</span>}
                   {prof.birthday && <span className="st-pl-chip">🎂 {formatShort(prof.birthday)}{ageFromBirthday(prof.birthday) != null ? ` · גיל ${ageFromBirthday(prof.birthday)}` : ""}</span>}
                 </div>
@@ -157,6 +158,15 @@ export default function PlayersDesktop({
                 </div>
                 <button className={sel.viewer ? "st-on" : ""} onClick={() => onToggleViewer(sel)}>
                   {sel.viewer ? "👁️ צופה" : "🏐 שחקנית"}
+                </button>
+              </div>
+              <div className="st-pl-toggle">
+                <div>
+                  <b>👻 חשבון בדיקה</b>
+                  <span>מתנהגת כמו שחקנית לכל דבר, אבל אינה נספרת בשום מספר או סטטיסטיקה ואינה מופיעה ברשימת הבחירה. להגיע אליה: ?test=1 בכתובת.</span>
+                </div>
+                <button className={sel.ghost ? "st-on" : ""} onClick={() => onToggleGhost(sel)}>
+                  {sel.ghost ? "👻 בדיקה" : "רגילה"}
                 </button>
               </div>
             </div>

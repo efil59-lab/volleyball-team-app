@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
-import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel } from "../lib/utils";
+import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts } from "../lib/utils";
 import useNow from "../lib/useNow";
 import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
@@ -267,7 +267,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
       <div style={{ padding: "12px 16px 0" }}>
         <div ref={gridRef} style={{ background: "white", borderRadius: 18, padding: 16, boxShadow: "0 4px 18px rgba(26,35,126,0.10)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-            {players.map(p => {
+            {players.filter(p => !p.ghost || showGhosts()).map(p => {
               const prof = playerProfiles[p.id] || {};
               return (
                 <button key={p.id} onClick={() => onSelectPlayer(p)}

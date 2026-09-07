@@ -7,7 +7,7 @@
 // אותו הירו ואותו עלה-לוח-שנה כמו במסך השחקנית (PlayerHome), כדי ששני המסכים
 // ירגישו כאותו אתר. הפעולות מגיעות ב-props מאותו state של המסך הנייד.
 import { useState } from "react";
-import { eventPhase, eventStateLabel, attendanceWords } from "../lib/utils";
+import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
 import "./site.css";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
@@ -60,7 +60,9 @@ export default function HomeSite({
   onRSVP, onNote, myNote = "", onSelectPlayer, onOpenMine, onOpenTab, onSwitchUser,
   onAdmin, onAbout, onSuperAdmin, onPurchase, superAdminHandlers, pc, sc,
 }) {
-  const roster = players.filter(p => !p.viewer);
+  const roster = rosterOf(players);
+  // רשימת הבחירה: חשבונות בדיקה מוסתרים אלא אם ?test=1
+  const pickable = players.filter(p => !p.ghost || showGhosts());
   const counts = (() => {
     if (!nextEvent) return { coming: 0, notcoming: 0, pending: roster.length };
     let coming = 0, notcoming = 0, pending = 0;
@@ -231,7 +233,7 @@ export default function HomeSite({
                 <span className="st-p-note">{roster.length} שחקניות בקבוצה</span>
               </div>
               <div className="st-h-pick">
-                {players.map(p => {
+                {pickable.map(p => {
                   const prof = playerProfiles[p.id] || {};
                   return (
                     <button key={p.id} className="st-h-pb" onClick={() => onSelectPlayer(p)}>

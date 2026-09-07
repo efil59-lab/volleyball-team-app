@@ -79,6 +79,25 @@ function attendanceWords(phase) {
   };
 }
 
+// ── מי נספרת ────────────────────────────────────────────────────────────────
+// שני סוגים יוצאים מהספירה, מסיבות שונות:
+//   viewer — מאמנת/צופה. קיימת באמת, אבל אינה מסמנת נוכחות.
+//   ghost  — משתתפת רפאים: חשבון בדיקה. היא כן מסמנת, שולחת ומקבלת הכל —
+//            בדיוק בשביל זה היא קיימת — אבל אסור שתופיע במספר, ברשימה או
+//            בסטטיסטיקה של הקבוצה. בלעדיה כל בדיקה מזייפת את הנתונים
+//            האמיתיים, וכל תיקון של הזיוף הוא הזדמנות לטעות.
+// הגדרה אחת במקום אחד: כל מסך שיסנן בעצמו יתפצל ממנה בסוף.
+function rosterOf(players) {
+  return (players || []).filter(p => !p.viewer && !p.ghost);
+}
+
+// האם להציג חשבונות בדיקה ברשימת הבחירה. ?test=1 בכתובת — כך הרשימה
+// שהשחקניות רואות נשארת נקייה, ומי שבודק מגיע לחשבון בכתובת אחת.
+function showGhosts() {
+  try { return new URLSearchParams(window.location.search).has("test"); }
+  catch { return false; }
+}
+
 // זיהוי iOS/iPadOS — שם signInWithPopup לא אמין (ITP מאבד את תוצאת ה-popup)
 function isIOS() {
   if (typeof navigator === "undefined") return false;
@@ -181,4 +200,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
