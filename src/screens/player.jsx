@@ -14,6 +14,7 @@ import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
 import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
+import HolidayBanner from "../components/HolidayBanner";
 import ReminderCard from "../components/ReminderCard";
 import Confetti from "../components/Confetti";
 
@@ -140,6 +141,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   // צופה (מאמנת) מחוץ לכל ספירת נוכחות — היא לא מסמנת, ולכן לא "טרם ענתה".
   const isViewer = !!player.viewer;
   const isGhost = !!player.ghost;
+  // יום הולדת גובר על חג: הברכה האישית חשובה יותר, ושתיהן יחד הן עומס
+  const myBdayToday = isBirthdayToday((playerProfiles[player.id] || {}).birthday);
   // noSocial = כל מה שיוצא החוצה ומגיע לשחקניות אחרות: צ׳אט, תמונות,
   // סקר ומחיאות כפיים. שני סוגי חשבון חסומים בו, מסיבות שונות:
   //   צופה — אינה חלק מהמרחב של השחקניות.
@@ -425,7 +428,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           {/* ── EVENT TAB ── */}
           {tab === "event" && (
             <>
-              {!nextEvent ? <Empty icon="😴" text="אין אירועים קרובים" /> : (
+              {/* ברכת חג — מיד אחרי כרטיס האירוע, לפני המספרים: כרטיס האימון
+                  הוא הסיבה שפתחו את האפליקציה ואסור לדחוף אותו למטה, אבל מתחת
+                  למונים ולרשימות הברכה נקברת. ביום בלי אירוע היא עולה מעצמה. */}
+              {!nextEvent ? <><HolidayBanner hide={myBdayToday} /><Empty icon="😴" text="אין אירועים קרובים" /></> : (
                 <>
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -439,6 +445,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     </div>
                     {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
                   </div>
+
+                  <HolidayBanner hide={myBdayToday} />
 
                   {/* Clickable counters */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>

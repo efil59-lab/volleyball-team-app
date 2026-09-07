@@ -10,6 +10,7 @@ import { uploadProfilePhoto } from "../lib/images";
 import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
 import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
+import HolidayBanner from "../components/HolidayBanner";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
 function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
@@ -207,7 +208,9 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
               {/* היה כאן קישור "מי עוד מגיעה?" — כפול לכרטיס "המסך האישי שלי"
                   שמופיע ממש מתחת, ולראש הכרטיס שהוא ממילא לחיץ. */}
             </div>
-          ) : (
+          ) : null}
+          <HolidayBanner hide={bdayOthers.length > 0} />
+          {!nextEvent && (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
           )}
         </div>
