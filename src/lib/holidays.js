@@ -50,14 +50,6 @@ function isYomHazikaron(h, date) {
   if (h.d === 5) return wd === 1;   // נדחה ליום שני (כשה־5 באייר ראשון)
   return false;
 }
-// תשעה באב שחל בשבת נדחה ליום ראשון — אין צום בשבת.
-function isTishaBeav(h, date) {
-  if (h.m !== "Av") return false;
-  const wd = dow(date);
-  if (h.d === 9) return wd !== 6;
-  if (h.d === 10) return wd === 0;
-  return false;
-}
 function isYomHaatzmaut(h, date) {
   if (h.m !== "Iyar") return false;
   const wd = dow(date);
@@ -135,9 +127,6 @@ const HOLIDAYS = [
     title: "חג שבועות שמח 🌾", sub: "חג שמח לכן ולמשפחות",
     art: "wheat", bg: ["#166534", "#65a30d", "#facc15"] },
 
-  { key: "av", kind: "tzom", match: isTishaBeav,
-    title: "תשעה באב", sub: "צום קל למי שצמה",
-    art: "quiet", bg: ["#0c4a6e", "#0369a1"] },
 ];
 
 // החג של היום, או null. date נמסר מבחוץ כדי שאפשר יהיה לבדוק כל תאריך.
