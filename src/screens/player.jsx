@@ -139,6 +139,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   // צופה (מאמנת) מחוץ לכל ספירת נוכחות — היא לא מסמנת, ולכן לא "טרם ענתה".
   const isViewer = !!player.viewer;
+  // חשבון בדיקה: צ׳אט ותמונות הם התוכן היחיד שדגל על השחקנית לא יכול
+  // להסתיר — הודעה ותמונה מגיעות לכל 13 השחקניות בשיחה ובגלריה אמיתיות.
+  // לכן הן פשוט לא זמינות לו: עדיף למנוע מלנקות אחר כך.
+  const isGhost = !!player.ghost;
+  const noSocial = isViewer || isGhost;
   const roster = rosterOf(players);
   function countAtt(status) {
     if (!nextEvent) return 0;
@@ -273,7 +278,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       { key: "event", icon: "📋", label: "נוכחות" },
       { key: "calendar", icon: "🗓️", label: "לוח" },
       { key: "games", icon: "🏆", label: "תוצאות" },
-      { key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat },
+      ...(isGhost ? [] : [{ key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat }]),
     ];
   // לצופה אין סקר — הוא של השחקניות — והגלריה כבר בניווט הראשי, אז נשאר
   // לה רק אודות. אודות נמצא כאן ולא רק במסך הבית כי שחקנית שהמכשיר זוכר
@@ -283,7 +288,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     ? [aboutItem]
     : [
       { key: "polls", icon: "🗳️", label: "סקר" },
-      { key: "gallery", icon: "📸", label: "תמונות" },
+      ...(isGhost ? [] : [{ key: "gallery", icon: "📸", label: "תמונות" }]),
       aboutItem,
     ];
 
@@ -735,7 +740,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           })()}
 
           {/* ── CHAT TAB ── */}
-          {tab === "chat" && !isViewer && (
+          {tab === "chat" && !noSocial && (
             <div style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {(!chat || chat.length === 0) && <Empty icon="💬" text="אין הודעות עדיין — התחילי שיחה!" />}
@@ -802,7 +807,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           )}
 
           {/* ── GALLERY TAB ── */}
-          {tab === "gallery" && (
+          {tab === "gallery" && !isGhost && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>

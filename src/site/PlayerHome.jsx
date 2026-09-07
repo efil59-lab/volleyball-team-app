@@ -38,6 +38,8 @@ export default function PlayerHome({
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
   // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
   const isViewer = !!player.viewer;
+  // ראה הערה מקבילה ב-player.jsx: לחשבון בדיקה אין צ׳אט ואין תמונות
+  const noSocial = isViewer || !!player.ghost;
   const evWords = attendanceWords(evPhase);
   const roster = rosterOf(players);
   const my = myRecord?.status || null;
@@ -273,7 +275,7 @@ export default function PlayerHome({
           <div className="st-p-sh"><h2>מהקבוצה</h2></div>
           <div className="st-p-cols">
 
-            {!isViewer && <article className="st-p-card">
+            {!noSocial && <article className="st-p-card">
               <div className="st-p-ch">💬 הצ׳אט
                 <button className="st-p-sp st-p-link" onClick={() => onOpen("chat")}>לצ׳אט המלא ←</button>
               </div>
@@ -326,7 +328,7 @@ export default function PlayerHome({
               </div>
             </article>}
 
-            <article className="st-p-card">
+            {!player.ghost && <article className="st-p-card">
               <div className="st-p-ch">📸 תמונות אחרונות
                 <button className="st-p-sp st-p-link" onClick={() => onOpen("gallery")}>לגלריה ←</button>
               </div>
@@ -344,7 +346,7 @@ export default function PlayerHome({
                     </div>
                   )}
               </div>
-            </article>
+            </article>}
 
           </div>
 
