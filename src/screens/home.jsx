@@ -209,7 +209,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
                   שמופיע ממש מתחת, ולראש הכרטיס שהוא ממילא לחיץ. */}
             </div>
           ) : null}
-          <HolidayBanner hide={bdayOthers.length > 0} />
+          <HolidayBanner slim={bdayOthers.length > 0} />
           {!nextEvent && (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
           )}
