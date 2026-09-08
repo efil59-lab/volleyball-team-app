@@ -6,7 +6,8 @@
 // הכל מגיע ב-props מאותו state של המסך הנייד. מסכי העומק (לוח מלא, תוצאות,
 // צ'אט מלא, גלריה) נשארים המסכים הקיימים — כאן רק התקצירים והקישור אליהם.
 import { useMemo } from "react";
-import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf } from "../lib/utils";
+import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf, isBirthdayToday } from "../lib/utils";
+import HolidayBanner from "../components/HolidayBanner";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
@@ -200,6 +201,14 @@ export default function PlayerHome({
               <div className="st-p-leaf-t">{leaf.when}</div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ברכת חג — אחרי כרטיס האירוע ולפני המספרים, כמו בפריסה הניידת.
+          עד עכשיו היא הייתה בנייד בלבד, כלומר לא הופיעה באתר כלל. */}
+      <section className="st-p-sec" style={{ paddingBottom: 0 }}>
+        <div className="st-p-wrap">
+          <HolidayBanner slim={isBirthdayToday((playerProfiles[player.id] || {}).birthday)} />
         </div>
       </section>
 

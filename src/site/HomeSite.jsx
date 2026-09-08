@@ -8,6 +8,7 @@
 // ירגישו כאותו אתר. הפעולות מגיעות ב-props מאותו state של המסך הנייד.
 import { useState } from "react";
 import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
+import HolidayBanner from "../components/HolidayBanner";
 import "./site.css";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
@@ -156,6 +157,12 @@ export default function HomeSite({
             )}
           </div>
           <Leaf ev={nextEvent} />
+        </div>
+      </section>
+
+      <section className="st-p-sec" style={{ paddingBottom: 0 }}>
+        <div className="st-p-wrap">
+          <HolidayBanner slim={bdayOthers.length > 0} />
         </div>
       </section>
 
