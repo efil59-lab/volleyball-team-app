@@ -147,6 +147,21 @@ const HOLIDAYS = [
 
 ];
 
+// ── חריגה חד־פעמית ──────────────────────────────────────────────────────────
+// הועלתה ברכת השנה הטובה יום אחד לפני מה שהטבלה קובעת (8.9.2026), לבקשת
+// אפי, לשנה הזו בלבד. היא יושבת כאן ולא בטבלה בכוונה: הטבלה היא הכלל,
+// וזו חריגה ממנו.
+//
+// והיא פגה מעצמה. אחרי התאריך שלמטה הכלל הרגיל — כ״ז–כ״ח באלול — חוזר
+// לפעול לבדו, בלי שאיש יצטרך לזכור למחוק שורה. חריגה שדורשת זיכרון אנושי
+// היא חריגה שתישאר בקוד שנים.
+const ONE_OFF = { from: "2026-09-08", until: "2026-09-08", key: "pre-rosh" };
+
+// תאריך מקומי כ-yyyy-mm-dd (לא UTC — בערב הוא קופץ ליום הבא)
+function isoLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 // החג של היום, או null. date נמסר מבחוץ כדי שאפשר יהיה לבדוק כל תאריך.
 function holidayFor(date = new Date()) {
   const h = hebDate(date);
@@ -154,7 +169,13 @@ function holidayFor(date = new Date()) {
   const found = HOLIDAYS.find((x) => {
     try { return x.match(h, date); } catch { return false; }
   });
-  return found ? { ...found, heb: h } : null;
+  if (found) return { ...found, heb: h };
+  const iso = isoLocal(date);
+  if (iso >= ONE_OFF.from && iso <= ONE_OFF.until) {
+    const e = HOLIDAYS.find((x) => x.key === ONE_OFF.key);
+    if (e) return { ...e, heb: h };
+  }
+  return null;
 }
 
 export { holidayFor, hebDate, HOLIDAYS };
