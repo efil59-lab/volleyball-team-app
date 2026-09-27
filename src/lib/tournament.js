@@ -135,10 +135,17 @@ function describeGame(t, results, g) {
   }
   const r = results && results[g.id];
   const label = g.stage === "semi" ? "חצי גמר" : "גמר";
+  // שני מצבים שבהם אין מה לדווח: out — לא עלינו לשלב הזה, locked — עוד לא
+  // ידוע אם נעלה. בשניהם המשחק אינו "שלנו", והמנהלת לא מתבקשת להזין בו.
   if (groupDone(t, results)) {
     const p = ourPlace(t, results);
     const k = t.ko[p];
     if (!k) return { title: label, sub: "מקומות 3–4 מסיימים ביום חמישי", hall: "—", out: true };
+    if (g.stage === "final") {
+      const sfr = ourScore(t, results, t.games.find((x) => x.stage === "semi"));
+      if (sfr && !sfr.won) return { title: `גמר ${k.bracket}`, sub: "הפסדנו בחצי הגמר", hall: "—", out: true };
+      if (!sfr) return { title: `גמר ${k.bracket}`, sub: "אם ננצח בחצי הגמר", hall: k.finalHall, locked: true };
+    }
     const opp = (r && r.opp) || (g.stage === "semi" ? k.semiOpp : "המנצחת מחצי הגמר השני");
     return {
       title: `${label} ${k.bracket}`,
@@ -150,11 +157,12 @@ function describeGame(t, results, g) {
   const ours = t.games.filter((x) => x.stage === "group" && (x.a === t.us || x.b === t.us));
   const waiting = t.games.find((x) => x.stage === "group" && !resultOf(results, x));
   if (ours.every((x) => resultOf(results, x)) && waiting)
-    return { title: label, sub: `ייקבע אחרי ${waiting.a}–${waiting.b} · ${waiting.time}`, hall: "לפי המקום" };
+    return { title: label, sub: `ייקבע אחרי ${waiting.a}–${waiting.b} · ${waiting.time}`, hall: "לפי המקום", locked: true };
   return {
     title: label,
-    sub: g.stage === "semi" ? "מקום 1 → מצפה ים · מקום 2 → רבין 1" : "עליון בבגין 2 · תחתון בבגין 1",
+    sub: g.stage === "semi" ? "אם נעלה: מקום 1 → מצפה ים · מקום 2 → רבין 1" : "אם נעלה: עליון בבגין 2 · תחתון בבגין 1",
     hall: "לפי המקום",
+    locked: true,
   };
 }
 

@@ -270,7 +270,9 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
         <div style={{ fontSize: 14, fontWeight: 800, color: DEEP, marginBottom: 4 }}>המשחקים שלנו</div>
         {dates.map((d) => (
           <div key={d}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", margin: "10px 2px 6px" }}>{dayLabel(d)}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", margin: "10px 2px 6px" }}>
+              {dayLabel(d)}{mine.filter((g) => g.date === d).every((g) => g.stage !== "group" && describeGame(t, results, g).locked) ? " · אם נעלה" : ""}
+            </div>
             {mine.filter((g) => g.date === d).map((g) => (
               <GameRow key={g.id} t={t} results={results} g={g} highlight={next && next.id === g.id} />
             ))}
@@ -324,6 +326,22 @@ function AdminGame({ t, results, g, onSave, onClear }) {
   const inp = { width: 56, border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "8px 4px", textAlign: "center",
     fontSize: 17, fontWeight: 800, color: DEEP, background: "#f8fafc", fontFamily: "inherit" };
   const mineGame = g.a === t.us || g.b === t.us;
+  // חצי גמר/גמר שלא עלינו אליו, או שעוד לא ידוע אם נעלה — אין מה להזין.
+  // עד עכשיו הכרטיס הציג "הבינלאומי 2" מול "היריבה" כבר לפני שלב הבתים.
+  if (ko && (d.out || d.locked) && saved.a == null) {
+    return (
+      <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 13, padding: "11px 12px", marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#94a3b8", fontWeight: 700 }}>
+          <span>{dayLabel(g.date)} · {g.time}</span><span>{d.title}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 5 }}>
+          {d.out ? `לא עלינו לשלב הזה — ${d.sub}`
+            : d.sub.startsWith("אם ננצח") ? `ייפתח לדיווח רק ${d.sub}`
+            : `ייפתח לדיווח רק אם נעלה · ${d.sub.replace(/^אם נעלה: /, "")}`}
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ background: "#fff", border: `1px solid ${mineGame ? "#fbcfe8" : "#e2e8f0"}`, borderRadius: 13, padding: "11px 12px", marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#94a3b8", fontWeight: 700, marginBottom: 7 }}>
