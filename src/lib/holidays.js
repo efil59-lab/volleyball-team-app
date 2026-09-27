@@ -95,10 +95,7 @@ const HOLIDAYS = [
     title: "חג סוכות שמח 🌿", sub: "חג שמח לכן ולמשפחות",
     art: "sukka", bg: ["#14532d", "#16a34a", "#65a30d"] },
 
-  { key: "chol-sukkot", kind: "hag", slim: true,
-    match: (h) => h.m === "Tishri" && h.d >= 16 && h.d <= 21,
-    title: "חול המועד סוכות 🌿", sub: "",
-    art: "sukka", bg: ["#14532d", "#16a34a", "#65a30d"] },
+  // בחול המועד אין באנר — רק בימי החג עצמם (החלטת אפי, 28.9.26)
 
   { key: "torah", kind: "hag", match: (h) => h.m === "Tishri" && h.d === 22,
     title: "חג שמחת תורה שמח 🌿", sub: "חג שמח לכן ולמשפחות",
@@ -120,11 +117,6 @@ const HOLIDAYS = [
 
   { key: "pesach", kind: "hag", match: (h) => h.m === "Nisan" && h.d >= 14 && h.d <= 15,
     title: "חג פסח כשר ושמח", sub: "חופש נעים — נתראה באימון הראשון אחרי החג",
-    art: "matza", bg: ["#a16207", "#eab308", "#84cc16"] },
-
-  { key: "chol-pesach", kind: "hag", slim: true,
-    match: (h) => h.m === "Nisan" && h.d >= 16 && h.d <= 20,
-    title: "חול המועד פסח", sub: "",
     art: "matza", bg: ["#a16207", "#eab308", "#84cc16"] },
 
   { key: "pesach-end", kind: "hag", match: (h) => h.m === "Nisan" && h.d === 21,
