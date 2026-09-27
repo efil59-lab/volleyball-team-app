@@ -219,7 +219,10 @@ function GroupTable({ t, results }) {
   );
 }
 
-export function TournamentScreen({ t, state, now = new Date() }) {
+// bleed: בלשונית של השחקנית הראש נמתח עד קצוות המסך (מבטל את הריפוד של
+// הלשונית). בתצוגה המקדימה בפאנל הוא יושב בתוך מסגרת, ושם מתיחה כזו
+// גולשת מהמסגרת ונראית כמו תמונה בתוך תמונה.
+export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
   if (!t) return null;
   const results = (state && state.results) || {};
   const phase = tournamentPhase(t, now);
@@ -243,7 +246,7 @@ export function TournamentScreen({ t, state, now = new Date() }) {
   }
 
   return (
-    <div style={{ margin: "-16px -16px 0" }}>
+    <div style={bleed ? { margin: "-16px -16px 0" } : { background: "#f1f5f9", paddingBottom: 6 }}>
       <div style={{ position: "relative", color: "#fff", overflow: "hidden", background: SUNSET, padding: "18px 16px 74px" }}>
         {state && !state.published && <div style={{ marginBottom: 8 }}><DraftPill /></div>}
         <div style={{ position: "relative", zIndex: 1 }}>
@@ -424,9 +427,13 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
       </div>
 
       {preview && (
-        <div style={{ border: "1px solid #e2e8f0", borderRadius: 16, overflow: "hidden", marginBottom: 14, background: "#f1f5f9", padding: 16 }}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "#64748b", margin: "0 2px 7px" }}>הכרטיס בדף הבית</div>
           <TournamentCard t={t} state={{ ...state, published: true }} />
-          <TournamentScreen t={t} state={{ ...state, published: true }} />
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "#64748b", margin: "8px 2px 7px" }}>המסך המלא, אחרי לחיצה על הכרטיס</div>
+          <div style={{ border: "1px solid #e2e8f0", borderRadius: 18, overflow: "hidden", boxShadow: "0 4px 16px rgba(16,24,64,0.08)" }}>
+            <TournamentScreen t={t} state={{ ...state, published: true }} bleed={false} />
+          </div>
         </div>
       )}
 
