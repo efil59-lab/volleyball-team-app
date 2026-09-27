@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db, auth } from "./firebase";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, doc, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { signInAnonymously, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import { googleProvider, isGoogleUser } from "./lib/auth";
 import { DEFAULT_TEAM, SUPER_ADMIN_EMAIL, KEYS, DEFAULT_SETTINGS, WHATS_NEW, DEFAULT_PLAYERS, DEFAULT_EVENTS, DEFAULT_GAMES } from "./lib/constants";
@@ -33,6 +33,8 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [archive, setArchive] = useState([]);
+  // תוצאות ומצב פרסום של טורנירים (הספורטיאדה). המבנה עצמו ב-lib/tournament.js.
+  const [tournaments, setTournaments] = useState({});
   const [games, setGames] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [playerProfiles, setPlayerProfiles] = useState({});
@@ -42,6 +44,7 @@ export default function App() {
   const [chat, setChat] = useState([]);
   const chatUnsubRef = useRef(null);
   const attUnsubRef = useRef(null);
+  const tourUnsubRef = useRef(null);
   const pollsUnsubRef = useRef(null);
   const applauseUnsubRef = useRef(null);
   const pnUnsubRef = useRef(null);
@@ -145,6 +148,12 @@ export default function App() {
         setAttendance(flat);
       },
       err => console.error("attendance onSnapshot:", err));
+    // טורנירים — בזמן אמת, כדי שתוצאה שמוזנת באולם תגיע מיד לכל מי שהמסך
+    // פתוח אצלה, בלי ריענון. מסמך אחד קטן, ולכן מנוי אחד זול.
+    if (tourUnsubRef.current) tourUnsubRef.current();
+    tourUnsubRef.current = onSnapshot(doc(db, "teams", CURRENT_TEAM, "data", KEYS.tournaments),
+      snap => setTournaments((snap.exists() && snap.data().value) || {}),
+      err => console.error("tournaments onSnapshot:", err));
     return { players: p, playerProfiles: pp, meta: m };
   }
 
@@ -156,7 +165,7 @@ export default function App() {
 
   // ניקוי כל המנויים בזמן-אמת בעת יציאה
   useEffect(() => () => {
-    [chatUnsubRef, attUnsubRef, pollsUnsubRef, applauseUnsubRef, pnUnsubRef].forEach(r => { if (r.current) r.current(); });
+    [chatUnsubRef, attUnsubRef, pollsUnsubRef, applauseUnsubRef, pnUnsubRef, tourUnsubRef].forEach(r => { if (r.current) r.current(); });
   }, []);
 
   useEffect(() => {
@@ -369,7 +378,7 @@ export default function App() {
 
   const pc = settings.primaryColor || "#1a237e";
   const sc = settings.secondaryColor || "#f5c842";
-  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, upd, pc, sc, askConfirm, notify, teamMeta, addChatLocal };
+  const common = { players, events, attendance, notifications, settings, archive, games, gallery, playerProfiles, applause, polls, personalNotifs, chat, tournaments, upd, pc, sc, askConfirm, notify, teamMeta, addChatLocal };
 
   // ── שער כניסה (מסחור) ────────────────────────────────────────────────────────
   // קבוצה ללא status נחשבת "active" (ותיקה — לא נועלים). נעילת שחקניות: pending מפורש,

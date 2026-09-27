@@ -34,7 +34,7 @@ export default function PlayerHome({
   player, players = [], playerProfiles = {}, attendance = {}, archive = [],
   chat = [], polls = [], gallery = [], applause = [], nextEvent, myRecord,
   clapList = [], clapLabel = "", evPhase = "before", evState = null,
-  onRSVP, onVote, onApplause, onOpen, onProfile,
+  onRSVP, onVote, onApplause, onOpen, onProfile, tourCard,
 }) {
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
   // צופה (מאמנת) מחוץ לספירות ולגריד — היא אינה מסמנת נוכחות
@@ -209,6 +209,7 @@ export default function PlayerHome({
       <section className="st-p-sec" style={{ paddingBottom: 0 }}>
         <div className="st-p-wrap">
           <HolidayBanner slim={isBirthdayToday((playerProfiles[player.id] || {}).birthday)} />
+          {tourCard && <div style={{ maxWidth: 560 }}>{tourCard}</div>}
         </div>
       </section>
 

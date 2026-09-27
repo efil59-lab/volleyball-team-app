@@ -11,9 +11,11 @@ import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
 import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
+import { TournamentCard } from "../components/Tournament";
+import { activeTournament, canSeeTournament } from "../lib/tournament";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
+function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, tournaments, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
   const isDesktop = useIsDesktop();
   const lpRef = useRef();
   const gridRef = useRef();
@@ -28,6 +30,10 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   const nextEvent = getNextEvent(events || []);
   const evPhase = eventPhase(nextEvent, now);
   const evState = eventStateLabel(nextEvent, evPhase);
+  const tour = activeTournament(now);
+  const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
+  // לחיצה על הכרטיס פותחת את המסך האישי ישר על לשונית הטורניר
+  const openTour = (p) => { try { sessionStorage.setItem("openTab", "tournament"); } catch {} onSelectPlayer(p); };
   // שחקנית שהמכשיר "זוכר" — אם קיימת, מציגים דשבורד אישי (מצב א'); אחרת רשימת בחירה (מצב ב')
   // rememberPlayer נשמר רק לאחר כניסה מוצלחת — עדות מספקת בלי לדרוש setupDone שאולי טרם נטען.
   const me = !forceRoster ? players.find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1") : null;
@@ -113,6 +119,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             onSwitchUser={() => setForceRoster(true)}
             onAdmin={onAdmin} onAbout={onAbout} onPurchase={onPurchase} pc={pc} sc={sc}
             superAdminHandlers={lp}
+            tourCard={me && tour && canSeeTournament(tourState, me) ? <TournamentCard t={tour} state={tourState} now={now} onOpen={() => openTour(me)} /> : null}
           />
         </div>
       </div>
@@ -210,6 +217,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             </div>
           ) : null}
           <HolidayBanner slim={bdayOthers.length > 0} />
+          {tour && canSeeTournament(tourState, me) && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => openTour(me)} />}
           {!nextEvent && (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
           )}

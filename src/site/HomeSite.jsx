@@ -58,7 +58,7 @@ function Leaf({ ev }) {
 export default function HomeSite({
   me, players = [], playerProfiles = {}, attendance = {}, settings = {},
   nextEvent, myStatus, activeNotifs = [], bdayOthers = [],
-  onRSVP, onNote, myNote = "", onSelectPlayer, onOpenMine, onOpenTab, onSwitchUser,
+  onRSVP, onNote, myNote = "", onSelectPlayer, onOpenMine, onOpenTab, onSwitchUser, tourCard,
   onAdmin, onAbout, onSuperAdmin, onPurchase, superAdminHandlers, pc, sc,
 }) {
   const roster = rosterOf(players);
@@ -163,6 +163,7 @@ export default function HomeSite({
       <section className="st-p-sec" style={{ paddingBottom: 0 }}>
         <div className="st-p-wrap">
           <HolidayBanner slim={bdayOthers.length > 0} />
+          {tourCard && <div style={{ maxWidth: 560 }}>{tourCard}</div>}
         </div>
       </section>
 

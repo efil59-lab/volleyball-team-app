@@ -38,6 +38,7 @@ const KEYS = {
   chat: "chat",
   whatsNewVersion: "whatsNewVersion",
   meta: "meta",
+  tournaments: "tournaments",
 };
 
 const DEFAULT_SETTINGS = {

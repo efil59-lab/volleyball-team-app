@@ -1,5 +1,5 @@
 import { db, functions } from "../firebase";
-import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, setDoc, getDocs, collection, deleteDoc, updateDoc, arrayUnion, deleteField } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { DEFAULT_TEAM, BIBLEUMI_ADMIN_EMAILS, KEYS, DEFAULT_SETTINGS, TRIAL_DAYS } from "./constants";
 
@@ -34,6 +34,21 @@ async function load(key, fallback) {
     return snap.exists() ? snap.data().value : fallback;
   } catch { return fallback; }
 }
+// ── טורנירים: כתיבה חלקית (merge) ───────────────────────────────────────────
+// כל תוצאה נכתבת כשדה משלה, ולא כמסמך שלם. בטורניר שתי מנהלות (מירי ואפי)
+// עלולות להזין באותה דקה, וכתיבה של המסמך כולו הייתה מוחקת את התוצאה של
+// השנייה בשקט. ה-listener ב-App מעדכן את המסך מיד — כולל אצל הכותבת.
+// null במקום ערך = מחיקת השדה.
+function toFirestoreMerge(obj) {
+  if (obj === null) return deleteField();
+  if (typeof obj !== "object" || Array.isArray(obj)) return obj;
+  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, toFirestoreMerge(v)]));
+}
+async function mergeTournament(tournamentId, partial) {
+  const ref = doc(db, "teams", CURRENT_TEAM, "data", KEYS.tournaments);
+  await setDoc(ref, { value: { [tournamentId]: toFirestoreMerge(partial) } }, { merge: true });
+}
+
 async function save(key, val) {
   try {
     const ref = doc(db, "teams", CURRENT_TEAM, "data", key);
@@ -495,7 +510,7 @@ async function personalNotifSetItems(playerId, items) {
 }
 
 export {
-  CURRENT_TEAM, TEAM_FROM_URL, setCurrentTeam, load, save,
+  CURRENT_TEAM, TEAM_FROM_URL, setCurrentTeam, load, save, mergeTournament,
   groupAttendanceByPlayer, loadAttendanceSplit, saveAttendanceSplit,
   loadProfilesSplit, saveProfilesSplit, loadPlayerSecret,
   loadUserTeam, saveUserTeam, inviteKey, loadInvite, saveInvite,

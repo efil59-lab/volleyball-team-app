@@ -15,17 +15,23 @@ import PlayerHome from "../site/PlayerHome";
 import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
+import { TournamentCard, TournamentScreen } from "../components/Tournament";
+import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 import ReminderCard from "../components/ReminderCard";
 import Confetti from "../components/Confetti";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, tournaments, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
   // מעל כל early return: useState אחרי return מותנה = "Rendered more hooks" ומסך לבן.
   const isDesk = useIsDesktop();
-  const [tab, setTab] = useState("event");
+  const [openTab] = useState(() => {
+    try { const v = sessionStorage.getItem("openTab"); if (v) sessionStorage.removeItem("openTab"); return v; }
+    catch { return null; }
+  });
+  const [tab, setTab] = useState(openTab || "event");
   // בדסקטופ ברירת המחדל היא עמוד הבית הרציף, לא לשונית. הלשוניות נשארות
   // מסכי העומק (לוח מלא, תוצאות, צ'אט, גלריה) ונפתחות מתוכו.
-  const [deskHome, setDeskHome] = useState(true);
+  const [deskHome, setDeskHome] = useState(!openTab);
   const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
   const [attModal, setAttModal] = useState(null);
   const [noteInput, setNoteInput] = useState("");
@@ -49,6 +55,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
   const prof = playerProfiles[player.id] || {};
   const now = useNow();
+  // הספורטיאדה: בחלון התצוגה שלה, ורק למי שמורשית לראות (בטיוטה — חשבון בדיקה)
+  const tour = activeTournament(now);
+  const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
+  const showTour = !!tour && canSeeTournament(tourState, player);
+  const tourLive = showTour && tournamentPhase(tour, now) === "during";
   const nextEvent = getNextEvent(events);
   const evPhase = eventPhase(nextEvent, now);
   const evState = eventStateLabel(nextEvent, evPhase);
@@ -276,16 +287,20 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const navItems = [
     { key: "event", icon: "📋", label: "נוכחות" },
     { key: "calendar", icon: "🗓️", label: "לוח" },
-    { key: "games", icon: "🏆", label: "תוצאות" },
+    tourLive ? { key: "tournament", icon: "🏆", label: "ספורטיאדה" } : { key: "games", icon: "🏆", label: "תוצאות" },
     ...(noSocial ? [] : [{ key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat }]),
   ];
+  const tourMore = showTour
+    ? [tourLive ? { key: "games", icon: "🏆", label: "תוצאות" } : { key: "tournament", icon: "☀️", label: "ספורטיאדה" }]
+    : [];
   // לצופה אין סקר — הוא של השחקניות — והגלריה כבר בניווט הראשי, אז נשאר
   // לה רק אודות. אודות נמצא כאן ולא רק במסך הבית כי שחקנית שהמכשיר זוכר
   // אותה נוחתת ישר במסך האישי ולעולם לא עוברת במסך הבית (דווח 6.9.26).
   const aboutItem = { key: "about", icon: "ℹ️", label: "אודות", accent: true };
   const navMore = noSocial
-    ? [aboutItem]
+    ? [...tourMore, aboutItem]
     : [
+      ...tourMore,
       { key: "polls", icon: "🗳️", label: "סקר" },
       { key: "gallery", icon: "📸", label: "תמונות" },
       aboutItem,
@@ -420,6 +435,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       onVote={(pollId, i) => upd.pollVote(pollId, player.id, i)}
       onApplause={sendApplause}
       onOpen={goDesk}
+      tourCard={showTour ? <TournamentCard t={tour} state={tourState} now={now} onOpen={() => goDesk("tournament")} /> : null}
       onProfile={openProfileEditor}
     />
   );
@@ -431,7 +447,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               {/* ברכת חג — מיד אחרי כרטיס האירוע, לפני המספרים: כרטיס האימון
                   הוא הסיבה שפתחו את האפליקציה ואסור לדחוף אותו למטה, אבל מתחת
                   למונים ולרשימות הברכה נקברת. ביום בלי אירוע היא עולה מעצמה. */}
-              {!nextEvent ? <><HolidayBanner slim={myBdayToday} /><Empty icon="😴" text="אין אירועים קרובים" /></> : (
+              {!nextEvent ? <><HolidayBanner slim={myBdayToday} />{showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}<Empty icon="😴" text="אין אירועים קרובים" /></> : (
                 <>
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -447,6 +463,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   </div>
 
                   <HolidayBanner slim={myBdayToday} />
+                  {showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}
 
                   {/* Clickable counters */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
@@ -806,6 +823,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           {tab === "polls" && !noSocial && (
             <PlayerPolls polls={polls} player={player} players={roster} upd={upd} pc={pc} sc={sc} />
           )}
+
+          {/* ── ספורטיאדה ── */}
+          {tab === "tournament" && showTour && <TournamentScreen t={tour} state={tourState} now={now} />}
 
           {/* ── ABOUT TAB ── */}
           {tab === "about" && (

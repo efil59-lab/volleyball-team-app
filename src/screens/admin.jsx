@@ -9,6 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
+import { TournamentAdmin } from "../components/Tournament";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
@@ -226,6 +227,7 @@ function AdminPanel(props) {
     { key: "archive", icon: "📊", label: "סטטיסטיקה" },
   ];
   const navMore = [
+    { key: "tournament", icon: "🏆", label: "ספורטיאדה" },
     { key: "polls", icon: "🗳️", label: "סקר" },
     { key: "players", icon: "👥", label: "שחקניות" },
     { key: "gallery", icon: "📸", label: "תמונות מהמשחק" },
@@ -259,6 +261,7 @@ function AdminPanel(props) {
           {tab === "events" && <AdminEvents {...props} />}
           {tab === "players" && <AdminPlayers {...props} />}
           {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
+          {tab === "tournament" && <TournamentAdmin {...props} />}
           {tab === "polls" && <AdminPolls {...props} />}
           {tab === "gallery" && <AdminGallery {...props} />}
           {tab === "archive" && <ArchiveStats {...props} />}
