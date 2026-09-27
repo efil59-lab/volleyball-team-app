@@ -24,8 +24,10 @@ const SPORTIADA_2026 = {
   year: 2026,
   division: "דרג 5",
   group: "בית א",
-  start: "2026-10-14",
-  end: "2026-10-16",
+  // ימי הספורטיאדה כולה (הגעה ועזיבה), לא רק ימי המשחקים — 14–16.
+  // הספירה לאחור היא ליום היציאה לאילת.
+  start: "2026-10-13",
+  end: "2026-10-17",
   showFrom: "2026-09-27",   // הספירה לאחור מופיעה מהיום
   showUntil: "2026-11-15",  // חודש אחרי — כדי שאפשר יהיה לחזור לתוצאות
   us: US,
@@ -131,7 +133,7 @@ function ourPlace(t, results) {
 function describeGame(t, results, g) {
   if (g.stage === "group") {
     const opp = g.a === t.us ? g.b : g.a;
-    return { title: `מול ${opp}`, sub: "שלב הבתים", hall: g.hall, opp };
+    return { title: `מול ${opp}`, sub: t.group, hall: g.hall, opp };
   }
   const r = results && results[g.id];
   const label = g.stage === "semi" ? "חצי גמר" : "גמר";

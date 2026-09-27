@@ -234,11 +234,11 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
 
   let medal, headline, line;
   if (phase === "before") {
-    medal = "☀️"; headline = `עוד ${daysToStart(t, now)} ימים`; line = "3 משחקי בית. מקום 1 או 2 ממשיכים לשישי";
+    medal = "☀️"; headline = daysToStart(t, now) === 1 ? "מחר יוצאות לאילת!" : `עוד ${daysToStart(t, now)} ימים`; line = `3 משחקים ב${t.group}. מקום 1 או 2 ממשיכים לשישי`;
   } else if (phase === "during") {
     medal = place || "🏐"; headline = place ? `מקום ${place} ב${t.group}` : "בהצלחה, בנות!";
     line = !place ? "הטבלה תתעדכן אחרי התוצאה הראשונה"
-      : groupDone(t, results) ? (t.ko[place] ? `ממשיכות לחצי הגמר ה${t.ko[place].bracket}` : "סיימנו את שלב הבתים")
+      : groupDone(t, results) ? (t.ko[place] ? `ממשיכות לחצי הגמר ה${t.ko[place].bracket}` : `סיימנו את המשחקים ב${t.group}`)
       : place <= 2 ? "כרגע במקומות שממשיכים לשישי 💪" : "צריך ניצחון כדי לעלות";
   } else {
     const s = summary(t, results);
@@ -286,7 +286,7 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
       </div>
 
       <div style={{ padding: "16px 14px 8px" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: DEEP, marginBottom: 6 }}>שאר המשחקים בבית</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: DEEP, marginBottom: 6 }}>שאר המשחקים ב{t.group}</div>
         {others.map((g) => {
           const r = resultOf(results, g);
           return (
@@ -346,7 +346,7 @@ function AdminGame({ t, results, g, onSave, onClear }) {
     <div style={{ background: "#fff", border: `1px solid ${mineGame ? "#fbcfe8" : "#e2e8f0"}`, borderRadius: 13, padding: "11px 12px", marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#94a3b8", fontWeight: 700, marginBottom: 7 }}>
         <span>{dayLabel(g.date)} · {g.time} · {d.hall}</span>
-        <span>{ko ? d.title : mineGame ? "המשחק שלנו" : "משחק בבית"}</span>
+        <span>{ko ? d.title : mineGame ? "המשחק שלנו" : `משחק ב${t.group}`}</span>
       </div>
       {ko && (
         <input value={opp} onChange={(e) => setOpp(e.target.value)} placeholder={`היריבה (${d.opp || "לפי הלוח"})`}
@@ -457,7 +457,7 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
 
       <div style={{ fontSize: 14, fontWeight: 800, color: DEEP, marginBottom: 2 }}>תוצאות</div>
       <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.55 }}>
-        תוצאה סופית בלבד. כדי שהטבלה תהיה נכונה צריך להזין גם את משחקי הבית שלא שיחקנו בהם.
+        תוצאה סופית בלבד. כדי שהטבלה תהיה נכונה צריך להזין גם את המשחקים ב{t.group} שלא שיחקנו בהם.
       </div>
       {dates.map((d) => (
         <div key={d}>
