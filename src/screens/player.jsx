@@ -463,7 +463,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   </div>
 
                   <HolidayBanner slim={myBdayToday} />
-                  {showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}
 
                   {/* Clickable counters */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
@@ -569,6 +568,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       )}
                     </div>
                   )}
+
+                  {/* הספורטיאדה — אחרי המונים והסימון: האימון הקרוב הוא הסיבה
+                      שנכנסו, והכרטיס לא דוחף אותו למטה */}
+                  {showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}
 
                   {/* 👏 Applause — collapsible */}
                   {!noSocial && lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (

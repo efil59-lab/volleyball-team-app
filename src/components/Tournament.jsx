@@ -14,6 +14,8 @@ import { notifyTeamPushRemote, mergeTournament } from "../lib/db";
 const SUNSET = "linear-gradient(160deg,#ff8a4c 0%,#f2557a 46%,#0b3b63 100%)";
 const DEEP = "#0b3b63";
 const CORAL = "#f2557a";
+// ההתראה שיוצאת פעם אחת, בפרסום הראשון לקבוצה
+const ANNOUNCE = "☀️ הספורטיאדה באפליקציה — לוח המשחקים והספירה לאחור";
 
 function Scene() {
   return (
@@ -67,11 +69,37 @@ function summary(t, results) {
 }
 
 // ── כרטיס בדף הבית ─────────────────────────────────────────────────────────
-export function TournamentCard({ t, state, onOpen, now = new Date() }) {
+// עד שבוע לפני היציאה הכרטיס הוא פס דק בשורה אחת, כדי לא לדחוף את האימון
+// הקרוב למטה; בשבוע האחרון ובימי הטורניר — הכרטיס המלא.
+// size: "auto" (לפי התאריך) | "slim" | "big" — הכפייה משמשת את התצוגה בפאנל.
+const SLIM_UNTIL_DAYS = 7;
+
+export function TournamentCard({ t, state, onOpen, now = new Date(), size = "auto" }) {
   if (!t) return null;
   const results = (state && state.results) || {};
   const phase = tournamentPhase(t, now);
   const clickable = !!onOpen;
+  const slim = size === "slim" || (size === "auto" && phase === "before" && daysToStart(t, now) > SLIM_UNTIL_DAYS);
+  if (slim) {
+    const d = daysToStart(t, now);
+    const Tag = clickable ? "button" : "div";
+    return (
+      <Tag onClick={onOpen} style={{
+        display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "right", border: "none",
+        fontFamily: "inherit", cursor: clickable ? "pointer" : "default", borderRadius: 14, background: SUNSET,
+        color: "white", padding: "10px 13px", marginBottom: 12, boxShadow: "0 6px 16px rgba(242,85,122,0.22)",
+      }}>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>☀️</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <b style={{ display: "block", fontSize: 14.5, fontWeight: 800 }}>עוד {d} ימים ל{t.short}</b>
+          <span style={{ fontSize: 11.5, opacity: 0.92 }}>
+            {t.city} · {dateRange(t)}{state && !state.published ? " · 🧪 טיוטה" : ""}
+          </span>
+        </span>
+        {clickable && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>לוח המשחקים ›</span>}
+      </Tag>
+    );
+  }
 
   let body;
   if (phase === "before") {
@@ -384,6 +412,8 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
   const state = tournaments[t.id] || {};
   const results = state.results || {};
   const [preview, setPreview] = useState(false);
+  // חלון אישור הפרסום. ההתראה מסומנת מראש רק אם עוד לא יצאה אחת (announced)
+  const [pubAsk, setPubAsk] = useState(null);
 
   async function saveResult(g, r) {
     const next = { ...results, [g.id]: r };
@@ -402,12 +432,15 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
     if (state.published) {
       askConfirm("להחזיר לטיוטה? הבנות לא יראו יותר את הספורטיאדה באפליקציה.", () => merge(t.id, { published: false }));
     } else {
-      const has = Object.keys(results).length;
-      askConfirm(has
-        ? `לפרסם לכל הקבוצה? יש כרגע ${has} תוצאות שמורות. אם הן תוצאות בדיקה, כדאי למחוק אותן קודם.`
-        : "לפרסם לכל הקבוצה? מרגע זה כל הבנות יראו את הספירה לאחור ואת לוח המשחקים.",
-      () => merge(t.id, { published: true }));
+      setPubAsk({ push: !state.announced });
     }
+  }
+  async function confirmPublish() {
+    const push = pubAsk.push;
+    setPubAsk(null);
+    await merge(t.id, push ? { published: true, announced: true } : { published: true });
+    if (push) notifyTeamPushRemote(`🏐 ${t.name}`, ANNOUNCE);
+    notify(push ? "פורסם ונשלחה התראה לקבוצה 📣" : "פורסם לקבוצה", { icon: "✅" });
   }
   function resetAll() {
     askConfirm("למחוק את כל התוצאות? זה מתאים לניקוי תוצאות בדיקה לפני הטורניר.", () => merge(t.id, { results: null }));
@@ -444,10 +477,41 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
         </div>
       </div>
 
+      {pubAsk && (() => {
+        const has = Object.keys(results).length;
+        return (
+          <div style={{ background: "#fff", border: "1.5px solid #1a237e", borderRadius: 14, padding: 14, marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#16203a" }}>לפרסם לכל הקבוצה?</div>
+            <div style={{ fontSize: 12.5, color: "#5b6478", margin: "4px 0 10px", lineHeight: 1.55 }}>
+              מרגע זה כל הבנות יראו את הספירה לאחור ואת לוח המשחקים.
+              {has > 0 && <b style={{ color: "#b91c1c" }}> יש כרגע {has === 1 ? "תוצאה אחת שמורה" : `${has} תוצאות שמורות`} — אם אלה תוצאות בדיקה, כדאי למחוק אותן קודם.</b>}
+            </div>
+            <label style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "#fff6f8", border: "1.5px solid #fbcfe8", borderRadius: 12, padding: 10, cursor: "pointer" }}>
+              <input type="checkbox" checked={pubAsk.push} onChange={(e) => setPubAsk({ push: e.target.checked })}
+                style={{ width: 18, height: 18, marginTop: 2, accentColor: CORAL, flexShrink: 0 }} />
+              <span>
+                <b style={{ fontSize: 13, color: "#16203a" }}>לשלוח התראה לכל הקבוצה</b>
+                <span style={{ display: "block", fontSize: 12, color: "#5b6478" }}>
+                  {state.announced ? "כבר נשלחה התראה בפרסום קודם" : `"${ANNOUNCE}"`}
+                </span>
+              </span>
+            </label>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={() => setPubAsk(null)} style={{ flex: 1, border: "none", borderRadius: 10, padding: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "#f1f5f9", color: "#475569" }}>ביטול</button>
+              <button onClick={confirmPublish} style={{ flex: 1, border: "none", borderRadius: 10, padding: 10, fontSize: 13.5, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: CORAL, color: "#fff" }}>
+                {pubAsk.push ? "פרסום ושליחה" : "פרסום בשקט"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {preview && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: "#64748b", margin: "0 2px 7px" }}>הכרטיס בדף הבית</div>
-          <TournamentCard t={t} state={{ ...state, published: true }} />
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "#64748b", margin: "0 2px 7px" }}>בדף הבית, עד שבוע לפני — פס דק מתחת לאימון</div>
+          <TournamentCard t={t} state={{ ...state, published: true }} size="slim" />
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "#64748b", margin: "8px 2px 7px" }}>בשבוע האחרון ובימי הטורניר — הכרטיס המלא</div>
+          <TournamentCard t={t} state={{ ...state, published: true }} size="big" />
           <div style={{ fontSize: 12.5, fontWeight: 800, color: "#64748b", margin: "8px 2px 7px" }}>המסך המלא, אחרי לחיצה על הכרטיס</div>
           <div style={{ border: "1px solid #e2e8f0", borderRadius: 18, overflow: "hidden", boxShadow: "0 4px 16px rgba(16,24,64,0.08)" }}>
             <TournamentScreen t={t} state={{ ...state, published: true }} bleed={false} />

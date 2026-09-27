@@ -209,7 +209,6 @@ export default function PlayerHome({
       <section className="st-p-sec" style={{ paddingBottom: 0 }}>
         <div className="st-p-wrap">
           <HolidayBanner slim={isBirthdayToday((playerProfiles[player.id] || {}).birthday)} />
-          {tourCard && <div style={{ maxWidth: 560 }}>{tourCard}</div>}
         </div>
       </section>
 
@@ -240,6 +239,13 @@ export default function PlayerHome({
               </div>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* הספורטיאדה — אחרי "מי מגיעה", כמו בנייד: לא לדחוף את האימון הקרוב */}
+      {tourCard && (
+        <section className="st-p-sec" style={{ paddingBottom: 0 }}>
+          <div className="st-p-wrap"><div style={{ maxWidth: 560 }}>{tourCard}</div></div>
         </section>
       )}
 
