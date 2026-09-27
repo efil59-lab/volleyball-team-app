@@ -162,7 +162,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
 
         <div style={{ padding: "12px 16px 0" }}>
           {nextEvent ? (
-            <div style={{ background: pc, borderRadius: 18, padding: 16, boxShadow: `0 6px 20px ${pc}40` }}>
+            <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "4px 11px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</span>
