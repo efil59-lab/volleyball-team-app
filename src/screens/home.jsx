@@ -12,7 +12,7 @@ import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import { TournamentCard } from "../components/Tournament";
-import { activeTournament, canSeeTournament } from "../lib/tournament";
+import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
 function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, tournaments, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
@@ -33,6 +33,9 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
   const tour = activeTournament(now);
   const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
   // לחיצה על הכרטיס פותחת את המסך האישי ישר על לשונית הטורניר
+  // כל עוד יש אימון/משחק עתידי לפני הטורניר — פס דק, כדי לא לדחוף אותו.
+  // בלי אירוע קרוב, או בימי הטורניר עצמם, הכרטיס גדל לפי התאריך.
+  const tourSize = tour && nextEvent && tournamentPhase(tour, now) === "before" ? "slim" : "auto";
   const openTour = (p) => { try { sessionStorage.setItem("openTab", "tournament"); } catch {} onSelectPlayer(p); };
   // שחקנית שהמכשיר "זוכר" — אם קיימת, מציגים דשבורד אישי (מצב א'); אחרת רשימת בחירה (מצב ב')
   // rememberPlayer נשמר רק לאחר כניסה מוצלחת — עדות מספקת בלי לדרוש setupDone שאולי טרם נטען.
@@ -119,7 +122,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             onSwitchUser={() => setForceRoster(true)}
             onAdmin={onAdmin} onAbout={onAbout} onPurchase={onPurchase} pc={pc} sc={sc}
             superAdminHandlers={lp}
-            tourCard={me && tour && canSeeTournament(tourState, me) ? <TournamentCard t={tour} state={tourState} now={now} onOpen={() => openTour(me)} /> : null}
+            tourCard={me && tour && canSeeTournament(tourState, me) ? <TournamentCard t={tour} state={tourState} now={now} size={tourSize} onOpen={() => openTour(me)} /> : null}
           />
         </div>
       </div>
@@ -217,7 +220,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             </div>
           ) : null}
           <HolidayBanner slim={bdayOthers.length > 0} />
-          {tour && canSeeTournament(tourState, me) && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => openTour(me)} />}
+          {tour && canSeeTournament(tourState, me) && <TournamentCard t={tour} state={tourState} now={now} size={tourSize} onOpen={() => openTour(me)} />}
           {!nextEvent && (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
           )}

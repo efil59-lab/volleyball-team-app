@@ -450,8 +450,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               {!nextEvent ? <><HolidayBanner slim={myBdayToday} />{showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}<Empty icon="😴" text="אין אירועים קרובים" /></> : (
                 <>
                   {/* הספורטיאדה — פס דק מעל כרטיס האימון (בקשת אפי 28.9.26).
-                      דק גם בשבוע האחרון: כרטיס מלא כאן היה דוחף את סימון ההגעה
-                      לאימון האחרון לפני אילת. מלא רק בימי הטורניר, כשאין אימונים. */}
+                      הכלל: כל עוד יש אימון עתידי — דק, גם בשבוע האחרון. בלי אירוע
+                      קרוב (הענף שלמעלה) או בימי הטורניר — לפי התאריך. */}
                   {showTour && <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => setTab("tournament")} />}
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
