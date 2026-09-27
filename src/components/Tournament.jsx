@@ -82,6 +82,13 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
   const slim = size === "slim" || (size === "auto" && phase === "before" && daysToStart(t, now) > SLIM_UNTIL_DAYS);
   if (slim) {
     const d = daysToStart(t, now);
+    const place = ourPlace(t, results);
+    const sum = phase === "after" ? summary(t, results) : null;
+    const title = phase === "before" ? (d === 1 ? "מחר יוצאות לאילת!" : `עוד ${d} ימים ל${t.short}`)
+      : phase === "during" ? `${t.name} עכשיו` : sum.title;
+    const sub = phase === "before" ? `${t.city} · ${dateRange(t)}`
+      : phase === "during" ? (place ? `מקום ${place} ב${t.group}` : `${t.city} · בהצלחה, בנות!`)
+      : [`${t.city} ${t.year}`, record(sum.won, sum.lost)].filter(Boolean).join(" · ");
     const Tag = clickable ? "button" : "div";
     return (
       <Tag onClick={onOpen} style={{
@@ -89,14 +96,14 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
         fontFamily: "inherit", cursor: clickable ? "pointer" : "default", borderRadius: 14, background: SUNSET,
         color: "white", padding: "10px 13px", marginBottom: 12, boxShadow: "0 6px 16px rgba(242,85,122,0.22)",
       }}>
-        <span style={{ fontSize: 20, flexShrink: 0 }}>☀️</span>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>{phase === "after" ? "🏆" : "☀️"}</span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <b style={{ display: "block", fontSize: 14.5, fontWeight: 800 }}>עוד {d} ימים ל{t.short}</b>
+          <b style={{ display: "block", fontSize: 14.5, fontWeight: 800 }}>{title}</b>
           <span style={{ fontSize: 11.5, opacity: 0.92 }}>
-            {t.city} · {dateRange(t)}{state && !state.published ? " · 🧪 טיוטה" : ""}
+            {sub}{state && !state.published ? " · 🧪 טיוטה" : ""}
           </span>
         </span>
-        {clickable && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>לוח המשחקים ›</span>}
+        {clickable && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>{phase === "before" ? "לוח המשחקים ›" : "תוצאות ›"}</span>}
       </Tag>
     );
   }

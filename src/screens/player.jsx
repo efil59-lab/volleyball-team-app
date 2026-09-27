@@ -435,7 +435,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       onVote={(pollId, i) => upd.pollVote(pollId, player.id, i)}
       onApplause={sendApplause}
       onOpen={goDesk}
-      tourCard={showTour ? <TournamentCard t={tour} state={tourState} now={now} onOpen={() => goDesk("tournament")} /> : null}
+      tourCard={showTour ? <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => goDesk("tournament")} /> : null}
       onProfile={openProfileEditor}
     />
   );
@@ -449,6 +449,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   למונים ולרשימות הברכה נקברת. ביום בלי אירוע היא עולה מעצמה. */}
               {!nextEvent ? <><HolidayBanner slim={myBdayToday} />{showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}<Empty icon="😴" text="אין אירועים קרובים" /></> : (
                 <>
+                  {/* הספורטיאדה — פס דק מעל כרטיס האימון (בקשת אפי 28.9.26).
+                      דק גם בשבוע האחרון: כרטיס מלא כאן היה דוחף את סימון ההגעה
+                      לאימון האחרון לפני אילת. מלא רק בימי הטורניר, כשאין אימונים. */}
+                  {showTour && <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => setTab("tournament")} />}
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
@@ -568,10 +572,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       )}
                     </div>
                   )}
-
-                  {/* הספורטיאדה — אחרי המונים והסימון: האימון הקרוב הוא הסיבה
-                      שנכנסו, והכרטיס לא דוחף אותו למטה */}
-                  {showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}
 
                   {/* 👏 Applause — collapsible */}
                   {!noSocial && lastEventAttendees.filter(p => p.id !== player.id).length > 0 && (
