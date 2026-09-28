@@ -9,6 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
+import { holidayLabel } from "../lib/holidays";
 import { TournamentAdmin } from "../components/Tournament";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
@@ -977,6 +978,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 const evs = dayEvents(ds);
                 const isToday = ds === today;
                 const isSel = ds === calSelected;
+                const hol = holidayLabel(new Date(ds + "T12:00:00"));
                 const marks = [];
                 if (evs.some(e => e.type === "training" && !e.cancelled)) marks.push("🏋️");
                 if (evs.some(e => e.type === "game" && !e.cancelled)) marks.push("🏆");
@@ -984,8 +986,9 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 if (evs.some(e => e.cancelled) && marks.length === 0) marks.push("❌");
                 return (
                   <button key={i} onClick={() => setCalSelected(isSel ? null : ds)}
-                    style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0 }}>
+                    style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : hol && hol.kind !== "moed" ? "1px solid #bbf7d0" : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : hol ? (hol.kind === "moed" ? "#f8fafc" : "#f0fdf4") : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0, overflow: "hidden" }}>
                     <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
+                    {hol && <span style={{ fontSize: 8.5, fontWeight: 700, lineHeight: 1.1, color: isToday ? "white" : hol.kind === "moed" ? "#64748b" : "#15803d", maxWidth: "100%", padding: "0 2px", boxSizing: "border-box", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hol.short}</span>}
                     {marks.length > 0 && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}</span>}
                   </button>
                 );
@@ -998,6 +1001,11 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
               return (
                 <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 10 }}>{formatDate(calSelected)}</div>
+                  {(() => { const hol = holidayLabel(new Date(calSelected + "T12:00:00")); return hol ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, background: hol.kind === "moed" ? "#f8fafc" : "#f0fdf4", border: `1px solid ${hol.kind === "moed" ? "#e2e8f0" : "#bbf7d0"}`, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                        <span style={{ fontSize: 20 }}>{hol.kind === "moed" ? "🕯️" : "✡️"}</span>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: hol.kind === "moed" ? "#475569" : "#166534" }}>{hol.name}</div>
+                      </div>) : null; })()}
                   {evs.map(ev => (
                     <CalEventRow key={ev.id} ev={ev} players={players} pc={pc} bg="white" />
                   ))}

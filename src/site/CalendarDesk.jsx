@@ -8,40 +8,13 @@
 // נשאר בלוח עם מי שהגיעה).
 import { useMemo, useState } from "react";
 import { CalEventRow } from "../components/shared";
-import { holidayFor } from "../lib/holidays";
+import { holidayLabel } from "../lib/holidays";
 import { ourGames, describeGame } from "../lib/tournament";
 import { rosterOf, todayStr } from "../lib/utils";
 
 const MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 const DOW = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 const pad = (n) => String(n).padStart(2, "0");
-
-// שם החג ללוח. הטבלה ב-holidays.js מחזיקה ברכות ("שנה טובה ומתוקה", "גמר
-// חתימה טובה") — נכון לבאנר, לא ללוח, שבו רוצים לדעת איזה יום זה. הברכה
-// המוקדמת לראש השנה (pre-rosh) אינה יום חג ולא מופיעה בלוח כלל.
-function holidayName(h) {
-  if (!h) return null;
-  const d = h.heb && h.heb.d;
-  switch (h.key) {
-    case "pre-rosh": return null;
-    case "erev-rosh": return "ערב ראש השנה";
-    case "rosh": return "ראש השנה";
-    case "erev-kip": return "ערב יום כיפור";
-    case "kip": return "יום כיפור";
-    case "sukkot": return d === 14 ? "ערב סוכות" : "סוכות";
-    case "torah": return "שמחת תורה";
-    case "hanuka": return "חנוכה";
-    case "purim": return "פורים";
-    case "pesach": return d === 14 ? "ערב פסח" : "פסח";
-    case "pesach-end": return "שביעי של פסח";
-    case "shoah": return "יום השואה";
-    case "zikaron": return "יום הזיכרון";
-    case "atzmaut": return "יום העצמאות";
-    case "shavuot": return d === 5 ? "ערב שבועות" : "שבועות";
-    default:
-      return String(h.title || "").replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, "").trim() || null;
-  }
-}
 
 export default function CalendarDesk({
   events = [], archive = [], players = [], playerProfiles = {}, attendance = {}, player, pc,
@@ -96,7 +69,7 @@ export default function CalendarDesk({
 
   const selEvents = calEvents.filter((e) => e.date === selected);
   const selBdays = bdaysOn(selected);
-  const selHol = holidayName(holidayFor(new Date(selected + "T12:00:00")));
+  const selHol = holidayLabel(new Date(selected + "T12:00:00"));
   const selDate = new Date(selected + "T12:00:00");
   const myStatus = (ev) => attendance[`${ev.id}_${player && player.id}`]?.status;
 
@@ -135,8 +108,7 @@ export default function CalendarDesk({
             if (!d) return <div key={"x" + i} className="st-cal-cell st-out" />;
             const date = ds(d);
             const evs = calEvents.filter((e) => e.date === date).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
-            const holH = holidayFor(new Date(date + "T12:00:00"));
-            const hol = holidayName(holH);
+            const hol = holidayLabel(new Date(date + "T12:00:00"));
             const bd = bdaysOn(date);
             const tg = tourGamesOn(date);
             const inTour = tourOn(date);
@@ -148,7 +120,7 @@ export default function CalendarDesk({
             return (
               <button key={date} className={cls} onClick={() => setSel(date)}>
                 <span className="st-cal-d st-num">{d}</span>
-                {hol && <span className={"st-cal-hol" + (holH.kind === "moed" ? " st-moed" : "")}>{hol}</span>}
+                {hol && <span className={"st-cal-hol" + (hol.kind === "moed" ? " st-moed" : "")}>{hol.name}</span>}
                 <span className="st-cal-items">
                   {evs.map((e) => {
                     const past = !!e.attendanceData;
@@ -185,7 +157,7 @@ export default function CalendarDesk({
             <div>
               <h4>{selDate.toLocaleDateString("he-IL", { weekday: "long" })}{selected === today ? " · היום" : ""}</h4>
               {!sel && <p className="st-cal-day-k">{selEvents.length ? "האירוע הקרוב" : "היום"}</p>}
-              {selHol && <p className="st-cal-day-hol">{selHol}</p>}
+              {selHol && <p className="st-cal-day-hol">{selHol.name}</p>}
               {tourOn(selected) && <p className="st-cal-day-hol st-tourline">☀️ {tour.name} · {tour.city}</p>}
             </div>
           </div>

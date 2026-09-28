@@ -172,4 +172,38 @@ function holidayFor(date = new Date()) {
   return null;
 }
 
-export { holidayFor, hebDate, HOLIDAYS };
+// ── שם החג ללוח השנה ────────────────────────────────────────────────────────
+// הטבלה למעלה מחזיקה ברכות ("שנה טובה ומתוקה", "גמר חתימה טובה") — נכון
+// לבאנר, לא ללוח, שבו רוצים לדעת איזה יום זה. הברכה המוקדמת לראש השנה
+// (pre-rosh) אינה יום חג ולא מופיעה בלוח כלל. short = למשבצת הצרה בטלפון.
+// מחזיר { name, short, kind } או null. משותף לשלושת הלוחות (שחקנית, מנהלת, מחשב).
+const CAL_NAMES = {
+  "erev-rosh": ["ערב ראש השנה", "ערב ר״ה"],
+  rosh: ["ראש השנה", "ראש השנה"],
+  "erev-kip": ["ערב יום כיפור", "ערב כיפור"],
+  kip: ["יום כיפור", "כיפור"],
+  torah: ["שמחת תורה", "שמח״ת"],
+  hanuka: ["חנוכה", "חנוכה"],
+  purim: ["פורים", "פורים"],
+  "pesach-end": ["שביעי של פסח", "שביעי פסח"],
+  shoah: ["יום השואה", "יום השואה"],
+  zikaron: ["יום הזיכרון", "יום הזיכרון"],
+  atzmaut: ["יום העצמאות", "העצמאות"],
+};
+function holidayLabel(date) {
+  const h = holidayFor(date);
+  if (!h || h.key === "pre-rosh") return null;
+  const d = h.heb && h.heb.d;
+  let pair = CAL_NAMES[h.key];
+  if (h.key === "sukkot") pair = d === 14 ? ["ערב סוכות", "ערב סוכות"] : ["סוכות", "סוכות"];
+  if (h.key === "pesach") pair = d === 14 ? ["ערב פסח", "ערב פסח"] : ["פסח", "פסח"];
+  if (h.key === "shavuot") pair = d === 5 ? ["ערב שבועות", "ערב שבועות"] : ["שבועות", "שבועות"];
+  if (!pair) {
+    const t = String(h.title || "").replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, "").trim();
+    if (!t) return null;
+    pair = [t, t];
+  }
+  return { name: pair[0], short: pair[1], kind: h.kind };
+}
+
+export { holidayFor, holidayLabel, hebDate, HOLIDAYS };
