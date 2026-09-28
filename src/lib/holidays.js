@@ -192,7 +192,15 @@ const CAL_NAMES = {
 };
 function holidayLabel(date) {
   const h = holidayFor(date);
-  if (!h || h.key === "pre-rosh") return null;
+  // חול המועד — בלוח בלבד. בבאנר אין (הוסר 28.9.26: "רק בחגים"), ולכן הוא
+  // לא בטבלה ונבדק כאן ישירות מהתאריך העברי. סוכות: ט״ז–כ״א תשרי, פסח: ט״ז–כ׳ ניסן.
+  if (!h) {
+    const hd = hebDate(date);
+    if (hd && hd.m === "Tishri" && hd.d >= 16 && hd.d <= 21) return { name: "חול המועד סוכות", short: "חוה״מ", kind: "hag" };
+    if (hd && hd.m === "Nisan" && hd.d >= 16 && hd.d <= 20) return { name: "חול המועד פסח", short: "חוה״מ", kind: "hag" };
+    return null;
+  }
+  if (h.key === "pre-rosh") return null;
   const d = h.heb && h.heb.d;
   let pair = CAL_NAMES[h.key];
   if (h.key === "sukkot") pair = d === 14 ? ["ערב סוכות", "ערב סוכות"] : ["סוכות", "סוכות"];
