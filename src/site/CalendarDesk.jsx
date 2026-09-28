@@ -114,9 +114,11 @@ export default function CalendarDesk({
           {!onThis && (
             <button className="st-cal-today" onClick={() => { setCur({ y: now.getFullYear(), m: now.getMonth() }); setSel(today); }}>היום</button>
           )}
+          {/* במחשב החץ שמצביע ימינה מוביל קדימה, כמו בדפדפן (בקשת אפי 28.9.26).
+              בטלפון נשאר ההפך — ▶ מימין אחורה — ושם זה עובד טוב. */}
           <div className="st-cal-arrows">
-            <button onClick={() => go(-1)} aria-label="החודש הקודם">›</button>
-            <button onClick={() => go(1)} aria-label="החודש הבא">‹</button>
+            <button onClick={() => go(1)} aria-label="החודש הבא">›</button>
+            <button onClick={() => go(-1)} aria-label="החודש הקודם">‹</button>
           </div>
         </div>
         <div className="st-cal-legend">
