@@ -358,22 +358,23 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true, des
 
   return (
     <div style={bleed ? { margin: "-16px -16px 0" } : { background: "#f1f5f9", paddingBottom: 6 }}>
-      <div style={{ position: "relative", color: "#fff", overflow: "hidden", background: SUNSET, padding: "18px 16px 74px" }}>
+      {/* הסטטוס בתוך רצועת השקיעה, מעל הים — לא כרטיס לבן שעולה עליה ומסתיר
+          את השמש ("עולה אחד על השני", אפי 28.9.26). */}
+      <div style={{ position: "relative", color: "#fff", overflow: "hidden", background: SUNSET, padding: "18px 16px 70px" }}>
         {state && !state.published && <div style={{ marginBottom: 8 }}><DraftPill /></div>}
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{ fontSize: 22, fontWeight: 900 }}>{t.name} · {t.city} {t.year}</div>
           <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 2 }}>{dateRange(t)} · {t.division} · {t.group}</div>
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.16)",
+            border: "1px solid rgba(255,255,255,0.3)", borderRadius: 16, padding: "10px 12px" }}>
+            {medalDot(42)}
+            <div style={{ minWidth: 0 }}>
+              <b style={{ display: "block", fontSize: 16, fontWeight: 900 }}>{headline}</b>
+              <span style={{ fontSize: 12, opacity: 0.94 }}>{line}</span>
+            </div>
+          </div>
         </div>
         <Scene />
-      </div>
-
-      <div style={{ position: "relative", margin: "-46px 14px 0", background: "#fff", borderRadius: 16, padding: "12px 14px",
-        display: "flex", alignItems: "center", gap: 12, boxShadow: "0 8px 22px rgba(11,59,99,0.18)" }}>
-        {medalDot(46)}
-        <div style={{ minWidth: 0 }}>
-          <b style={{ display: "block", fontSize: 15, fontWeight: 800, color: "#16203a" }}>{headline}</b>
-          <span style={{ fontSize: 12, color: "#64748b" }}>{line}</span>
-        </div>
       </div>
 
       {gamesSection}
