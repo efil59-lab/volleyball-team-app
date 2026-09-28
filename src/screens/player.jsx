@@ -447,7 +447,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     />
   );
   const tabBody = (
-        <div className={"tab-body" + (isDesk && (tab === "calendar") ? " tab-cal" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+        <div className={"tab-body" + (isDesk && (tab === "calendar" || tab === "tournament") ? " tab-cal" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {/* ── EVENT TAB ── */}
           {tab === "event" && (
             <>
@@ -841,7 +841,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
           {/* ── ספורטיאדה ── */}
           {tab === "tournament" && showTour && (isDesk
-            ? <div className="st-narrow"><TournamentScreen t={tour} state={tourState} now={now} bleed={false} /></div>
+            ? <TournamentScreen t={tour} state={tourState} now={now} desk />
             : <TournamentScreen t={tour} state={tourState} now={now} />)}
 
           {/* ── ABOUT TAB ── */}

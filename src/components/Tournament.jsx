@@ -257,7 +257,8 @@ function GroupTable({ t, results }) {
 // bleed: בלשונית של השחקנית הראש נמתח עד קצוות המסך (מבטל את הריפוד של
 // הלשונית). בתצוגה המקדימה בפאנל הוא יושב בתוך מסגרת, ושם מתיחה כזו
 // גולשת מהמסגרת ונראית כמו תמונה בתוך תמונה.
-export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
+// desk: פריסת המחשב (שני טורים, בלי הכרטיס שצף מעל רצועת השקיעה)
+export function TournamentScreen({ t, state, now = new Date(), bleed = true, desk = false }) {
   if (!t) return null;
   const results = (state && state.results) || {};
   const phase = tournamentPhase(t, now);
@@ -280,6 +281,81 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
     medal = "🏆"; headline = s.title; line = record(s.won, s.lost) || "";
   }
 
+  const medalDot = (size) => (
+    <div style={{ flex: `0 0 ${size}px`, height: size, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: size * 0.43, fontWeight: 900, color: "#fff", background: "linear-gradient(135deg,#f5c842,#e8a317)" }}>{medal}</div>
+  );
+
+  const gamesSection = (
+      <div style={{ padding: desk ? 0 : "16px 14px 0" }}>
+        <div style={{ fontSize: desk ? 17 : 14, fontWeight: 800, color: DEEP, marginBottom: 4 }}>המשחקים שלנו</div>
+        {dates.map((d) => (
+          <div key={d}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", margin: "10px 2px 6px" }}>
+              {dayLabel(d)}{mine.filter((g) => g.date === d).every((g) => g.stage !== "group" && describeGame(t, results, g).locked) ? " · אם נעלה" : ""}
+            </div>
+            {mine.filter((g) => g.date === d).map((g) => (
+              <GameRow key={g.id} t={t} results={results} g={g} highlight={next && next.id === g.id} />
+            ))}
+          </div>
+        ))}
+      </div>
+  );
+
+  const tableSection = (
+      <div style={{ padding: desk ? 0 : "16px 14px 0" }}>
+        <div style={{ fontSize: desk ? 17 : 14, fontWeight: 800, color: DEEP, marginBottom: 8 }}>טבלת {t.group}</div>
+        <GroupTable t={t} results={results} />
+      </div>
+  );
+
+  const othersSection = (
+      <div style={{ padding: desk ? "18px 0 0" : "16px 14px 8px" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: DEEP, marginBottom: 6 }}>שאר המשחקים ב{t.group}</div>
+        {others.map((g) => {
+          const r = resultOf(results, g);
+          return (
+            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#475569", padding: "6px 2px", borderBottom: "1px solid #eef2f7" }}>
+              <span style={{ flex: "0 0 auto", color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{dayLabel(g.date).split(" · ")[1]} {g.time}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>{g.a} – {g.b}</span>
+              <b style={{ flex: "0 0 auto", fontVariantNumeric: "tabular-nums", color: r ? "#16203a" : "#cbd5e1" }}>{r ? `${r.a}–${r.b}` : "טרם"}</b>
+            </div>
+          );
+        })}
+      </div>
+  );
+
+  // ── מחשב: הסטטוס בתוך רצועת השקיעה (לא כרטיס שעולה עליה — ברוחב של אתר
+  // זה נראה כמו שני דברים שנערמו זה על זה), ומתחת שני טורים: המשחקים שלנו,
+  // ולצידם הטבלה ושאר המשחקים.
+  if (desk) {
+    return (
+      <div>
+        <div style={{ position: "relative", color: "#fff", overflow: "hidden", background: SUNSET, borderRadius: 20,
+          padding: "22px 26px 64px", display: "flex", alignItems: "flex-start", gap: 24, boxShadow: "0 12px 30px rgba(242,85,122,0.22)" }}>
+          <div style={{ position: "relative", zIndex: 1, flex: 1, minWidth: 0 }}>
+            {state && !state.published && <div style={{ marginBottom: 10 }}><DraftPill /></div>}
+            <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: -0.4 }}>{t.name} · {t.city} {t.year}</div>
+            <div style={{ fontSize: 14, opacity: 0.92, marginTop: 4 }}>{dateRange(t)} · {t.division} · {t.group}</div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1, flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12,
+            background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 16, padding: "12px 16px", maxWidth: 380 }}>
+            {medalDot(48)}
+            <div style={{ minWidth: 0 }}>
+              <b style={{ display: "block", fontSize: 18, fontWeight: 900 }}>{headline}</b>
+              <span style={{ fontSize: 12.5, opacity: 0.92 }}>{line}</span>
+            </div>
+          </div>
+          <Scene />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 1fr)", gap: 28, marginTop: 24, alignItems: "start" }}>
+          {gamesSection}
+          <div>{tableSection}{othersSection}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={bleed ? { margin: "-16px -16px 0" } : { background: "#f1f5f9", paddingBottom: 6 }}>
       <div style={{ position: "relative", color: "#fff", overflow: "hidden", background: SUNSET, padding: "18px 16px 74px" }}>
@@ -293,46 +369,16 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true }) {
 
       <div style={{ position: "relative", margin: "-46px 14px 0", background: "#fff", borderRadius: 16, padding: "12px 14px",
         display: "flex", alignItems: "center", gap: 12, boxShadow: "0 8px 22px rgba(11,59,99,0.18)" }}>
-        <div style={{ flex: "0 0 46px", height: 46, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 20, fontWeight: 900, color: "#fff", background: "linear-gradient(135deg,#f5c842,#e8a317)" }}>{medal}</div>
+        {medalDot(46)}
         <div style={{ minWidth: 0 }}>
           <b style={{ display: "block", fontSize: 15, fontWeight: 800, color: "#16203a" }}>{headline}</b>
           <span style={{ fontSize: 12, color: "#64748b" }}>{line}</span>
         </div>
       </div>
 
-      <div style={{ padding: "16px 14px 0" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: DEEP, marginBottom: 4 }}>המשחקים שלנו</div>
-        {dates.map((d) => (
-          <div key={d}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", margin: "10px 2px 6px" }}>
-              {dayLabel(d)}{mine.filter((g) => g.date === d).every((g) => g.stage !== "group" && describeGame(t, results, g).locked) ? " · אם נעלה" : ""}
-            </div>
-            {mine.filter((g) => g.date === d).map((g) => (
-              <GameRow key={g.id} t={t} results={results} g={g} highlight={next && next.id === g.id} />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div style={{ padding: "16px 14px 0" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: DEEP, marginBottom: 8 }}>טבלת {t.group}</div>
-        <GroupTable t={t} results={results} />
-      </div>
-
-      <div style={{ padding: "16px 14px 8px" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: DEEP, marginBottom: 6 }}>שאר המשחקים ב{t.group}</div>
-        {others.map((g) => {
-          const r = resultOf(results, g);
-          return (
-            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "#475569", padding: "6px 2px", borderBottom: "1px solid #eef2f7" }}>
-              <span style={{ flex: "0 0 auto", color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{dayLabel(g.date).split(" · ")[1]} {g.time}</span>
-              <span style={{ flex: 1, minWidth: 0 }}>{g.a} – {g.b}</span>
-              <b style={{ flex: "0 0 auto", fontVariantNumeric: "tabular-nums", color: r ? "#16203a" : "#cbd5e1" }}>{r ? `${r.a}–${r.b}` : "טרם"}</b>
-            </div>
-          );
-        })}
-      </div>
+      {gamesSection}
+      {tableSection}
+      {othersSection}
     </div>
   );
 }
