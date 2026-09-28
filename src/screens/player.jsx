@@ -12,6 +12,7 @@ import { compressImage, uploadProfilePhoto } from "../lib/images";
 import { AttModal, CalEventRow, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
+import CalendarDesk from "../site/CalendarDesk";
 import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
@@ -335,7 +336,13 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   }
   useEffect(() => {
     if (tab === "chat") {
-      if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+      // במחשב: גוללים רק את רשימת ההודעות. scrollIntoView גולל גם את העמוד
+      // עצמו, ורצועת הכותרת עם המסטהד נעלמת למעלה ברגע שנכנסים לצ'אט.
+      if (chatEndRef.current) {
+        const list = chatEndRef.current.parentElement;
+        if (isDesk && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+        else chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
       const latest = (chat && chat.length) ? Math.max(...chat.map(m => m.ts || 0)) : 0;
       if (latest > chatSeenTs) { localStorage.setItem("chatLastSeen_" + player.id, String(latest)); setChatSeenTs(latest); }
     }
@@ -383,7 +390,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     { id: "st-next", label: "האירוע הקרוב" },
     ...(nextEvent ? [{ id: "st-team", label: "מי מגיעה" }] : []),
     ...(isViewer ? [] : [{ id: "st-season", label: "העונה שלי" }]),
-    { id: "st-feed", label: "מהקבוצה" },
+    ...(noSocial ? [] : [{ id: "st-feed", label: "מהקבוצה" }]),
   ];
   const deskDeepItems = [
     { key: "calendar", icon: "🗓️", label: "לוח מלא" },
@@ -426,7 +433,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const deskHomeBody = (
     <PlayerHome
       player={player} players={players} playerProfiles={playerProfiles}
-      attendance={attendance} archive={archive} chat={chat} polls={polls}
+      attendance={attendance} archive={archive} events={events} chat={chat} polls={polls}
       gallery={gallery} applause={applause}
       nextEvent={nextEvent} myRecord={myRecord}
       clapList={lastEventAttendees} clapLabel={lastEventLabel}
@@ -440,7 +447,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     />
   );
   const tabBody = (
-        <div className="tab-body" style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+        <div className={"tab-body" + (isDesk && (tab === "calendar") ? " tab-cal" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {/* ── EVENT TAB ── */}
           {tab === "event" && (
             <>
@@ -649,7 +656,12 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           )}
 
           {/* ── CALENDAR TAB ── */}
-          {tab === "calendar" && (() => {
+          {/* במחשב: חודש במבט אחד עם טור צד (site/CalendarDesk) */}
+          {tab === "calendar" && isDesk && (
+            <CalendarDesk events={events} archive={archive} players={players} playerProfiles={playerProfiles}
+              attendance={attendance} player={player} pc={pc} tour={tour} tourState={tourState} showTour={showTour} />
+          )}
+          {tab === "calendar" && !isDesk && (() => {
             const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
             const dayHeaders = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
             const { y, m } = calMonth;
@@ -767,7 +779,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
           {/* ── CHAT TAB ── */}
           {tab === "chat" && !noSocial && (
-            <div style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
+            <div className="st-chatbox" style={{ display: "flex", flexDirection: "column", height: "62vh" }}>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {(!chat || chat.length === 0) && <Empty icon="💬" text="אין הודעות עדיין — התחילי שיחה!" />}
                 {(chat || []).map(m => {
@@ -828,7 +840,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           )}
 
           {/* ── ספורטיאדה ── */}
-          {tab === "tournament" && showTour && <TournamentScreen t={tour} state={tourState} now={now} />}
+          {tab === "tournament" && showTour && (isDesk
+            ? <div className="st-narrow"><TournamentScreen t={tour} state={tourState} now={now} bleed={false} /></div>
+            : <TournamentScreen t={tour} state={tourState} now={now} />)}
 
           {/* ── ABOUT TAB ── */}
           {tab === "about" && (
@@ -987,8 +1001,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
       {/* Edit profile modal */}
       {editProfile && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "flex-end" }}>
-          <div style={{ background: "white", borderRadius: "20px 20px 0 0", padding: 24, width: "100%", maxHeight: "80vh", overflowY: "auto", boxSizing: "border-box" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: isDesk ? "center" : "flex-end", justifyContent: "center" }}>
+          <div style={{ background: "white", borderRadius: isDesk ? 20 : "20px 20px 0 0", padding: 24, width: "100%", maxWidth: isDesk ? 480 : "none", maxHeight: isDesk ? "86vh" : "80vh", overflowY: "auto", boxSizing: "border-box" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: pc, marginBottom: 16, marginTop: 0 }}>✏️ עריכת פרופיל</h3>
             <Label>טלפון</Label>
             <input type="tel" value={editPhone} onChange={e => { setEditPhone(e.target.value); setEditWhatsapp("972" + e.target.value.replace(/\D/g,"").replace(/^0/,"")); }}

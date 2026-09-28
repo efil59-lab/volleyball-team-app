@@ -6,7 +6,8 @@
 // הקבצים: Site.jsx (העץ) + site.css (כל מחלקה בקידומת st-). מחלקה בלי הקידומת
 // תתנגש עם ה-shell של הטלפון.
 import { useState, useEffect, useRef, useMemo } from "react";
-import { formatShort, todayStr } from "../lib/utils";
+import { formatShort, todayStr, rosterOf } from "../lib/utils";
+import "@fontsource-variable/rubik"; // כותרות ומספרים באתר בלבד — הקובץ יורד רק כשמשתמשים בו
 import "./site.css";
 
 // 1100×600 ולא 1100 בלבד: טלפון שמוחזק לרוחב הוא ~1100 רחב ו-400 גבוה, ובלי
@@ -119,20 +120,108 @@ function scrollToAnchor(id) {
 // ── מסטהד ───────────────────────────────────────────────────────────────────
 // שני מצבי ניווט: anchors = קישורים שגוללים בתוך אותו עמוד (בית השחקנית),
 // items = לשוניות שמחליפות תוכן (פאנל המנהלת, ומסכי העומק של השחקנית).
+// ── קווי מגרש ───────────────────────────────────────────────────────────────
+// החתימה של האתר: מגרש כדורשת בקווים דקים ברקע של כל רצועה כהה — מספיק
+// כדי לזהות מגרש, לא מספיק כדי להתחרות בטקסט (השקיפות ב-CSS).
+export function Court() {
+  return (
+    <svg className="st-court" viewBox="0 0 1280 300" preserveAspectRatio="none" aria-hidden>
+      <g fill="none" stroke="#fff" strokeWidth="2">
+        <rect x="120" y="36" width="1040" height="228" />
+        <line x1="467" y1="36" x2="467" y2="264" />
+        <line x1="813" y1="36" x2="813" y2="264" />
+      </g>
+      <line x1="640" y1="18" x2="640" y2="282" stroke="var(--st-sc, #f5c842)" strokeWidth="4" />
+    </svg>
+  );
+}
+
+// המותג: כדור + שם הקבוצה המלא בשתי שורות. השם הארוך ("קבוצת הכדורשת של
+// הבנק הבינלאומי") נחתך קודם ל"...הבינ…" בשורה אחת.
+export function Brand({ teamName, sub, onClick, handlers }) {
+  return (
+    <button className="st-brand" onClick={onClick} title="חזרה למסך הפתיחה" {...(handlers || {})}>
+      <span className="st-ball" aria-hidden />
+      <span className="st-brand-text">
+        <span className="st-brand-name">{teamName || "קבוצת הכדורשת"}</span>
+        {sub && <span className="st-brand-sub">{sub}</span>}
+      </span>
+    </button>
+  );
+}
+
+// ── לוח ההגעה ────────────────────────────────────────────────────────────────
+// הכרטיס הכהה לצד האירוע הקרוב: שלושה מספרים ופס. משותף לבית השחקנית
+// ולדלת הכניסה, כדי ששניהם יספרו אותו דבר.
+export function TallyBoard({ counts, words, live }) {
+  const total = counts.coming + counts.notcoming + counts.pending || 1;
+  return (
+    <div className="st-board">
+      <h4>לוח ההגעה{live ? " · מתעדכן בזמן אמת" : ""}</h4>
+      <div className="st-board-t">
+        <div><b className="st-num st-ok">{counts.coming}</b><span>{words.coming}</span></div>
+        <div><b className="st-num st-no">{counts.notcoming}</b><span>{words.notcoming}</span></div>
+        <div><b className="st-num">{counts.pending}</b><span>{words.pending}</span></div>
+      </div>
+      <div className="st-board-m" aria-hidden>
+        <i className="st-ok" style={{ width: (counts.coming / total) * 100 + "%" }} />
+        <i className="st-no" style={{ width: (counts.notcoming / total) * 100 + "%" }} />
+      </div>
+    </div>
+  );
+}
+
+// ── מי מגיעה — בקבוצות ולא ברשת ─────────────────────────────────────────────
+// שלוש שורות (מגיעות / לא / טרם) עם צ'יפ לכל שחקנית. ברשת של 13 עיגולים
+// גדולים צריך היה לבחון את צבע הטבעת של כל אחת כדי להבין מי מה.
+export function WhoGroups({ roster, attendance, eventId, playerProfiles = {}, meId, words }) {
+  const st = (p) => attendance[`${eventId}_${p.id}`]?.status;
+  const groups = [
+    ["coming", words.coming, roster.filter((p) => st(p) === "coming")],
+    ["notcoming", words.notcoming, roster.filter((p) => st(p) === "notcoming")],
+    ["pending", words.pending, roster.filter((p) => !st(p))],
+  ];
+  return (
+    <div className="st-who-g">
+      {groups.map(([k, label, list]) => list.length > 0 && (
+        <div key={k} className={"st-who-row st-" + k}>
+          <h5><i />{label} · <span className="st-num">{list.length}</span></h5>
+          <div className="st-chips">
+            {list.map((p) => {
+              const prof = playerProfiles[p.id] || {};
+              const me = String(p.id) === String(meId);
+              return (
+                <span key={p.id} className={"st-chip" + (me ? " st-me" : "")}>
+                  {prof.photo ? <img src={prof.photo} alt="" /> : <span className="st-chip-av">{String(p.name || "?").trim().slice(0, 2)}</span>}
+                  {p.name}{me ? " (את)" : ""}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SiteHeader({ ctx, tab, setTab, items = [], anchors, teamName, brandSub, who, onHome, onLogout, searchPlaceholder }) {
   return (
     <header className="st-head">
-      <div className="st-head-in">
-        <button className="st-brand" onClick={onHome} title="חזרה למסך הפתיחה">
-          <span className="st-brand-ball" aria-hidden>🏐</span>
-          <span className="st-brand-text">
-            <span className="st-brand-name">{teamName || "כדורשת"}</span>
-            <span className="st-brand-sub">{brandSub || "ניהול קבוצה"}</span>
-          </span>
-        </button>
+      <div className="st-top">
+       <div className="st-top-in">
+        <Brand teamName={teamName} sub={brandSub || "ניהול קבוצה"} onClick={onHome} />
 
         <SearchBox ctx={ctx} placeholder={searchPlaceholder} onPick={(r) => setTab(r.tab)} />
 
+        <div className="st-account">
+          <span className="st-av" aria-hidden>{String(who || "?").trim().slice(0, 1)}</span>
+          <span className="st-who" title={who}>{who}</span>
+          <button className="st-out" onClick={onLogout}>יציאה</button>
+        </div>
+       </div>
+      </div>
+
+      <div className="st-navbar">
         <nav className="st-nav" aria-label="ניווט ראשי">
           {(anchors || []).map((a) => (
             <a
@@ -153,13 +242,34 @@ function SiteHeader({ ctx, tab, setTab, items = [], anchors, teamName, brandSub,
             </button>
           ))}
         </nav>
-
-        <div className="st-account">
-          <span className="st-who" title={who}>{who}</span>
-          <button className="st-out" onClick={onLogout}>יציאה</button>
-        </div>
       </div>
     </header>
+  );
+}
+
+// ── רצועת הכותרת של עמוד ─────────────────────────────────────────────────────
+// כל עמוד שאינו הבית מקבל רצועה כהה עם קווי המגרש ושם העמוד — כך שכל מסך
+// באתר נפתח באותה שפה, גם כשגוף העמוד הוא המסך של הטלפון.
+const BAND_SUB = {
+  calendar: "כל האימונים והמשחקים. לחיצה על יום פותחת אותו בצד.",
+  games: "תוצאות המשחקים של הקבוצה",
+  chat: "מה מתחדש אצל הבנות",
+  polls: "סקרים פעילים",
+  gallery: "תמונות מהמשחקים והאימונים",
+  tournament: "אילת · דרג 5 · בית א",
+  about: "על האפליקציה ועל הקבוצה",
+};
+function PageBand({ item, teamName }) {
+  if (!item) return null;
+  return (
+    <section className="st-band">
+      <Court />
+      <div className="st-band-in">
+        <p className="st-band-eyebrow">{teamName || "קבוצת הכדורשת"}</p>
+        <h1 className="st-band-h"><span aria-hidden>{item.icon}</span> {item.label}</h1>
+        {BAND_SUB[item.key] && <p className="st-band-sub">{BAND_SUB[item.key]}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -168,7 +278,7 @@ function SiteFooter({ teamName, extra }) {
     <footer className="st-foot">
       <div className="st-foot-in">
         <div className="st-foot-brand">
-          <span aria-hidden>🏐</span> {teamName || "כדורשת"}
+          <span className="st-ball st-ball-sm" aria-hidden /> {teamName || "כדורשת"}
         </div>
         <div className="st-foot-links">{extra}</div>
         <div className="st-foot-legal">
@@ -182,8 +292,11 @@ function SiteFooter({ teamName, extra }) {
 // ── רצועת מספרים לפאנל המנהלת ───────────────────────────────────────────────
 // לא hero שיווקי — זו קונסולת ניהול. מה שמנהלת רוצה בלי ללחוץ: כמה אישרו,
 // מה האירוע הבא, ומה ממתין לטיפול.
-function AdminStrip({ ctx, nextEvent, onGo }) {
-  const { players = [], attendance = {}, events = [], archive = [] } = ctx;
+function AdminStrip({ ctx, nextEvent, onGo, title }) {
+  const { players: all = [], attendance = {}, events = [], archive = [] } = ctx;
+  // בלי צופה וחשבון בדיקה — כמו כל ספירה אחרת באפליקציה. קודם נספרו כאן כל
+  // החשבונות, והרצועה הראתה "טרם ענו 5" ליד כרטיס שהראה 4.
+  const players = rosterOf(all);
   const st = (s) => (nextEvent ? players.filter((p) => attendance[`${nextEvent.id}_${p.id}`]?.status === s).length : 0);
   const noAnswer = nextEvent ? players.filter((p) => !attendance[`${nextEvent.id}_${p.id}`]?.status).length : 0;
   const now = new Date();
@@ -192,9 +305,10 @@ function AdminStrip({ ctx, nextEvent, onGo }) {
 
   return (
     <section className="st-strip">
+      <Court />
       <div className="st-strip-in">
         <div className="st-strip-lead">
-          <p className="st-eyebrow">האירוע הקרוב</p>
+          <p className="st-eyebrow">פאנל ניהול{title ? " · " + title : ""} · האירוע הקרוב</p>
           <h2 className="st-h2">
             {nextEvent
               ? `${nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? "🏆 משחק נגד " + nextEvent.opponent : "🏆 משחק"} · ${formatShort(nextEvent.date)} ${nextEvent.time}`
@@ -238,10 +352,12 @@ export function SiteChrome({
         teamName={teamName} brandSub={brandSub} who={who} onHome={onHome} onLogout={onLogout}
         searchPlaceholder={searchPlaceholder}
       />
-      {hero}
+      {hero || (!page && <PageBand item={(items || []).find((i) => i.key === tab)} teamName={teamName} />)}
       {/* page = תוכן שמעצב את הרוחב בעצמו (בית השחקנית). ברירת המחדל היא
           מסלול ה-embed: גוף לשונית של הטלפון שמוגש בעמודה ממורכזת. */}
-      {page ? <main>{children}</main> : <main className="st-embed">{children}</main>}
+      {/* st-banded: לעמוד יש רצועת כותרת, ולכן הכותרת הקטנה של מסך הטלפון
+          ("🗳️ סקר") מיותרת ומוסתרת ב-CSS. בפאנל אין רצועה כזו — שם נשארת. */}
+      {page ? <main>{children}</main> : <main className={"st-embed" + (hero ? "" : " st-banded")}>{children}</main>}
       <SiteFooter teamName={teamName} extra={footerExtra} />
     </div>
   );

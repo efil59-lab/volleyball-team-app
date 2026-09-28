@@ -248,7 +248,8 @@ function AdminPanel(props) {
     searchPlaceholder: "חיפוש שחקנית, אימון או משחק…",
     // לא hero שיווקי — זו קונסולת ניהול. המספרים שמנהלת רוצה בלי ללחוץ.
     hero: <AdminStrip ctx={{ players: props.players || [], attendance: props.attendance || {}, events: props.events || [], archive: props.archive || [] }}
-            nextEvent={getNextEvent(props.events || [])} onGo={setTab} />,
+            nextEvent={getNextEvent(props.events || [])} onGo={setTab}
+            title={([...navItems, ...navMore, { key: "matrix", label: "מטריצה" }].find(i => i.key === tab) || {}).label} />,
     footerExtra: (<>
       <button onClick={() => setTab("settings")}>הגדרות</button>
       <button onClick={() => setTab("archive")}>סטטיסטיקה</button>
