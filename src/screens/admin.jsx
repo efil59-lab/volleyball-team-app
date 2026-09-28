@@ -2276,8 +2276,6 @@ function AdminSettings({ settings, upd, pc, sc, notify }) {
             </button>
           ))}
         </div>
-        <Label>סיסמת מנהל</Label>
-        <input type="password" value={s.captainPassword} onChange={e => handleChange("captainPassword", e.target.value)} style={S.input} />
         <Label>מסך פתיחה להתקנה</Label>
         <button onClick={async () => {
           const newVer = (s.installVersion || 1) + 1;
