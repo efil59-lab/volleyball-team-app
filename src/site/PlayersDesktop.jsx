@@ -16,7 +16,7 @@ export default function PlayersDesktop({
   selectedId, onSelect,
   editData, setEditData, onSaveEdit, onStartEdit,
   onPhoto, fileRefs,
-  onResetPassword, onResetToSetup, onDelete, onToggleViewer, onToggleGhost,
+  onResetPassword, onResetToSetup, onDelete, onToggleViewer, onToggleGhost, onToggleManager, managerBusy,
   pc,
 }) {
   const [q, setQ] = useState("");
@@ -151,6 +151,17 @@ export default function PlayersDesktop({
 
             <div className="st-pl-form">
               <h3>הרשאות</h3>
+              {onToggleManager && (
+                <div className="st-pl-toggle">
+                  <div>
+                    <b>🔐 מנהלת</b>
+                    <span>במסך האישי שלה יופיע כפתור "פאנל ניהול" שפותח את הפאנל ישירות — בלי כניסה עם Google. הסיסמה שלה כשחקנית היא גם המפתח לפאנל.</span>
+                  </div>
+                  <button className={sel.manager ? "st-on" : ""} disabled={managerBusy === sel.id} onClick={() => onToggleManager(sel)}>
+                    {managerBusy === sel.id ? "…" : sel.manager ? "🔐 מנהלת" : "רגילה"}
+                  </button>
+                </div>
+              )}
               <div className="st-pl-toggle">
                 <div>
                   <b>👁️ צופה בלבד</b>

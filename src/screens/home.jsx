@@ -61,13 +61,18 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
     </div>
   );
 
+  // "כניסת מנהל" ירד מהמסך שהבנות רואות (28.9.26). מנהלת-שחקנית נכנסת מהמסך
+  // האישי שלה (כפתור "פאנל ניהול"); מנהל עם Google — בקישור ישיר עם ?admin=1.
+  const showAdminEntry = new URLSearchParams(window.location.search).has("admin");
   const adminLink = (
     <div style={{ padding: "8px 0 24px" }}>
       {/* באנר "רוצה אפליקציה כזו?" — המנהלת יכולה להשתיק אותו בהגדרות (hidePromoBanner) */}
       {!settings.hidePromoBanner && <div style={{ padding: "0 0 14px" }}><PurchaseBanner pc={pc} sc={sc} onClick={onPurchase} /></div>}
+      {showAdminEntry && (
       <div style={{ textAlign: "center" }}>
         <button onClick={onAdmin} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>🔐 כניסת מנהל</button>
       </div>
+      )}
     </div>
   );
 
@@ -120,7 +125,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             onOpenMine={() => onSelectPlayer(me)}
             onOpenTab={() => onSelectPlayer(me)}
             onSwitchUser={() => setForceRoster(true)}
-            onAdmin={onAdmin} onAbout={onAbout} onPurchase={onPurchase} pc={pc} sc={sc}
+            onAdmin={showAdminEntry ? onAdmin : null} onAbout={onAbout} onPurchase={onPurchase} pc={pc} sc={sc}
             superAdminHandlers={lp}
             tourCard={me && tour && canSeeTournament(tourState, me) ? <TournamentCard t={tour} state={tourState} now={now} size={tourSize} onOpen={() => openTour(me)} /> : null}
           />

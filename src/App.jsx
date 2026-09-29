@@ -30,6 +30,8 @@ export default function App() {
   const [players, setPlayers] = useState([]);
   const [events, setEvents] = useState([]);
   const [attendance, setAttendance] = useState({});
+  // הפאנל נפתח מהמסך האישי של מנהלת-שחקנית (כפתור "פאנל ניהול")
+  const [adminFromPlayer, setAdminFromPlayer] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [archive, setArchive] = useState([]);
@@ -463,9 +465,12 @@ export default function App() {
           else setScreen("onboard");
         }} onAdmin={() => setScreen("admin-login")} onHelp={() => setScreen("help")} onAbout={() => setScreen("about")} onSuperAdmin={enterSuperAdmin} onPurchase={() => setScreen("purchase")} />}
         {screen === "onboard" && <OnboardScreen {...common} player={currentPlayer} onDone={() => setScreen("player")} onBack={() => setScreen("home")} />}
-        {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} onLogout={handlePlayerLogout} />}
+        {screen === "player" && <PlayerScreen {...common} player={currentPlayer} onBack={() => setScreen("home")} onLogout={handlePlayerLogout}
+          onAdmin={() => { setAdminFromPlayer(true); setScreen("admin"); }} />}
         {screen === "admin-login" && <AdminLogin pc={pc} sc={sc} onGoogle={handleGoogleLogin} onContinue={continueAsAdmin} authUser={authUser} initialError={googleLoginError} onBack={() => { setGoogleLoginError(""); setScreen("home"); }} />}
-        {screen === "admin" && <AdminPanel {...common} onBack={() => setScreen("home")} onLogout={handleAdminLogout} />}
+        {screen === "admin" && <AdminPanel {...common}
+          onBack={() => setScreen(adminFromPlayer ? "player" : "home")}
+          onLogout={adminFromPlayer ? () => { setAdminFromPlayer(false); setScreen("player"); } : handleAdminLogout} />}
         {screen === "help" && <HelpScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
         {screen === "about" && <AboutScreen pc={pc} sc={sc} settings={settings} onBack={() => setScreen("home")} />}
       </div>

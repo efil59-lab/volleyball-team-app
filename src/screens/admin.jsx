@@ -7,7 +7,7 @@ import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay, DEFAULT_INVITE, buildInvite,
   isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, attendanceWords, eventPhase, eventStateLabel, rosterOf,
 } from "../lib/utils";
-import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote } from "../lib/db";
+import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote, setPlayerManagerRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
 import { holidayLabel } from "../lib/holidays";
 import { TournamentAdmin } from "../components/Tournament";
@@ -1277,6 +1277,24 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
     await upd.players(players.map(x => x.id === p.id ? { ...x, ghost: !x.ghost } : x));
   }
 
+  // מנהלת מתוך חשבון השחקנית. עובר דרך השרת (adminSetPlayerManager): הוא מוסיף
+  // את החשבון שלה ל-adminUids ומסמן manager על השחקנית, בטרנזקציה אחת. אחרי
+  // ההצלחה מעדכנים גם את המצב המקומי, כי רשימת השחקניות לא מאזינה לשינויים.
+  const [managerBusy, setManagerBusy] = useState(null);
+  async function toggleManager(p) {
+    const on = !p.manager;
+    const go = async () => {
+      setManagerBusy(p.id);
+      const res = await setPlayerManagerRemote(p.id, on);
+      setManagerBusy(null);
+      if (!res.ok) { notify(`לא הצלחתי לעדכן: ${res.error}`); return; }
+      await upd.players(players.map(x => x.id === p.id ? { ...x, manager: on } : x));
+      notify(on ? `${p.name} מנהלת עכשיו. בכניסה הבאה למסך האישי שלה יופיע הכפתור "פאנל ניהול".` : `ההרשאה של ${p.name} הוסרה.`, { icon: "🔐" });
+    };
+    if (on) go();
+    else askConfirm(`להסיר את הרשאת הניהול של ${p.name}?`, go);
+  }
+
   return (
     <div>
       {resetMsg && (
@@ -1325,6 +1343,7 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
           onDelete={p => askConfirm(`למחוק לצמיתות את ${p.name}? הפעולה תמחק את חשבונה, הפרופיל וכל הנתונים שלה — לא ניתן לשחזר.`, () => deletePlayerFull(p))}
           onToggleViewer={toggleViewer}
           onToggleGhost={toggleGhost}
+          onToggleManager={toggleManager} managerBusy={managerBusy}
           pc={pc}
         />
       ) : null}
@@ -1407,6 +1426,20 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
                 {prof.birthday && (
                   <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>🎂 יום הולדת: {formatShort(prof.birthday)}{ageFromBirthday(prof.birthday) != null ? ` (גיל ${ageFromBirthday(prof.birthday)})` : ""}</div>
                 )}
+                {/* מנהלת מתוך חשבון השחקנית — כפתור "פאנל ניהול" במסך האישי שלה */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>🔐 מנהלת</div>
+                    <div style={{ fontSize: 11.5, color: "#94a3b8", lineHeight: 1.5 }}>
+                      במסך האישי שלה יופיע כפתור "פאנל ניהול" שפותח את הפאנל ישירות — בלי כניסה עם Google. הסיסמה שלה כשחקנית היא גם המפתח לפאנל.
+                    </div>
+                  </div>
+                  <button onClick={() => toggleManager(p)} disabled={managerBusy === p.id}
+                    style={{ flexShrink: 0, border: "none", borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 12.5, fontWeight: 800, opacity: managerBusy === p.id ? 0.6 : 1,
+                      background: p.manager ? "#fef3c7" : "#f1f5f9", color: p.manager ? "#92400e" : "#64748b" }}>
+                    {managerBusy === p.id ? "…" : p.manager ? "🔐 מנהלת" : "רגילה"}
+                  </button>
+                </div>
                 {/* מאמנת / צופה — מי שלא אמורה לסמן נוכחות */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>

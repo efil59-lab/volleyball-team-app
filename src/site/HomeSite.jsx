@@ -89,7 +89,7 @@ export default function HomeSite({
             <Brand teamName={settings.teamName || "קבוצת הכדורשת"} sub="אימונים, משחקים ומי מגיעה" handlers={superAdminHandlers} />
             <span className="st-h-links">
               <button onClick={onAbout}>ℹ אודות</button>
-              <button onClick={onAdmin}>🔐 כניסת מנהלת</button>
+              {onAdmin && <button onClick={onAdmin}>🔐 כניסת מנהלת</button>}
             </span>
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function HomeSite({
           <div className="st-foot-links">
             {me && <button onClick={onSwitchUser}>לא את? החליפי משתמשת</button>}
             <button onClick={onAbout}>אודות</button>
-            <button onClick={onAdmin}>כניסת מנהלת</button>
+            {onAdmin && <button onClick={onAdmin}>כניסת מנהלת</button>}
           </div>
           <div className="st-foot-legal">© {new Date().getFullYear()} · נבנה עבור קבוצות כדורשת</div>
         </div>

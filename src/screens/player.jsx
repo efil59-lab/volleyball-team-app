@@ -23,7 +23,7 @@ import ReminderCard from "../components/ReminderCard";
 import Confetti from "../components/Confetti";
 
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
-function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, tournaments, upd, pc, sc, askConfirm, onBack, onLogout, notify, addChatLocal }) {
+function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, tournaments, upd, pc, sc, askConfirm, onBack, onLogout, onAdmin, notify, addChatLocal }) {
   // מעל כל early return: useState אחרי return מותנה = "Rendered more hooks" ומסך לבן.
   const isDesk = useIsDesktop();
   const [openTab] = useState(() => {
@@ -380,8 +380,12 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   // ── שכבת הדסקטופ ─────────────────────────────────────────────────────────
   // ניווט אחד לשני מצבים: בעמוד הבית הקישורים גוללים לעוגנים ורק המסכים
   // העמוקים הם לשוניות; בתוך מסך עומק הכל לשוניות + חזרה הביתה.
+  // מנהלת (מירי): כפתור "פאנל ניהול" במסך האישי. הקישור "כניסת מנהל" ירד
+  // מהמסך שהבנות רואות (28.9.26), וזו הדרך שלה לפאנל — בלי Google.
+  const isManager = !!player.manager && !!onAdmin;
   function goDesk(key) {
     if (key === "__home") { setDeskHome(true); return; }
+    if (key === "__admin") { onAdmin && onAdmin(); return; }
     setDeskHome(false);
     setTab(key);
   }
@@ -398,6 +402,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     { key: "games", icon: "🏆", label: "תוצאות" },
     // צופה בלי צ'אט — גם כאן, אחרת הדסקטופ היה פותח לה דלת שהנייד סגר
     ...(isViewer ? [] : [{ key: "chat", icon: "💬", label: "צ'אט", badge: hasUnreadChat }]),
+    // מנהלת מתוך חשבון השחקנית (player.manager) — ראה adminSetPlayerManager
+    ...(isManager ? [{ key: "__admin", icon: "🔐", label: "פאנל ניהול" }] : []),
   ];
   const siteProps = {
     ctx: { players, events, archive, playerProfiles, attendance },
@@ -1004,6 +1010,12 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginTop: 8 }}>
             ✏️ עריכת פרופיל
           </button>
+          {isManager && (
+            <button onClick={onAdmin}
+              style={{ background: sc, border: "none", color: pc, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, fontWeight: 800, marginTop: 8, marginInlineStart: 8 }}>
+              🔐 פאנל ניהול
+            </button>
+          )}
         </div>
       </div>
       )}

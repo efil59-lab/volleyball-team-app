@@ -248,6 +248,15 @@ const callNotifyPlayerActivityFn = httpsCallable(functions, "notifyPlayerActivit
 const callResetActivityFn = httpsCallable(functions, "adminResetTeamActivity");
 const callSuperAdminChatFn = httpsCallable(functions, "superAdminChat");
 const callPushStatusFn = httpsCallable(functions, "adminPushStatus");
+const callSetManagerFn = httpsCallable(functions, "adminSetPlayerManager");
+// הרשאת ניהול לחשבון השחקנית (כפתור "פאנל ניהול" במסך האישי שלה).
+// מחזיר { ok } או { ok:false, error } עם הנימוק מהשרת.
+async function setPlayerManagerRemote(playerId, on) {
+  try {
+    await callSetManagerFn({ teamId: CURRENT_TEAM, playerId, on: !!on });
+    return { ok: true };
+  } catch (e) { console.error("adminSetPlayerManager:", e); return { ok: false, error: e.message || String(e) }; }
+}
 // מי מהשחקניות הפעילה התראות. מחזיר ספירות בלבד — { byPlayer: {pid:{devices,updatedAt}} }.
 async function adminPushStatusRemote() {
   try {
@@ -518,7 +527,7 @@ export {
   loadTeamKey, saveTeamKey, addTeamAdmin, writeMember, bindPlayerMembership,
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote, testPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
-  superAdminChatList, superAdminChatDelete, adminPushStatusRemote,
+  superAdminChatList, superAdminChatDelete, adminPushStatusRemote, setPlayerManagerRemote,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,

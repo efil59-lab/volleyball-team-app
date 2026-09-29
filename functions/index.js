@@ -70,6 +70,46 @@ exports.adminResetPlayerPassword = onCall(async (request) => {
   return { ok: true, tempPassword };
 });
 
+// ── מנהלת מתוך חשבון השחקנית ────────────────────────────────────────────────
+// מירי נכנסת לאפליקציה כשחקנית, והטלפון מחובר לחשבון אחד בכל רגע. כדי שכפתור
+// "פאנל ניהול" במסך האישי שלה יעבוד בלי מעבר ל-Google (ובלי להקליד שוב סיסמה
+// כשחוזרים), ה-uid של חשבון השחקנית שלה נכנס ל-adminUids. הכללים והפונקציות
+// כבר בודקים את adminUids, ולכן אין שום שינוי בצד ההרשאות.
+// שני השינויים (adminUids + הדגל manager על השחקנית) בטרנזקציה אחת.
+exports.adminSetPlayerManager = onCall(async (request) => {
+  const { teamId, playerId, on } = request.data || {};
+  if (!teamId || playerId === undefined || playerId === null) {
+    throw new HttpsError("invalid-argument", "חסר teamId או playerId");
+  }
+  await assertAdmin(request.auth, teamId);
+
+  let uid;
+  try {
+    uid = (await admin.auth().getUserByEmail(playerEmail(teamId, playerId))).uid;
+  } catch (e) {
+    if (e.code === "auth/user-not-found") {
+      throw new HttpsError("failed-precondition", "לשחקנית עוד אין חשבון — היא צריכה להיכנס פעם אחת לאפליקציה");
+    }
+    throw new HttpsError("internal", e.message);
+  }
+  if (!on && uid === request.auth.uid) {
+    throw new HttpsError("failed-precondition", "אי אפשר להסיר הרשאת ניהול מהחשבון שדרכו את מחוברת עכשיו");
+  }
+
+  const metaRef = db.doc(`teams/${teamId}/data/meta`);
+  const playersRef = db.doc(`teams/${teamId}/data/players`);
+  await db.runTransaction(async (tx) => {
+    const [m, p] = await Promise.all([tx.get(metaRef), tx.get(playersRef)]);
+    const meta = m.exists ? (m.data().value || {}) : {};
+    const uids = new Set(meta.adminUids || []);
+    if (on) uids.add(uid); else uids.delete(uid);
+    tx.set(metaRef, { value: { ...meta, adminUids: [...uids] } });
+    const list = p.exists ? (p.data().value || []) : [];
+    tx.set(playersRef, { value: list.map((x) => (String(x.id) === String(playerId) ? { ...x, manager: !!on } : x)) });
+  });
+  return { ok: true };
+});
+
 // ── החזרת שחקנית למצב "כניסה ראשונה" ────────────────────────────────────────
 // היא נשארת ברשימת השחקניות; מה שנמחק הוא כל מה שהופך אותה ל"חוזרת", כך
 // שבפעם הבאה היא תעבור את אותו מסלול כמו כל אחת חדשה: בחירת סיסמה ומילוי פרטים.
