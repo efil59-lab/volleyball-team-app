@@ -766,6 +766,12 @@ exports.notifyPlayerActivity = onCall(async (request) => {
   if (!mem.exists || Number(mem.data().playerId) !== pid)
     throw new HttpsError("permission-denied", "לא השחקנית הזו");
 
+  // חשבון בדיקה (ghost) לא מקפיץ התראות למנהלת — לא על כניסה ולא על אישור
+  // הגעה. בדיקות חוזרות היו ממלאות את המגש בהתראות שאין מאחוריהן שחקנית.
+  const players = await getTeamValue(teamId, "players", []);
+  const me = players.find((p) => Number(p.id) === pid) || {};
+  if (me.ghost) return { ok: true, skipped: "ghost" };
+
   const st = await getTeamValue(teamId, "settings", {});
   const on = kind === "login" ? st.pingLogins !== false : st.pingRsvp !== false;
   if (!on) return { ok: true, skipped: "off" };
@@ -779,8 +785,7 @@ exports.notifyPlayerActivity = onCall(async (request) => {
   if (prevVal.sig === sig && age < PING_COOLDOWN_MS[kind]) return { ok: true, skipped: "cooldown" };
   await marker.set({ value: { at: new Date().toISOString(), sig } });
 
-  const players = await getTeamValue(teamId, "players", []);
-  const name = (players.find((p) => Number(p.id) === pid) || {}).name || "שחקנית";
+  const name = me.name || "שחקנית";
   const teamName = (st && st.teamName) || teamId;
 
   let title, body, tag;
