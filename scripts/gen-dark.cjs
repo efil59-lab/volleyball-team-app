@@ -15,7 +15,7 @@ const BG = [
   [["#eef2f7"], "#232b42"],
   [["#fef2f2", "#fee2e2"], "rgba(239, 68, 68, 0.16)"],
   [["#dcfce7", "#f0fdf4", "#ecfdf5"], "rgba(34, 197, 94, 0.15)"],
-  [["#fffbeb", "#fef9c3", "#fff7ed", "#fef3c7", "#fefce8"], "rgba(245, 200, 66, 0.14)"],
+  [["#fffbeb", "#fef9c3", "#fff7ed", "#fef3c7", "#fefce8", "#fff7e6", "#fff8e1", "#fffdf3"], "rgba(245, 200, 66, 0.14)"],
   [["#e0e7ff", "#eef2ff", "#f5f3ff", "#ede9fe"], "rgba(129, 140, 248, 0.18)"],
   [["#f3e8ff", "#faf5ff"], "rgba(168, 85, 247, 0.18)"],
   [["#fff1f3", "#fdf2f8", "#fce7f3", "#fff6f8"], "rgba(242, 85, 122, 0.16)"],
@@ -54,7 +54,7 @@ const BD = [
 
 const tok = (c) => (c === "white" ? "white" : rgb(c));
 let out = `/* ── מצב לילה: שכבת תרגום לצבעים שכתובים ישירות בקוד ─────────────────────
-   נוצר אוטומטית (scratchpad/gen-dark.cjs) — לא לערוך ידנית כל שורה; להוסיף צבע
+   נוצר אוטומטית (scripts/gen-dark.cjs — מריצים: node scripts/gen-dark.cjs src/styles/dark.css; אתר המחשב ב-dark-site.css, נכתב ביד) — לא לערוך ידנית כל שורה; להוסיף צבע
    לטבלה במחולל. פעיל רק כש-<html data-theme="dark"> (lib/theme.js).
    למה ככה: באפליקציה מאות צבעים inline ולא משתני CSS. התרגום כאן נותן מצב
    לילה לכל המסכים בבת אחת, בלי לגעת בקומפוננטות. */

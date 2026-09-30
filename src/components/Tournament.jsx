@@ -236,7 +236,9 @@ function GroupTable({ t, results }) {
               <tr key={r.name}>
                 <td style={cell}>
                   <span style={{ display: "inline-flex", width: 20, height: 20, borderRadius: "50%", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900,
-                    background: i < 2 ? "#f5c842" : "#f1f5f9", color: i < 2 ? "#1a237e" : "#475569" }}>{i + 1}</span>
+                    background: i < 2 ? "#f5c842" : "#f1f5f9",
+                    // כהה קבוע על הזהב — גם בלילה (צבע שלא מתורגם ב-dark.css)
+                    color: i < 2 ? "#10163f" : "#475569" }}>{i + 1}</span>
                 </td>
                 <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap", color: us ? "#1a237e" : "#16203a" }}>{r.name}{us ? " ⭐" : ""}</td>
                 <td style={cell}>{r.played}</td><td style={cell}>{r.won}</td><td style={cell}>{r.lost}</td>
