@@ -93,5 +93,11 @@ for (const [list, to] of BD) {
   const sel = list.flatMap((c) => [`${D} [style*="solid ${rgb(c)}"]`, `${D} [style*="dashed ${rgb(c)}"]`]);
   out += `${sel.join(",\n")} { border-color: ${to} !important; }\n`;
 }
+// טקסט על רקע הזהב של הקבוצה (sc) נשאר כהה. בלי זה צבע הקבוצה כטקסט (למשל
+// "עוד 4 ימים" בכחול על זהב) מתורגם לתכלת בהיר ונעלם על הצהוב. חייב לבוא אחרי
+// כללי הטקסט — אותה ספציפיות, והאחרון קובע.
+const GOLD = ["#f5c842", "#fde047", "#facc15", "#fbbf24"];
+const goldSel = GOLD.flatMap((c) => [`${D} [style*="background: ${rgb(c)}"]`, `${D} [style*="background-color: ${rgb(c)}"]`]);
+out += `\n${goldSel.join(",\n")} { color: #10163f !important; }\n`;
 fs.writeFileSync(process.argv[2], out);
 console.log("rules:", (out.match(/\{/g) || []).length, "bytes:", out.length);

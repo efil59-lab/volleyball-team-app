@@ -190,3 +190,12 @@ html[data-theme="dark"] [style*="solid rgb(221, 214, 254)"],
 html[data-theme="dark"] [style*="dashed rgb(221, 214, 254)"] { border-color: rgba(129, 140, 248, 0.4) !important; }
 html[data-theme="dark"] [style*="solid rgb(251, 207, 232)"],
 html[data-theme="dark"] [style*="dashed rgb(251, 207, 232)"] { border-color: rgba(236, 72, 153, 0.35) !important; }
+
+html[data-theme="dark"] [style*="background: rgb(245, 200, 66)"],
+html[data-theme="dark"] [style*="background-color: rgb(245, 200, 66)"],
+html[data-theme="dark"] [style*="background: rgb(253, 224, 71)"],
+html[data-theme="dark"] [style*="background-color: rgb(253, 224, 71)"],
+html[data-theme="dark"] [style*="background: rgb(250, 204, 21)"],
+html[data-theme="dark"] [style*="background-color: rgb(250, 204, 21)"],
+html[data-theme="dark"] [style*="background: rgb(251, 191, 36)"],
+html[data-theme="dark"] [style*="background-color: rgb(251, 191, 36)"] { color: #10163f !important; }
