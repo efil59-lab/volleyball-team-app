@@ -3,6 +3,12 @@ import ReactDOM from "react-dom/client";
 import "@fontsource-variable/heebo"; // פונט עברי — קובץ אחד לכל המשקלים, ללא רשת חיצונית
 import "./styles/tokens.css";
 import "./styles/index.css";
+import "./styles/dark.css";
+import "./styles/dark-site.css"; // מצב לילה — פעיל רק כש-<html data-theme="dark">
+import { getThemePref, resolveMode } from "./lib/theme";
+
+// המצב נקבע לפני הרינדור הראשון — אחרת בלילה המסך מהבהב לבן לרגע
+document.documentElement.dataset.theme = resolveMode(getThemePref());
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { logError } from "./lib/errorLog";

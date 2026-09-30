@@ -9,6 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote, setPlayerManagerRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
+import ThemeToggle from "../components/ThemeToggle";
 import { holidayLabel } from "../lib/holidays";
 import { TournamentAdmin } from "../components/Tournament";
 import PaymentCard from "../components/PaymentCard";
@@ -284,6 +285,7 @@ function AdminPanel(props) {
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
         {onLogout && <button onClick={() => askConfirm ? askConfirm("להתנתק מחשבון המנהל?", onLogout) : onLogout()} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתק</button>}
+        <ThemeToggle style={{ position: "absolute", left: 14, top: onLogout ? 54 : 14 }} />
         <div style={{ fontSize: 32 }}>🔐</div>
         <h2 style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "4px 0 0" }}>פאנל מנהל</h2>
       </div>

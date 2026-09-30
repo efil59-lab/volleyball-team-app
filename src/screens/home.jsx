@@ -11,6 +11,7 @@ import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
 import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
+import ThemeToggle from "../components/ThemeToggle";
 import { TournamentCard } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 
@@ -54,6 +55,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
         <span style={{ color: "white", fontSize: 15, fontWeight: 800, lineHeight: 1.25, minWidth: 0, overflowWrap: "break-word" }}>{settings.teamName}</span>
       </div>
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        <ThemeToggle />
         <button onClick={onAbout} style={{ flexShrink: 0, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white", borderRadius: 10, padding: "6px 12px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
           <span style={{ color: sc, fontWeight: 800 }}>ℹ</span> אודות
         </button>

@@ -13,6 +13,7 @@ import {
 import { isIOS } from "./lib/utils";
 import { trackScreen } from "./lib/analytics";
 import { Confirm } from "./components/shared";
+import { useApplyTheme } from "./lib/theme";
 import { NoTeamScreen, InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin } from "./screens/gate";
 import { SuperAdminScreen } from "./screens/superadmin";
 import { HomeScreen, OnboardScreen } from "./screens/home";
@@ -30,6 +31,8 @@ export default function App() {
   const [players, setPlayers] = useState([]);
   const [events, setEvents] = useState([]);
   const [attendance, setAttendance] = useState({});
+  // מצב לילה: אוטומטי (19:00–07:00) / יום / לילה — נכתב ל-<html data-theme>
+  useApplyTheme();
   // הפאנל נפתח מהמסך האישי של מנהלת-שחקנית (כפתור "פאנל ניהול")
   const [adminFromPlayer, setAdminFromPlayer] = useState(false);
   const [notifications, setNotifications] = useState([]);

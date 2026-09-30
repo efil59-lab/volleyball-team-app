@@ -7,6 +7,7 @@
 // תתנגש עם ה-shell של הטלפון.
 import { useState, useEffect, useRef, useMemo } from "react";
 import { formatShort, todayStr, rosterOf } from "../lib/utils";
+import ThemeToggle from "../components/ThemeToggle";
 import "@fontsource-variable/rubik"; // כותרות ומספרים באתר בלבד — הקובץ יורד רק כשמשתמשים בו
 import "./site.css";
 
@@ -214,6 +215,7 @@ function SiteHeader({ ctx, tab, setTab, items = [], anchors, teamName, brandSub,
         <SearchBox ctx={ctx} placeholder={searchPlaceholder} onPick={(r) => setTab(r.tab)} />
 
         <div className="st-account">
+          <ThemeToggle />
           <span className="st-av" aria-hidden>{String(who || "?").trim().slice(0, 1)}</span>
           <span className="st-who" title={who}>{who}</span>
           <button className="st-out" onClick={onLogout}>יציאה</button>

@@ -1,0 +1,57 @@
+/* מצב לילה לאתר המחשב — נכתב ביד (לא ע"י המחולל). */
+/* ── אתר המחשב (site.css): הטוקנים + המשטחים שכתובים שם כ-#fff ─────────── */
+html[data-theme="dark"] .st-root, html[data-theme="dark"] .st-h-root {
+  --st-bg: #10152a;
+  --st-card: #1a2138;
+  --st-bd: #2b3452;
+  --st-tx: #e6e9f4;
+  --st-mu: #a1a9c2;
+  --st-faint: #7c86a4;
+  --st-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+html[data-theme="dark"] .app-shell.st-app { background: #10152a; }
+html[data-theme="dark"] .st-navbar,
+html[data-theme="dark"] .st-foot,
+html[data-theme="dark"] .st-results,
+html[data-theme="dark"] .st-chip,
+html[data-theme="dark"] .st-p-ev,
+html[data-theme="dark"] .st-p-opt,
+html[data-theme="dark"] .st-p-cbtn,
+html[data-theme="dark"] .st-cal-cell,
+html[data-theme="dark"] .st-cal-arrows button,
+html[data-theme="dark"] .st-cal-today.st-here,
+html[data-theme="dark"] .st-h-q,
+html[data-theme="dark"] .st-h-pb,
+html[data-theme="dark"] .st-h-note { background: #1a2138; }
+html[data-theme="dark"] .st-cal-dow,
+html[data-theme="dark"] .st-cal-cell.st-out,
+html[data-theme="dark"] .st-cal-cell.st-sat,
+html[data-theme="dark"] .st-pending .st-chip { background: #151b2f; }
+html[data-theme="dark"] .st-cal-cell:hover { background: #1f2742; }
+html[data-theme="dark"] .st-cal-d { color: #c9cee0; }
+html[data-theme="dark"] .st-cal-chip.st-past { background: #273050; color: #b8bfd6; }
+html[data-theme="dark"] .st-cal-chip.st-tg { background: rgba(242, 85, 122, 0.18); color: #ff9db6; }
+html[data-theme="dark"] .st-cal-hol, html[data-theme="dark"] .st-cal-day-hol { color: #4ade80; }
+html[data-theme="dark"] .st-cal-bd { color: #fcd34d; }
+html[data-theme="dark"] .st-nav-link.st-on,
+html[data-theme="dark"] .st-p-more, html[data-theme="dark"] .st-p-link,
+html[data-theme="dark"] .st-cal-arrows button, html[data-theme="dark"] .st-cal-day-k,
+html[data-theme="dark"] .st-h-promo b { color: #a9b3ff; }
+html[data-theme="dark"] .st-ag-d { background: rgba(129, 140, 248, 0.16); color: #c3caff; }
+html[data-theme="dark"] .st-game .st-ag-d { background: rgba(245, 200, 66, 0.16); color: #fcd34d; }
+html[data-theme="dark"] .st-chip-av { background: rgba(129, 140, 248, 0.2); color: #c3caff; }
+html[data-theme="dark"] .st-coming .st-chip-av { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+html[data-theme="dark"] .st-notcoming .st-chip-av { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+html[data-theme="dark"] .st-mini span.st-ok { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+html[data-theme="dark"] .st-mini span.st-no { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+html[data-theme="dark"] .st-cal-mine, html[data-theme="dark"] .st-cal-bday, html[data-theme="dark"] .st-h-bday { background: rgba(245, 200, 66, 0.12); border-color: rgba(245, 200, 66, 0.35); color: #fcd34d; }
+html[data-theme="dark"] .st-cal-mine.st-coming { background: rgba(34, 197, 94, 0.14); border-color: rgba(34, 197, 94, 0.35); color: #86efac; }
+html[data-theme="dark"] .st-cal-mine.st-notcoming { background: rgba(239, 68, 68, 0.14); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; }
+html[data-theme="dark"] .st-h-note b { color: #fcd34d; }
+html[data-theme="dark"] .st-h-q-ic { background: rgba(129, 140, 248, 0.16); }
+html[data-theme="dark"] .st-h-promo { background: rgba(245, 200, 66, 0.1); }
+html[data-theme="dark"] .st-h-alert { background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.35); }
+html[data-theme="dark"] .st-h-alert-in { color: #fca5a5; }
+html[data-theme="dark"] .st-result:hover { background: #232b45; }
+html[data-theme="dark"] .st-result-title { color: #e6e9f4; }
+html[data-theme="dark"] .st-p-ev.st-next { background: rgba(245, 200, 66, 0.14); }

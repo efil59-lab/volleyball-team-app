@@ -10,6 +10,7 @@ import { useState } from "react";
 import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
 import { Brand, Court, TallyBoard, WhoGroups } from "./Site";
+import ThemeToggle from "../components/ThemeToggle";
 import "./site.css";
 
 const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
@@ -88,6 +89,7 @@ export default function HomeSite({
             {/* לחיצה ארוכה על המותג → סופר-אדמין (superAdminHandlers) */}
             <Brand teamName={settings.teamName || "קבוצת הכדורשת"} sub="אימונים, משחקים ומי מגיעה" handlers={superAdminHandlers} />
             <span className="st-h-links">
+              <ThemeToggle />
               <button onClick={onAbout}>ℹ אודות</button>
               {onAdmin && <button onClick={onAdmin}>🔐 כניסת מנהלת</button>}
             </span>
