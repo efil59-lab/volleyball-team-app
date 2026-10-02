@@ -467,6 +467,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   {/* הספורטיאדה — פס דק מעל כרטיס האימון (בקשת אפי 28.9.26).
                       הכלל: כל עוד יש אימון עתידי — דק, גם בשבוע האחרון. בלי אירוע
                       קרוב (הענף שלמעלה) או בימי הטורניר — לפי התאריך. */}
+                  {/* ברכת החג ראשונה במסך (בקשת אפי 3.10.26) */}
+                  <HolidayBanner slim={myBdayToday} />
                   {showTour && <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => setTab("tournament")} />}
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -480,8 +482,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     </div>
                     {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
                   </div>
-
-                  <HolidayBanner slim={myBdayToday} />
 
                   {/* Clickable counters */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>

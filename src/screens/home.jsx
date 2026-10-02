@@ -171,6 +171,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
         {activeNotifs.length > 0 && <div style={{ padding: "10px 16px 0" }}><NotifTicker notifs={activeNotifs} pc={pc} sc={sc} /></div>}
 
         <div style={{ padding: "12px 16px 0" }}>
+          {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}
+          <HolidayBanner slim={bdayOthers.length > 0} />
           {nextEvent ? (
             <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
@@ -226,7 +228,6 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
                   שמופיע ממש מתחת, ולראש הכרטיס שהוא ממילא לחיץ. */}
             </div>
           ) : null}
-          <HolidayBanner slim={bdayOthers.length > 0} />
           {tour && canSeeTournament(tourState, me) && <TournamentCard t={tour} state={tourState} now={now} size={tourSize} onOpen={() => openTour(me)} />}
           {!nextEvent && (
             <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
