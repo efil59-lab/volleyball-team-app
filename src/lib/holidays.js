@@ -97,7 +97,9 @@ const HOLIDAYS = [
 
   // בחול המועד אין באנר — רק בימי החג עצמם (החלטת אפי, 28.9.26)
 
-  { key: "torah", kind: "hag", match: (h) => h.m === "Tishri" && h.d === 22,
+  // כולל ערב החג (כ״א), כמו בסוכות ובפסח: התאריך העברי כאן מתחלף בחצות ולא
+  // בשקיעה, ובלי היום שלפני הברכה לא הופיעה בליל החג עצמו (דווח 2.10.26).
+  { key: "torah", kind: "hag", match: (h) => h.m === "Tishri" && h.d >= 21 && h.d <= 22,
     title: "חג שמחת תורה שמח 🌿", sub: "חג שמח לכן ולמשפחות",
     art: "sukka", bg: ["#14532d", "#16a34a", "#65a30d"] },
 
@@ -119,7 +121,7 @@ const HOLIDAYS = [
     title: "חג פסח כשר ושמח", sub: "חופש נעים — נתראה באימון הראשון אחרי החג",
     art: "matza", bg: ["#a16207", "#eab308", "#84cc16"] },
 
-  { key: "pesach-end", kind: "hag", match: (h) => h.m === "Nisan" && h.d === 21,
+  { key: "pesach-end", kind: "hag", match: (h) => h.m === "Nisan" && h.d >= 20 && h.d <= 21,
     title: "חג פסח שמח", sub: "מוצאי החג — נתראה באימון",
     art: "matza", bg: ["#a16207", "#eab308", "#84cc16"] },
 
@@ -205,6 +207,8 @@ function holidayLabel(date) {
   let pair = CAL_NAMES[h.key];
   if (h.key === "sukkot") pair = d === 14 ? ["ערב סוכות", "ערב סוכות"] : ["סוכות", "סוכות"];
   if (h.key === "pesach") pair = d === 14 ? ["ערב פסח", "ערב פסח"] : ["פסח", "פסח"];
+  if (h.key === "torah" && d === 21) pair = ["ערב שמחת תורה", "ערב שמח״ת"];
+  if (h.key === "pesach-end" && d === 20) pair = ["ערב שביעי של פסח", "ערב שביעי"];
   if (h.key === "shavuot") pair = d === 5 ? ["ערב שבועות", "ערב שבועות"] : ["שבועות", "שבועות"];
   if (!pair) {
     const t = String(h.title || "").replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, "").trim();
