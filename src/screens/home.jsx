@@ -4,7 +4,7 @@ import { auth } from "../firebase";
 import { S } from "../styles/S";
 import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf, rememberOnly } from "../lib/utils";
 import useNow from "../lib/useNow";
-import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote } from "../lib/db";
+import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote, notifyPlayerActivityRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
 import { uploadProfilePhoto } from "../lib/images";
 import { NotifTicker, PurchaseBanner, Label } from "../components/shared";
@@ -92,6 +92,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
     const cur = attendance[key] || {};
     if (cur.status === status) return;
     await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+    // התראה למנהלת — כמו באישור מהמסך האישי (ראה quickRSVP)
+    notifyPlayerActivityRemote(CURRENT_TEAM, player.id, "rsvp", { eventId: nextEvent.id, status });
   }
 
   // שמירת הערה — כמו rsvpFor, מוגדרת כאן כדי שגם שכבת הדסקטופ תשתמש בה
@@ -149,6 +151,10 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
       const cur = attendance[key] || {};
       if (cur.status === status) return; // כבר מסומן — אין מה לכתוב
       await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+      // התראה למנהלת — כמו באישור מהמסך האישי. בלי זה אישור מהכרטיס הזה היה
+      // שקט, והמנהלת קיבלה רק את "נכנסה לאפליקציה" (דווח 3.10.26). אחרי
+      // הכתיבה ולא ב-await: הספירה בגוף ההתראה צריכה לכלול את האישור הזה.
+      notifyPlayerActivityRemote(CURRENT_TEAM, me.id, "rsvp", { eventId: nextEvent.id, status });
       setNoteInput(cur.note || "");
       setNoteOpen(true);
     }
