@@ -233,8 +233,11 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
           {rows.length === 0 && <Empty icon={meta.icon} text={`אין ${meta.label} להצגה`} />}
           {rows.map((r, i) => (
             <div key={r.key}>
-              {r.past && !rows[i - 1]?.past && rows[i - 1] && (
-                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#94a3b8", margin: "6px 2px 6px" }}>שהיו</div>
+              {/* הכותרת מופיעה גם כשכל הרשימה היא אירועים שהסתיימו */}
+              {r.past && !rows[i - 1]?.past && (
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#94a3b8", margin: "6px 2px 6px" }}>
+                  {kind === "game" ? "משחקים שהסתיימו" : "אימונים שהסתיימו"}
+                </div>
               )}
               {r.ev
                 ? <CalEventRow ev={r.ev} players={players} pc={pc} dateLabel={r.dateLabel}
