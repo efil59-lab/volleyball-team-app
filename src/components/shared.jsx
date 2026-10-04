@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { S } from "../styles/S";
-import { formatDate, formatShort, todayStr, monthDay } from "../lib/utils";
+import { formatDate, formatShort, todayStr, monthDay, eventPhase } from "../lib/utils";
 
 // ── CONFIRM DIALOG ────────────────────────────────────────────────────────────
 function Confirm({ msg, onOk, onCancel, icon, okLabel, tone }) {
@@ -207,13 +207,17 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
       ? allEvents.filter(e => e.cancelled)
       : allEvents.filter(e => e.type === kind && !e.cancelled);
     const byDate = (dir) => (a, b) => dir * (a.date || "").localeCompare(b.date || "");
+    // "היה" = אורכב, או שהסתיים (שעתיים אחרי תחילתו) — לא רק "תאריך שעבר".
+    // לפי תאריך בלבד, אימון של היום נשאר בין הקרובים עד חצות גם אחרי שנגמר
+    // ואורכב עם רשימת המשתתפות (דווח 4.10.26).
+    const isPast = (e) => !!e.attendanceData || (e.date || "") < today || eventPhase(e) === "done";
     const ordered = kind === "cancelled"
       ? [...base].sort(byDate(-1))
-      : [...base.filter(e => (e.date || "") >= today).sort(byDate(1)),
-         ...base.filter(e => (e.date || "") < today).sort(byDate(-1))];
+      : [...base.filter(e => !isPast(e)).sort(byDate(1)),
+         ...base.filter(e => isPast(e)).sort(byDate(-1))];
     rows = ordered.map(ev => ({
       key: "e" + ev.id, ev,
-      past: (ev.date || "") < today,
+      past: isPast(ev),
       dateLabel: formatDate(ev.date) + (ev.time ? ` · ${ev.time}` : ""),
     }));
   }
