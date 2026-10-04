@@ -335,6 +335,12 @@ function AdminPanel(props) {
 function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc, sc, askConfirm, settings, notify }) {
   const isDesk = useIsDesktop();
   const [attModal, setAttModal] = useState(null);
+  // תזכורת אישית בוואטסאפ: רשימה שנפתחת, ולכל שחקנית כפתור משלה. למי כבר
+  // נשלח נשמר במכשיר (localStorage) — יציאה לוואטסאפ וחזרה לא מאפסת את הסימון.
+  const [waOpen, setWaOpen] = useState(false);
+  const [waSent, setWaSent] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("waSent") || "{}"); } catch { return {}; }
+  });
   const [viewId, setViewId] = useState(null);     // אירוע שנבחר לצפייה במקום הקרוב
 
   // ── איזה אירוע מוצג כאן ──────────────────────────────────────────────────
@@ -413,17 +419,29 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     ? roster.filter(p => !attendance[`${nextEvent.id}_${p.id}`]?.status)
     : roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === s);
 
+  // תזכורת אישית — שחקנית אחת בכל לחיצה. קודם הכפתור פתח חלון וואטסאפ לכל
+  // מי שלא ענתה בלולאה אחת; הדפדפן מתיר חלון אחד ללחיצה וחוסם את השאר, ולכן
+  // בפועל נשלח רק לראשונה (דווח 4.10.26).
+  const waKey = (p) => `${nextEvent.id}_${p.id}`;
+  const waNumber = (p) => String((playerProfiles[p.id] || {}).whatsapp || "").replace(/\D/g, "");
+  function sendWAOne(p) {
+    const wa = waNumber(p);
+    if (!wa) return;
+    const msg = `היי ${p.name}, ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`;
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+    setWaSent(prev => {
+      const next = { ...prev, [waKey(p)]: Date.now() };
+      // שומרים רק את השבועיים האחרונים, שהרשימה לא תתנפח
+      const cut = Date.now() - 14 * 86400000;
+      for (const k of Object.keys(next)) if (next[k] < cut) delete next[k];
+      try { localStorage.setItem("waSent", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   function sendWAReminder() {
     const pending = getList("pending");
-    // Exact wording requested by captain
-    const msg = encodeURIComponent("היי, ראיתי שלא סימנת הגעה לאימון/משחק למחר. את מתכוונת להגיע?");
-    let sent = 0;
-    pending.forEach(p => {
-      const prof = playerProfiles[p.id] || {};
-      const wa = (prof.whatsapp || "").replace(/\D/g, "");
-      if (wa) { window.open(`https://wa.me/${wa}?text=${msg}`, "_blank"); sent++; }
-    });
-    if (sent === 0) notify("אין מספרי וואטסאפ לשחקניות שטרם ענו. הוסיפי אותם בלשונית שחקניות.");
+    if (!pending.some(p => waNumber(p))) { notify("אין מספרי וואטסאפ לשחקניות שטרם ענו. הוסיפי אותם בלשונית שחקניות."); return; }
+    setWaOpen(v => !v);
   }
 
   // תזכורת קבוצתית: הודעה אחת עם שמות החוסרים, לשיתוף לקבוצת הוואטסאפ.
@@ -484,9 +502,38 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
       {!eventPassed && countAtt("pending") > 0 && (
         <button onClick={sendWAReminder}
           style={{ width: "100%", padding: "10px", background: "#25D366", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
-          💬 שלח וואטסאפ אישי לשחקניות שלא סימנו הגעה ({countAtt("pending")})
+          💬 תזכורת אישית בוואטסאפ למי שלא סימנה ({countAtt("pending")}) {waOpen ? "▴" : "▾"}
         </button>
       )}
+      {!eventPassed && waOpen && countAtt("pending") > 0 && (() => {
+        const list = getList("pending");
+        const left = list.filter(p => waNumber(p) && !waSent[waKey(p)]).length;
+        return (
+          <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.5 }}>
+              לחיצה פותחת וואטסאפ עם הודעה מוכנה לאותה שחקנית. חזרי לכאן ועברי לבאה{left > 0 ? ` — נשארו ${left}` : " — נשלח לכולן ✓"}.
+            </div>
+            {list.map(p => {
+              const has = !!waNumber(p);
+              const done = !!waSent[waKey(p)];
+              return (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: "1px solid #f1f5f9" }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, color: "#1e293b" }}>{p.name}</span>
+                  {!has ? (
+                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>אין מספר וואטסאפ</span>
+                  ) : (
+                    <button onClick={() => sendWAOne(p)}
+                      style={{ flexShrink: 0, border: done ? "1px solid #bbf7d0" : "none", borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800,
+                        background: done ? "#f0fdf4" : "#25D366", color: done ? "#166534" : "white" }}>
+                      {done ? "נשלח ✓ · שוב" : "💬 שלחי"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
       {!eventPassed && countAtt("pending") > 0 && (
         <button onClick={shareGroupReminder}
           style={{ width: "100%", padding: "10px", background: "white", color: "#16a34a", border: "2px solid #25D366", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
@@ -584,8 +631,9 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
                   <div key={p.id} className="st-dash-pend-row">
                     <span>{p.name}</span>
                     {wa && !eventPassed && (
-                      <button onClick={() => window.open(`https://wa.me/${String(wa).replace(/\D/g, "")}?text=${encodeURIComponent(`היי ${p.name}, ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`)}`, "_blank")}
-                        title={`נדנוד ל${p.name}`}>💬</button>
+                      <button onClick={() => sendWAOne(p)} title={`תזכורת ל${p.name}`}
+                        style={waSent[waKey(p)] ? { background: "#dcfce7", color: "#166534", fontWeight: 800 } : undefined}>
+                        {waSent[waKey(p)] ? "✓" : "💬"}</button>
                     )}
                   </div>
                 );
