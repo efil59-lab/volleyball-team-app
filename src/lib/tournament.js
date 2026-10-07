@@ -189,8 +189,23 @@ function dayLabel(iso) {
   return `יום ${DAY_NAMES[d.getDay()]} · ${d.getDate()}.${d.getMonth() + 1}`;
 }
 
+// ── יום של טורניר בלוח השנה ─────────────────────────────────────────────────
+// null אם התאריך מחוץ לימי הטורניר. אחרת: שם הטורניר + המשחקים שלנו באותו יום
+// (כבר מתוארים — יריבה, אולם, "אם נעלה"). משותף ללוח בטלפון (שחקנית ומנהלת);
+// הלוח במחשב מצייר רצועה משלו מאותם נתונים.
+function tournamentDay(t, state, dateStr) {
+  if (!t || !dateStr || dateStr < t.start || dateStr > t.end) return null;
+  const results = (state && state.results) || {};
+  const games = ourGames(t).filter((g) => g.date === dateStr).map((g) => {
+    const d = describeGame(t, results, g);
+    const s = ourScore(t, results, g);
+    return { id: g.id, time: g.time, title: d.title, sub: d.sub, hall: d.hall, score: s ? `${s.us}–${s.them}` : null, won: s ? s.won : null };
+  });
+  return { name: t.name, city: t.city, first: dateStr === t.start, last: dateStr === t.end, games };
+}
+
 export {
   TOURNAMENTS, activeTournament, tournamentPhase, daysToStart, canSeeTournament,
   resultOf, standings, groupDone, ourPlace, describeGame, ourScore, ourGames, nextOurGame,
-  dayLabel, isoLocal,
+  dayLabel, isoLocal, tournamentDay,
 };

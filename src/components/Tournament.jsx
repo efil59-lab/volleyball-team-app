@@ -183,6 +183,32 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
   );
 }
 
+// ── יום של טורניר בלוח השנה (טלפון) ─────────────────────────────────────────
+// השורה שנפתחת כשלוחצים על יום בטווח הטורניר: שם הטורניר והמשחקים שלנו באותו
+// יום. td מגיע מ-tournamentDay() ב-lib/tournament.
+export function TourDayRows({ td }) {
+  if (!td) return null;
+  return (
+    <div style={{ borderRadius: 12, overflow: "hidden", marginBottom: 8, border: "1px solid #fbcfe8" }}>
+      <div style={{ background: SUNSET, color: "#fff", padding: "8px 12px", fontSize: 13.5, fontWeight: 800 }}>
+        ☀️ {td.name} · {td.city}{td.first ? " — יוצאות!" : td.last ? " — חוזרות הביתה" : ""}
+      </div>
+      {td.games.length === 0 ? (
+        <div style={{ background: "#fff1f3", padding: "8px 12px", fontSize: 12.5, color: "#64748b" }}>אין לנו משחק ביום הזה</div>
+      ) : td.games.map((g) => (
+        <div key={g.id} style={{ background: "#fff1f3", padding: "8px 12px", display: "flex", alignItems: "center", gap: 10, borderTop: "1px solid #fbcfe8" }}>
+          <b style={{ flex: "0 0 auto", fontSize: 14, fontWeight: 800, color: "#1e293b", fontVariantNumeric: "tabular-nums" }}>{g.time}</b>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>🏐 {g.title}</div>
+            <div style={{ fontSize: 11.5, color: "#64748b" }}>{g.sub}{g.hall && g.hall !== "—" ? ` · ${g.hall}` : ""}</div>
+          </div>
+          {g.score && <b style={{ flex: "0 0 auto", fontSize: 14, fontWeight: 900, color: g.won ? "#166534" : "#b91c1c" }}>{g.score}</b>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── מסך הטורניר ────────────────────────────────────────────────────────────
 function ResultPill({ t, results, g }) {
   const s = ourScore(t, results, g);

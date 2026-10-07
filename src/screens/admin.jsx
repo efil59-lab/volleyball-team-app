@@ -11,7 +11,8 @@ import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, ad
 import ReminderCard from "../components/ReminderCard";
 import ThemeToggle from "../components/ThemeToggle";
 import { holidayLabel } from "../lib/holidays";
-import { TournamentAdmin } from "../components/Tournament";
+import { TournamentAdmin, TourDayRows } from "../components/Tournament";
+import { activeTournament, tournamentDay } from "../lib/tournament";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS } from "../lib/images";
@@ -656,7 +657,10 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 }
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
-function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, upd, pc, sc, askConfirm, notify }) {
+function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, tournaments, upd, pc, sc, askConfirm, notify }) {
+  // ימי הטורניר בלוח — המנהלת רואה אותם גם כשהטורניר עדיין בטיוטה
+  const tour = activeTournament();
+  const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
   const [calView, setCalView] = useState("list"); // "list" | "calendar"
@@ -1029,6 +1033,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 const isToday = ds === today;
                 const isSel = ds === calSelected;
                 const hol = holidayLabel(new Date(ds + "T12:00:00"));
+                const td = tour ? tournamentDay(tour, tourState, ds) : null;
                 const marks = [];
                 if (evs.some(e => e.type === "training" && !e.cancelled)) marks.push("🏋️");
                 if (evs.some(e => e.type === "game" && !e.cancelled)) marks.push("🏆");
@@ -1036,10 +1041,10 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                 if (evs.some(e => e.cancelled) && marks.length === 0) marks.push("❌");
                 return (
                   <button key={i} onClick={() => setCalSelected(isSel ? null : ds)}
-                    style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : hol && hol.kind !== "moed" ? "1px solid #bbf7d0" : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : hol ? (hol.kind === "moed" ? "#f8fafc" : "#f0fdf4") : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0, overflow: "hidden" }}>
+                    style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : td ? "1px solid #fbcfe8" : hol && hol.kind !== "moed" ? "1px solid #bbf7d0" : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : td ? "#fff1f3" : hol ? (hol.kind === "moed" ? "#f8fafc" : "#f0fdf4") : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0, overflow: "hidden" }}>
                     <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
                     {hol && <span style={{ fontSize: 8.5, fontWeight: 700, lineHeight: 1.1, color: isToday ? "white" : hol.kind === "moed" ? "#64748b" : "#15803d", maxWidth: "100%", padding: "0 2px", boxSizing: "border-box", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hol.short}</span>}
-                    {marks.length > 0 && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}</span>}
+                    {(marks.length > 0 || td) && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}{td ? (td.games.length ? "🏐" : "☀️") : ""}</span>}
                   </button>
                 );
               })}
@@ -1051,6 +1056,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
               return (
                 <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 10 }}>{formatDate(calSelected)}</div>
+                  {tour && <TourDayRows td={tournamentDay(tour, tourState, calSelected)} />}
                   {(() => { const hol = holidayLabel(new Date(calSelected + "T12:00:00")); return hol ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 10, background: hol.kind === "moed" ? "#f8fafc" : "#f0fdf4", border: `1px solid ${hol.kind === "moed" ? "#e2e8f0" : "#bbf7d0"}`, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
                         <span style={{ fontSize: 20 }}>{hol.kind === "moed" ? "🕯️" : "✡️"}</span>
