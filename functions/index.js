@@ -771,6 +771,10 @@ exports.notifyPlayerActivity = onCall(async (request) => {
   const players = await getTeamValue(teamId, "players", []);
   const me = players.find((p) => Number(p.id) === pid) || {};
   if (me.ghost) return { ok: true, skipped: "ghost" };
+  // מנהלת שנכנסת לחשבון השחקנית שלה (מירי) — בלי התראת כניסה: היא עצמה בין
+  // מקבלות ההתראה, ואין למי לבשר שהמנהלת פתחה את האפליקציה. אישור הגעה שלה
+  // כן נשלח, כמו של כל שחקנית.
+  if (kind === "login" && me.manager) return { ok: true, skipped: "manager" };
 
   const st = await getTeamValue(teamId, "settings", {});
   const on = kind === "login" ? st.pingLogins !== false : st.pingRsvp !== false;
