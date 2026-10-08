@@ -10,6 +10,7 @@ import {
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote, setPlayerManagerRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
 import ThemeToggle from "../components/ThemeToggle";
+import { useTabCarousel, usePhoneLayout } from "../lib/useTabCarousel";
 import { holidayLabel } from "../lib/holidays";
 import { TournamentAdmin, TourDayRows } from "../components/Tournament";
 import { activeTournament, tournamentDay } from "../lib/tournament";
@@ -196,6 +197,11 @@ function AdminOnboarding({ settings, players, upd, pc, sc, isPending, onFinish }
 }
 
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+// רצועת ההחלקה בטלפון: הלשוניות של הסרגל התחתון ואחריהן אלה שב"עוד", באותו
+// סדר (חייב להתאים ל-navItems + navMore שבתוך AdminPanel). קבוע ברמת המודול
+// כי ה-hook של הקרוסלה נקרא מעל ה-early return של אשף ההקמה.
+const ADMIN_SWIPE_TABS = ["attendance", "events", "notifications", "archive", "tournament", "polls", "players", "gallery", "settings"];
+
 function AdminPanel(props) {
   // ראשון בפונקציה: יש כאן early return על אשף ההקמה, ו-useState אחריו הוא
   // "Rendered more hooks than during the previous render" ומסך לבן.
@@ -204,6 +210,9 @@ function AdminPanel(props) {
   // המטריצה אינה בניווט התחתון. אם המסך הצטמצם בזמן שהיא פתוחה, נשארת לשונית
   // בלי כפתור שמוביל אליה — מחזירים לסטטיסטיקה, שהיא המקבילה הניידת שלה.
   useEffect(() => { if (!isDesk && tab === "matrix") setTab("archive"); }, [isDesk, tab]);
+  // קרוסלת הלשוניות (טלפון בלבד) — ראה lib/useTabCarousel. מעל ה-early return.
+  const isPhone = usePhoneLayout() && !isDesk;
+  const car = useTabCarousel({ enabled: isPhone, tab, setTab, tabs: ADMIN_SWIPE_TABS });
   const { pc, sc, onBack, onLogout, teamMeta, askConfirm, settings, players, upd } = props;
   const isPending = (teamMeta?.status || "active") === "pending";
   // שלב 5 — ניסיון: ספירה לאחור ותשלום. המנהלת לא ננעלת; הבנות כן (נאכף ב-App).
@@ -259,11 +268,13 @@ function AdminPanel(props) {
       <button onClick={() => setTab("gallery")}>תמונות</button>
     </>),
   };
-  const tabBody = (
+  // preview = לשונית שכנה שחונה מחוץ למסך. הרכיב נבנה כרגיל, אבל מה שפונה
+  // לשרת ברגע הטעינה (סטטוס ההתראות במסך השחקניות) מדלג כשהוא רק שכן.
+  const renderTabBody = (tab, preview = false) => (
         <div className={"tab-body" + (["matrix","players","attendance","archive"].includes(tab) ? " tab-wide" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {tab === "attendance" && <AdminAttendance {...props} />}
           {tab === "events" && <AdminEvents {...props} />}
-          {tab === "players" && <AdminPlayers {...props} />}
+          {tab === "players" && <AdminPlayers {...props} preview={preview} />}
           {tab === "notifications" && <AdminNotifications {...props} players={props.players} playerProfiles={props.playerProfiles} />}
           {tab === "tournament" && <TournamentAdmin {...props} />}
           {tab === "polls" && <AdminPolls {...props} />}
@@ -273,15 +284,12 @@ function AdminPanel(props) {
           {tab === "settings" && <AdminSettings {...props} />}
         </div>
   );
+  const tabBody = renderTabBody(tab);
 
-  return (
-    <div className={"app-shell" + (isDesk ? " st-app" : "")} style={{ minHeight: "100vh" }}>
-      {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
-          ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
-      {!isDesk && <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
-        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />}
-      {/* מתחת ל-900px display:contents — הפריסה במובייל זהה לחלוטין לקודמתה */}
-      <div className="app-main">
+  // הכותרת הכחולה ובאנרי הסטטוס. בקרוסלה הם חלק מכל מסך (גם מהשכנות), כדי
+  // שלא יישארו במקום בזמן שהתוכן מתחתם זז.
+  const headerBlock = (
+    <>
       {!isDesk && (
       <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "18px 16px 14px", textAlign: "center", position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
@@ -318,6 +326,18 @@ function AdminPanel(props) {
           </span>
         </button>
       )}
+    </>
+  );
+
+  return (
+    <div className={"app-shell" + (isDesk ? " st-app" : "") + (isPhone ? " vb-shell" : "")} style={isPhone ? undefined : { minHeight: "100vh" }} ref={car.shellRef} {...car.shellSwipe}>
+      {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
+          ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
+      {!isDesk && <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
+        pc={pc} teamName={settings && settings.teamName} onHome={onBack} />}
+      {/* מתחת ל-900px display:contents — הפריסה במובייל זהה לחלוטין לקודמתה */}
+      <div className="app-main">
+      {!isPhone && headerBlock}
       {showPayment && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 950, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setShowPayment(false)}>
           <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 380 }}>
@@ -326,7 +346,21 @@ function AdminPanel(props) {
         </div>
       )}
       {!isDesk && <BottomNav items={navItems} moreItems={navMore} active={tab} onChange={setTab} pc={pc} />}
-      {isDesk ? <SiteChrome {...siteProps}>{tabBody}</SiteChrome> : tabBody}
+      {isDesk ? <SiteChrome {...siteProps}>{tabBody}</SiteChrome> : isPhone ? (
+        <div className="vb-pager">
+          <div className="vb-pane" ref={car.paneRef}>{headerBlock}{tabBody}</div>
+          {car.nextTab && (
+            <div className="vb-pane vb-incoming" ref={car.nextRef} data-dir="1" data-tab={car.nextTab} aria-hidden="true">
+              {headerBlock}{renderTabBody(car.nextTab, true)}
+            </div>
+          )}
+          {car.prevTab && (
+            <div className="vb-pane vb-incoming" ref={car.prevRef} data-dir="-1" data-tab={car.prevTab} aria-hidden="true">
+              {headerBlock}{renderTabBody(car.prevTab, true)}
+            </div>
+          )}
+        </div>
+      ) : tabBody}
       </div>
     </div>
   );
@@ -1008,7 +1042,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         const calEvents = (() => { const seen = new Set(); return [...(events || []), ...(archive || [])].filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }); })();
         const dayEvents = ds => calEvents.filter(e => e.date === ds);
         const dayBdays = ds => (players || []).filter(p => { const b = (playerProfiles[p.id] || {}).birthday; return b && monthDay(b) === ds.slice(5); });
-        const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
+        const startAdd = ds => { setNewEv({ type: "training", date: ds, time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true }); setAdding(true); (document.querySelector(".vb-pane:not(.vb-incoming)") || window).scrollTo({ top: 0, behavior: "smooth" }); };
 
         return (
           <div>
@@ -1227,7 +1261,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
 }
 
 // ── ADMIN PLAYERS ─────────────────────────────────────────────────────────────
-function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askConfirm, notify }) {
+function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askConfirm, notify, preview = false }) {
   const isDesk = useIsDesktop();
   const [newName, setNewName] = useState("");
   const [expanded, setExpanded] = useState(null);
@@ -1237,7 +1271,8 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
   // מי הפעילה התראות. נקרא מהשרת (הלקוח לא רואה טוקנים) פעם אחת בפתיחת הלשונית.
   // null = עדיין נטען; אז לא מציגים "בלי התראות" כדי לא להאשים בטעות.
   const [pushBy, setPushBy] = useState(null);
-  useEffect(() => { adminPushStatusRemote().then(r => setPushBy(r ? (r.byPlayer || {}) : {})); }, []);
+  // preview = הלשונית בנויה כשכנה בקרוסלה ולא מוצגת: בלי קריאה לשרת
+  useEffect(() => { if (preview) return; adminPushStatusRemote().then(r => setPushBy(r ? (r.byPlayer || {}) : {})); }, []);
   const noPush = pushBy ? rosterOf(players).filter(p => !pushBy[String(p.id)]) : [];
 
   async function handlePhoto(id, e) {
@@ -1305,7 +1340,8 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
     const need = r.bottom - (window.innerHeight - NAV);
     if (need <= 0) return;
     const maxUp = Math.max(0, r.top - 12);
-    window.scrollBy({ top: Math.min(need, maxUp), behavior: "smooth" });
+    // בקרוסלה (טלפון) החלון לא נגלל — גוללים את המסך הפנימי
+    (document.querySelector(".vb-pane:not(.vb-incoming)") || window).scrollBy({ top: Math.min(need, maxUp), behavior: "smooth" });
   }, [expanded]);
 
   function startEdit(p) {
