@@ -1018,9 +1018,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   );
 
   // ── חיווט הקרוסלה ─────────────────────────────────────────────────────────
-  // הרצועה היא הלשוניות של הסרגל התחתון, כטבעת (אחרי האחרונה חוזרים לראשונה).
-  // לשונית מתוך "עוד" (סקר, תמונות, אודות) אינה ברצועה — שם אין החלקה.
-  const swipeTabs = navItems.map(i => i.key);
+  // הרצועה: הלשוניות של הסרגל התחתון ואחריהן אלה שבתפריט "עוד", באותו סדר —
+  // כטבעת (אחרי האחרונה חוזרים לראשונה). אפי, 8.10.26: "למה לא להמשיך את
+  // הגלילה גם לתפריט המוסתר?"
+  const swipeTabs = [...navItems, ...navMore].map(i => i.key);
   const tabIndex = isPhone ? swipeTabs.indexOf(tab) : -1;
   const tabIndexRef = useRef(tabIndex);
   tabIndexRef.current = tabIndex;
