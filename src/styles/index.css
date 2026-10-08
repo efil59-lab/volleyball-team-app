@@ -129,3 +129,46 @@ textarea {
     margin-inline-start: auto;
   }
 }
+
+/* ── קרוסלת הלשוניות במסך השחקנית (טלפון בלבד) ──────────────────────────────
+   במתכונת גול־טיים / MyTV. המחלקות האלה מופיעות רק כש-isPhone (player.jsx),
+   כך שבטאבלט ובמחשב שום כלל כאן לא חל.
+
+   .vb-shell — המסך בגובה קבוע והחלון עצמו לא נגלל; .vb-pane הוא שגולל.
+     עם גלילת חלון, איפוס הגלילה במעבר לשונית מחזיר את שורת הכתובת של כרום,
+     שמשנה באמת את גובה המסך באמצע המעבר — ושום תזמון לא מתקן את זה.
+   .vb-pager — overflow: clip ולא hidden: hidden הוא עדיין מיכל שקוד יכול לגלול
+     (scrollIntoView גולל כל אב), והעמוד היה נעצר חצי בחוץ עם השכנה בפנים.
+   בלי transform או will-change קבועים על .vb-pane: שניהם הופכים אותו למיכל של
+     position: fixed, והחלונות הקופצים שבתוך הלשוניות היו נצמדים למסך הנגלל
+     במקום לחלון. ה-transform נכתב רק בזמן הגרירה (lib/swipe.js). */
+.vb-shell {
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden; overflow: clip;
+  touch-action: pan-y;
+}
+.vb-pager {
+  position: relative; flex: 1; min-height: 0;
+  overflow: hidden; overflow: clip;
+  touch-action: pan-y;
+}
+.vb-pane {
+  height: 100%;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* בלי overscroll-behavior: contain (שיש בגול־טיים): כאן משיכה למטה בראש המסך
+     חייבת להמשיך לעבוד כמשיכה-לרענון של הדפדפן — כך הבנות מרעננות את האפליקציה. */
+  scrollbar-width: none;
+  background: var(--color-bg);
+  backface-visibility: hidden;
+}
+.vb-pane::-webkit-scrollbar { display: none; }
+/* השכנות: מונחות על כל המסך, חונות מחוץ לו, ולא מקבלות מגע */
+.vb-pane.vb-incoming {
+  position: absolute; inset: 0;
+  overflow: hidden; overflow: clip;
+  pointer-events: none; z-index: 2;
+}
+.vb-pane.vb-incoming[data-dir="1"] { transform: translate3d(-100%, 0, 0); }
+.vb-pane.vb-incoming[data-dir="-1"] { transform: translate3d(100%, 0, 0); }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { db, storage, auth } from "../firebase";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -17,16 +17,58 @@ import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
+import { createPager, tabAfterSettle } from "../lib/swipe";
 import { holidayLabel } from "../lib/holidays";
 import { TournamentCard, TournamentScreen, TourDayRows } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase, tournamentDay } from "../lib/tournament";
 import ReminderCard from "../components/ReminderCard";
 import Confetti from "../components/Confetti";
 
+// טלפון = כל מה שאינו פריסת הטאבלט/מחשב של index.css (720×640 ומעלה, שם יש
+// סרגל צד במקום הסרגל התחתון). הקרוסלה קיימת רק בטלפון.
+const CAROUSEL_FOR_ALL = false;
+function usePhoneLayout() {
+  const Q = "(min-width: 720px) and (min-height: 640px)";
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(Q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(Q);
+    const h = () => setWide(m.matches);
+    m.addEventListener("change", h);
+    return () => m.removeEventListener("change", h);
+  }, []);
+  return !wide;
+}
+
 // ── PLAYER SCREEN ─────────────────────────────────────────────────────────────
 function PlayerScreen({ player, events, attendance, players, notifications, games, gallery, playerProfiles, settings, applause, polls, personalNotifs, archive, chat, tournaments, upd, pc, sc, askConfirm, onBack, onLogout, onAdmin, notify, addChatLocal }) {
   // מעל כל early return: useState אחרי return מותנה = "Rendered more hooks" ומסך לבן.
   const isDesk = useIsDesktop();
+  // ── קרוסלת הלשוניות (טלפון בלבד) ─────────────────────────────────────────
+  // במתכונת גול־טיים: המסך בגובה קבוע ורק התוכן שבתוכו נגלל, ושתי הלשוניות
+  // השכנות בנויות מראש וחונות מחוץ למסך — כך שנעילת המחווה לא מרנדרת כלום,
+  // רק מזיזה שכבה שכבר קיימת. בטאבלט (סרגל צד) ובמחשב אין קרוסלה.
+  // שלב בדיקה (8.10.26): הקרוסלה פתוחה רק לחשבון הבדיקה, עד שאפי מאשר אותה
+  // בטלפון אמיתי — הרגשת ההחלקה, המקלדת בצ'אט ומשיכה-לרענון לא ניתנות לאימות
+  // בדפדפן של המחשב. כדי לפתוח לכולן: CAROUSEL_FOR_ALL = true.
+  const carouselOn = CAROUSEL_FOR_ALL || !!player.ghost;
+  const isPhone = usePhoneLayout() && !isDesk && carouselOn;
+  // המסך בגובה קבוע, ולכן כשהמקלדת נפתחת הוא צריך להתכווץ איתה (אחרת שדה
+  // ההקלדה בצ'אט נשאר מאחוריה). חל רק כשהקרוסלה פעילה, ומוחזר ביציאה.
+  useEffect(() => {
+    if (!isPhone) return;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const before = meta.getAttribute("content") || "";
+    if (!before.includes("interactive-widget")) meta.setAttribute("content", before + ", interactive-widget=resizes-content");
+    return () => meta.setAttribute("content", before);
+  }, [isPhone]);
+  const shellRef = useRef(null);
+  const paneRef = useRef(null);
+  const nextRef = useRef(null);
+  const prevRef = useRef(null);
+  const incomingRef = useRef(null);   // השכנה שבמשחק כרגע
+  const gestureRef = useRef(null);
+  const paintRef = useRef(null);
   const [openTab] = useState(() => {
     try { const v = sessionStorage.getItem("openTab"); if (v) sessionStorage.removeItem("openTab"); return v; }
     catch { return null; }
@@ -343,6 +385,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       if (chatEndRef.current) {
         const list = chatEndRef.current.parentElement;
         if (isDesk && list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+        // בטלפון (קרוסלה): המסך בגובה קבוע ושדה ההקלדה כבר נראה, אז גוללים רק את
+        // רשימת ההודעות — מיידית, כדי שהלשונית תיפתח כבר על ההודעה האחרונה.
+        else if (isPhone && list) list.scrollTop = list.scrollHeight;
         else chatEndRef.current.scrollIntoView({ behavior: "smooth" });
       }
       const latest = (chat && chat.length) ? Math.max(...chat.map(m => m.ts || 0)) : 0;
@@ -454,7 +499,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       onProfile={openProfileEditor}
     />
   );
-  const tabBody = (
+  // גוף לשונית כפונקציה של הלשונית: אותו JSX משמש גם את המסך הנוכחי וגם את
+  // השכנות בקרוסלה. preview = שכנה שחונה מחוץ למסך: בלי refs (שכנה הייתה
+  // "גונבת" את ההפניה לרשימת הצ'אט מהמסך החי), בלי חלונות קופצים ובלי רכיבים
+  // שעושים משהו ברגע שהם עולים (ReminderCard מרענן את טוקן ההתראות).
+  const renderTabBody = (tab, preview = false) => (
         <div className={"tab-body" + (isDesk && (tab === "calendar" || tab === "tournament") ? " tab-cal" : "")} style={{ padding: "16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom))" }}>
           {/* ── EVENT TAB ── */}
           {tab === "event" && (
@@ -549,7 +598,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                         <div style={{ marginTop: 12, textAlign: "right" }}>
                           <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
                             placeholder='הוסיפי הערה... (למשל: "מאחרת")'
-                            style={{ ...S.input, marginBottom: 6 }} autoFocus />
+                            style={{ ...S.input, marginBottom: 6 }} autoFocus={!preview} />
                           <div style={{ display: "flex", gap: 8 }}>
                             <button onClick={saveNote} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור הערה</button>
                             <button onClick={() => setShowNoteFor(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>דלג</button>
@@ -578,7 +627,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                         <div style={{ textAlign: "right" }}>
                           <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
                             placeholder='הוסיפי הערה (אופציונלי)...'
-                            style={{ ...S.input, marginBottom: 6 }} autoFocus />
+                            style={{ ...S.input, marginBottom: 6 }} autoFocus={!preview} />
                           <div style={{ display: "flex", gap: 8 }}>
                             <button onClick={saveNote} style={{ flex: 1, padding: 10, background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>שמור</button>
                             <button onClick={() => setShowNoteFor(null)} style={{ flex: 1, padding: 10, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer" }}>דלג</button>
@@ -618,7 +667,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               )}
 
               {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
-              {!isViewer && <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />}
+              {!isViewer && !preview && <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />}
 
               {/* 📊 Personal stats — based on archived (verified) events only.
                   לצופה אין: היא אינה מסמנת נוכחות, וכל המספרים היו אפס —
@@ -789,7 +838,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 </div>
                 <p style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 8 }}>טיפ: לחצי על סוג כדי לראות את כל האירועים מאותו סוג.</p>
 
-                {legendKind && (
+                {legendKind && !preview && (
                   <LegendEventsModal kind={legendKind} events={events} archive={archive} players={players} playerProfiles={playerProfiles} pc={pc} onClose={() => setLegendKind(null)} />
                 )}
               </div>
@@ -814,7 +863,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     </div>
                   );
                 })}
-                <div ref={chatEndRef} />
+                <div ref={preview ? undefined : chatEndRef} />
               </div>
               <div style={{ display: "flex", gap: 8, paddingTop: 8, borderTop: "1px solid #eef2f7" }}>
                 <input value={chatText} onChange={e => setChatText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendChat(); }} placeholder="הקלידי הודעה..." style={{ ...S.input, margin: 0, flex: 1 }} />
@@ -875,7 +924,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: pc, margin: 0 }}>📸 תמונות מהמשחק</h3>
                 {!isViewer && <label style={{ background: galleryUploading ? "#94a3b8" : pc, color: "white", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: galleryUploading ? "default" : "pointer", opacity: galleryUploading ? 0.85 : 1 }}>
                   {galleryUploading ? "מעלה..." : "+ העלי תמונה"}
-                  <input ref={galleryRef} type="file" accept="image/*" onChange={uploadGallery} disabled={galleryUploading} style={{ display: "none" }} />
+                  <input ref={preview ? undefined : galleryRef} type="file" accept="image/*" onChange={uploadGallery} disabled={galleryUploading} style={{ display: "none" }} />
                 </label>}
               </div>
               {!isViewer && <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 4px" }}>נא להעלות כאן רק תמונות מהמשחקים והאימונים של הקבוצה 🏐</p>}
@@ -928,9 +977,132 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           )}
         </div>
   );
+  const tabBody = renderTabBody(tab);
+
+  // הכותרת הכחולה (תמונה, שלום, עריכת פרופיל). בקרוסלה היא נוסעת בתוך כל מסך:
+  // כותרת מחוץ לדפדוף הייתה נשארת במקום בזמן שהתוכן מתחתיה זז, וקופצת בנחיתה.
+  const renderHeader = (preview = false) => (
+      <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
+        <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
+        <button onClick={() => { rememberOnly(null); onLogout ? onLogout() : onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
+        <ThemeToggle style={{ position: "absolute", left: 14, top: 54 }} />
+        <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
+          {prof.photo
+            ? <img src={prof.photo} style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
+            : <div style={{ width: 68, height: 68, borderRadius: "50%", background: sc, color: pc, fontSize: 26, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid white", margin: "0 auto" }}>{player.name[0]}</div>
+          }
+          <button onClick={() => !profilePhotoUploading && photoRef.current.click()} style={{ position: "absolute", bottom: 0, left: -2, background: sc, border: "2px solid white", borderRadius: "50%", width: 24, height: 24, cursor: profilePhotoUploading ? "default" : "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{profilePhotoUploading ? "⏳" : "📷"}</button>
+          <input ref={preview ? undefined : photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
+        </div>
+        <h2 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: 0 }}>שלום, {player.name}! 👋</h2>
+        {myApplauseCount > 0 && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "4px 12px", marginTop: 8 }}>
+            <span style={{ fontSize: 14 }}>👏</span>
+            <span style={{ color: "white", fontSize: 12, fontWeight: 700 }}>{myApplauseCount} מחיאות כפיים החודש</span>
+          </div>
+        )}
+        <div>
+          <button onClick={() => { setEditPhone(prof.phone||""); setEditEmail(prof.email||""); setEditWhatsapp(prof.whatsapp||""); setEditBirthday(prof.birthday||""); setEditProfile(true); }}
+            style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginTop: 8 }}>
+            ✏️ עריכת פרופיל
+          </button>
+          {isManager && (
+            <button onClick={onAdmin}
+              style={{ background: sc, border: "none", color: pc, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, fontWeight: 800, marginTop: 8, marginInlineStart: 8 }}>
+              🔐 פאנל ניהול
+            </button>
+          )}
+        </div>
+      </div>
+  );
+
+  // ── חיווט הקרוסלה ─────────────────────────────────────────────────────────
+  // הרצועה היא הלשוניות של הסרגל התחתון, כטבעת (אחרי האחרונה חוזרים לראשונה).
+  // לשונית מתוך "עוד" (סקר, תמונות, אודות) אינה ברצועה — שם אין החלקה.
+  const swipeTabs = navItems.map(i => i.key);
+  const tabIndex = isPhone ? swipeTabs.indexOf(tab) : -1;
+  const tabIndexRef = useRef(tabIndex);
+  tabIndexRef.current = tabIndex;
+  const swipeTabsRef = useRef(swipeTabs);
+  swipeTabsRef.current = swipeTabs;
+  const pager = createPager({
+    paneRef, incomingRef, gestureRef, paintRef,
+    canNext: () => tabIndexRef.current >= 0,
+    canPrev: () => tabIndexRef.current >= 0,
+    // בלי setState: השכנה כבר קיימת, ונעילת המחווה רק מכוונת את המנוע אליה.
+    onDragStart: (dir) => {
+      const el = dir > 0 ? nextRef.current : prevRef.current;
+      const other = dir > 0 ? prevRef.current : nextRef.current;
+      // האצבע חזרה מעבר לנקודת ההתחלה: הצד השני חוזר למקום החניה שלו
+      if (other && other.style.transform) { other.style.transition = ""; other.style.transform = ""; }
+      // שכנה שעוד בנויה ללשונית אחרת (מיד אחרי נחיתה) לא נכנסת
+      const want = tabAfterSettle(swipeTabsRef.current, tabIndexRef.current, dir);
+      incomingRef.current = el && el.dataset.tab === want ? el : null;
+    },
+    onSettle: (committed) => {
+      const target = tabAfterSettle(swipeTabsRef.current, tabIndexRef.current, committed);
+      if (target) setTab(target); else pager.snapBack();
+    },
+  });
+  const nextTab = tabAfterSettle(swipeTabs, tabIndex, 1);
+  const prevTab = tabAfterSettle(swipeTabs, tabIndex, -1);
+
+  // החלקה הצידה אסור שתהיה גלילה של הדפדפן. React מאזין ל-touchmove באופן
+  // פסיבי, ולכן כרום פותח מחווה משלו ו"זריקה" בשחרור — ולחיצה מיד אחרי החלקה
+  // נבלעת ("הכפתור עובד רק בלחיצה השנייה", נמדד בגול־טיים). מאזין אחד, לא פסיבי,
+  // תופס את התנועה ברגע שהיא אופקית. גלילה אנכית לא מושפעת.
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el || !isPhone) return;
+    const onMove = (e) => {
+      const st = gestureRef.current;
+      if (!st || st.canceled || !e.cancelable || !e.touches || !e.touches.length) return;
+      if (st.horizontal) { e.preventDefault(); return; }
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - st.x) > Math.abs(t.clientY - st.y)) e.preventDefault();
+    };
+    el.addEventListener("touchmove", onMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onMove);
+  }, [isPhone]);
+
+  // מגע שהתחיל על חלון קופץ או על הסרגל התחתון (position: fixed) אינו דפדוף:
+  // חלון שפתוח מעל המסך לא אמור לזוז איתו.
+  const onFixed = (target) => {
+    for (let el = target; el && el !== shellRef.current; el = el.parentElement) {
+      if (el.nodeType === 1 && getComputedStyle(el).position === "fixed") return true;
+    }
+    return false;
+  };
+  const shellSwipe = tabIndex >= 0
+    ? {
+        onTouchStart: (e) => { if (onFixed(e.target)) { gestureRef.current = null; return; } pager.onTouchStart(e); },
+        onTouchMove: pager.onTouchMove, onTouchEnd: pager.onTouchEnd, onTouchCancel: pager.onTouchCancel,
+      }
+    : {};
+
+  // מקום אחד שמאפס את התצוגה אחרי מעבר לשונית: אחרי עדכון ה-DOM ולפני הציור,
+  // כך שהפריים הראשון של הלשונית החדשה כבר במקומו (בלי פריים של המסך הישן
+  // בחזרה במרכז, ובלי קפיצת גלילה).
+  useLayoutEffect(() => {
+    const el = paneRef.current;
+    if (el && el.style.transform) { el.style.transition = "none"; el.style.transform = ""; }
+    if (el) el.scrollTop = 0;
+    for (const nb of [nextRef.current, prevRef.current]) if (nb && nb.style.transform) { nb.style.transition = ""; nb.style.transform = ""; }
+    incomingRef.current = null;
+    paintRef.current = null;
+  }, [tab]);
+
+  // הצ'אט כשכנה: הרשימה שלו גלולה לסוף כמו שתהיה אחרי הנחיתה. בלי זה השכנה
+  // נכנסת עם תחילת השיחה, ובנחיתה התוכן קופץ להודעה האחרונה.
+  useLayoutEffect(() => {
+    for (const nb of [nextRef.current, prevRef.current]) {
+      const list = nb && nb.querySelector(".st-chatbox > div");
+      if (list) list.scrollTop = list.scrollHeight;
+    }
+  }, [tab, chat, isPhone]);
 
   return (
-    <div className={"app-shell" + (isDesk ? " st-app" : "")} style={{ minHeight: "100vh" }}>
+    <div className={"app-shell" + (isDesk ? " st-app" : "") + (isPhone ? " vb-shell" : "")} style={isPhone ? undefined : { minHeight: "100vh" }} ref={shellRef} {...shellSwipe}>
       {/* דסקטופ בלבד (≥900px): הניווט התחתון הופך לסרגל צד ימני.
           ילד ראשון + פריסת שורה ב-RTL = הסרגל יושב מימין. במובייל הוא מוסתר. */}
       {!isDesk && <SideRail items={navItems} moreItems={navMore} active={tab} onChange={setTab}
@@ -990,40 +1162,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           </div>
         );
       })()}
-      {!isDesk && (
-      <div style={{ background: `linear-gradient(160deg, ${pc}, ${pc}bb)`, padding: "20px 16px 28px", textAlign: "center", position: "relative" }}>
-        <button onClick={onBack} style={{ position: "absolute", right: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>← חזור</button>
-        <button onClick={() => { rememberOnly(null); onLogout ? onLogout() : onBack(); }} style={{ position: "absolute", left: 14, top: 14, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 }}>🔓 התנתקי</button>
-        <ThemeToggle style={{ position: "absolute", left: 14, top: 54 }} />
-        <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
-          {prof.photo
-            ? <img src={prof.photo} style={{ width: 68, height: 68, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sc}` }} />
-            : <div style={{ width: 68, height: 68, borderRadius: "50%", background: sc, color: pc, fontSize: 26, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid white", margin: "0 auto" }}>{player.name[0]}</div>
-          }
-          <button onClick={() => !profilePhotoUploading && photoRef.current.click()} style={{ position: "absolute", bottom: 0, left: -2, background: sc, border: "2px solid white", borderRadius: "50%", width: 24, height: 24, cursor: profilePhotoUploading ? "default" : "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{profilePhotoUploading ? "⏳" : "📷"}</button>
-          <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
-        </div>
-        <h2 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: 0 }}>שלום, {player.name}! 👋</h2>
-        {myApplauseCount > 0 && (
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "4px 12px", marginTop: 8 }}>
-            <span style={{ fontSize: 14 }}>👏</span>
-            <span style={{ color: "white", fontSize: 12, fontWeight: 700 }}>{myApplauseCount} מחיאות כפיים החודש</span>
-          </div>
-        )}
-        <div>
-          <button onClick={() => { setEditPhone(prof.phone||""); setEditEmail(prof.email||""); setEditWhatsapp(prof.whatsapp||""); setEditBirthday(prof.birthday||""); setEditProfile(true); }}
-            style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginTop: 8 }}>
-            ✏️ עריכת פרופיל
-          </button>
-          {isManager && (
-            <button onClick={onAdmin}
-              style={{ background: sc, border: "none", color: pc, borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontSize: 12, fontWeight: 800, marginTop: 8, marginInlineStart: 8 }}>
-              🔐 פאנל ניהול
-            </button>
-          )}
-        </div>
-      </div>
-      )}
+      {!isDesk && !isPhone && renderHeader()}
 
       {/* Edit profile modal */}
       {editProfile && (
@@ -1063,7 +1202,21 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
       {isDesk
         ? <SiteChrome {...siteProps}>{deskHome ? deskHomeBody : tabBody}</SiteChrome>
-        : tabBody}
+        : isPhone ? (
+          <div className="vb-pager">
+            <div className="vb-pane" ref={paneRef}>{renderHeader()}{tabBody}</div>
+            {nextTab && (
+              <div className="vb-pane vb-incoming" ref={nextRef} data-dir="1" data-tab={nextTab} aria-hidden="true">
+                {renderHeader(true)}{renderTabBody(nextTab, true)}
+              </div>
+            )}
+            {prevTab && (
+              <div className="vb-pane vb-incoming" ref={prevRef} data-dir="-1" data-tab={prevTab} aria-hidden="true">
+                {renderHeader(true)}{renderTabBody(prevTab, true)}
+              </div>
+            )}
+          </div>
+        ) : tabBody}
 
       {attModal && nextEvent && (
         <AttModal
