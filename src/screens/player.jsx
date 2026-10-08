@@ -26,7 +26,8 @@ import Confetti from "../components/Confetti";
 
 // טלפון = כל מה שאינו פריסת הטאבלט/מחשב של index.css (720×640 ומעלה, שם יש
 // סרגל צד במקום הסרגל התחתון). הקרוסלה קיימת רק בטלפון.
-const CAROUSEL_FOR_ALL = false;
+// אפי אישר בטלפון (8.10.26: "נראה שעובד חלק וטוב") — פתוח לכולן.
+const CAROUSEL_FOR_ALL = true;
 function usePhoneLayout() {
   const Q = "(min-width: 720px) and (min-height: 640px)";
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(Q).matches);
