@@ -671,10 +671,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
               {!isViewer && !preview && <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />}
 
-              {/* הזמנה ל"המטבח שלי". כאן ולא רק בדף הבית: שחקנית שהמכשיר זוכר
-                  נכנסת ישר למסך הזה ואת דף הבית לא רואה בכלל. */}
-              {!isDesk && <div style={{ marginBottom: 14 }}><KitchenBanner /></div>}
-
               {/* 📊 Personal stats — based on archived (verified) events only.
                   לצופה אין: היא אינה מסמנת נוכחות, וכל המספרים היו אפס —
                   לא "עדיין אין נתונים" אלא מדד שלא חל עליה. */}
@@ -715,6 +711,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       </Collapsible>
                     );
                   })()}
+
+              {/* הזמנה ל"המטבח שלי" — אחרון במסך, מתחת לסטטיסטיקה (אפי, 10.10.26).
+                  כאן ולא רק בדף הבית: שחקנית שהמכשיר זוכר נכנסת ישר למסך הזה. */}
+              {!isDesk && <div style={{ marginTop: 14 }}><KitchenBanner /></div>}
             </>
           )}
 
