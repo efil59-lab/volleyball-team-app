@@ -10,6 +10,7 @@ import {
   setTeamPaid, extendTrial, setTeamPromoHidden,
   adminDeleteTeamRemote, adminResetTeamActivityRemote,
   superAdminChatList, superAdminChatDelete,
+  superAdminFeedbackList, superAdminFeedbackDelete,
 } from "../lib/db";
 import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
 
@@ -59,6 +60,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [errors, setErrors] = useState(null);     // לוג שגיאות (null = טוען)
   const [errBusy, setErrBusy] = useState(false);
   const [expandedErr, setExpandedErr] = useState(null);
+  const [feedback, setFeedback] = useState(null);   // משוב מהמשתמשות (null = טוען)
+  const [fbConfirm, setFbConfirm] = useState(null); // המשוב שעומד להימחק
+  const [fbBusy, setFbBusy] = useState(false);
 
   // יוצר קבוצה ריקה + הזמנה למייל. משותף ל"כלי ידני" ול"אישור בקשה".
   async function createTeamForEmail(email) {
@@ -140,6 +144,20 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     } catch (e) { setChatErr(e.message || "המחיקה נכשלה"); }
     setChatBusy(null);
   }
+  async function refreshFeedback() {
+    try { setFeedback(await superAdminFeedbackList()); } catch { setFeedback([]); }
+  }
+  async function deleteFeedback() {
+    const f = fbConfirm;
+    if (!f) return;
+    setFbBusy(true);
+    try {
+      await superAdminFeedbackDelete(f.id);
+      setFeedback(list => (list || []).filter(x => x.id !== f.id));
+      setFbConfirm(null);
+    } catch {}
+    setFbBusy(false);
+  }
   async function refreshErrors() {
     setErrBusy(true);
     setErrors(await loadErrorLogs(100));
@@ -151,7 +169,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     setErrors([]);
     setErrBusy(false);
   }
-  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); refreshErrors(); } }, [isOwner]);
+  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); refreshErrors(); refreshFeedback(); } }, [isOwner]);
 
   async function act(teamId, status) {
     setBusyId(teamId);
@@ -226,6 +244,49 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
         </a>
+
+        {/* ── משוב מהמשתמשות — נשלח מ"אודות", נקרא רק כאן ── */}
+        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 20 }}>💬</span>
+            <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14 }}>משוב מהמשתמשות{feedback ? ` (${feedback.length})` : ""}</span>
+            <button onClick={refreshFeedback} style={{ marginRight: "auto", background: "transparent", border: "none", color: pc, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>↻ רענן</button>
+          </div>
+          {feedback === null && <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>טוען…</p>}
+          {feedback && feedback.length === 0 && <p style={{ fontSize: 12.5, color: "#94a3b8", margin: 0, fontWeight: 600 }}>עוד לא התקבל משוב</p>}
+          {feedback && feedback.map(f => (
+            <div key={f.id} style={{ borderTop: "1px solid #f1f5f9", paddingTop: 9, marginTop: 9 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: "#f59e0b", fontSize: 15, letterSpacing: 1 }}>{"★".repeat(f.rating || 0)}<span style={{ color: "#cbd5e1" }}>{"☆".repeat(5 - (f.rating || 0))}</span></span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "#1e293b" }}>{f.name || "בלי שם"}</span>
+                <button onClick={() => setFbConfirm(f)} title="מחיקת המשוב" aria-label="מחיקת המשוב"
+                  style={{ marginRight: "auto", background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, padding: "4px 9px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>🗑️</button>
+              </div>
+              {f.text && <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.7, marginTop: 5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{f.text}</div>}
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <span>{f.teamId || "—"}</span>
+                <span>· {deviceOf(f.ua)}</span>
+                <span>· {agoOf(f.ts)}</span>
+                {f.anon && <span style={{ color: "#cbd5e1" }}>· אורחת</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* אזהרה לפני מחיקה: משוב נמחק לתמיד ואין לו גיבוי */}
+        {fbConfirm && (
+          <div onClick={() => !fbBusy && setFbConfirm(null)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(10,15,45,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: 20, width: "100%", maxWidth: 360, textAlign: "center", boxShadow: "0 12px 40px rgba(10,15,45,0.35)" }}>
+              <div style={{ fontSize: 34 }}>🗑️</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#1e293b", marginTop: 6 }}>למחוק את המשוב?</div>
+              <div style={{ fontSize: 13, color: "#64748b", marginTop: 6, lineHeight: 1.6 }}>הפעולה אינה הפיכה — למשוב אין גיבוי, והוא לא יופיע כאן שוב.</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <button onClick={() => setFbConfirm(null)} disabled={fbBusy} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid #e2e8f0", background: "white", color: "#1e293b", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>ביטול</button>
+                <button onClick={deleteFeedback} disabled={fbBusy} style={{ flex: 1, padding: 11, borderRadius: 10, border: "none", background: "#ef4444", color: "white", fontWeight: 800, fontSize: 14, cursor: fbBusy ? "default" : "pointer", opacity: fbBusy ? 0.6 : 1 }}>{fbBusy ? "מוחק…" : "מחיקה"}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── לוג שגיאות (ניטור) — רק הסופר-אדמין רואה ── */}
         <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: errors && errors.length > 0 ? "2px solid #ef4444" : "1px solid #e2e8f0" }}>

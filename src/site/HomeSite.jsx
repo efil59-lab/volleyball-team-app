@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
+import KitchenBanner from "../components/KitchenBanner";
 import { Brand, Court, TallyBoard, WhoGroups } from "./Site";
 import ThemeToggle from "../components/ThemeToggle";
 import "./site.css";
@@ -188,6 +189,7 @@ export default function HomeSite({
                   <span><b>הצ׳אט הקבוצתי</b><span>מה מתחדש אצל הבנות</span></span>
                 </button>
               </div>
+              {!settings.hidePromoBanner && <div style={{ maxWidth: 520 }}><KitchenBanner /></div>}
             </>
           ) : (
             <section className="st-p-card">

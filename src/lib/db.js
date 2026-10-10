@@ -249,6 +249,20 @@ const callResetActivityFn = httpsCallable(functions, "adminResetTeamActivity");
 const callSuperAdminChatFn = httpsCallable(functions, "superAdminChat");
 const callPushStatusFn = httpsCallable(functions, "adminPushStatus");
 const callSetManagerFn = httpsCallable(functions, "adminSetPlayerManager");
+const callSendFeedbackFn = httpsCallable(functions, "sendFeedback");
+const callSuperFeedbackFn = httpsCallable(functions, "superAdminFeedback");
+// Feedback from the About screen. Throws on failure — the form shows the error
+// and lets her try again (unlike the notify* calls, this one IS the action).
+async function sendFeedbackRemote({ rating, text, name }) {
+  await callSendFeedbackFn({ rating, text, name, teamId: CURRENT_TEAM, ua: navigator.userAgent });
+}
+async function superAdminFeedbackList() {
+  const res = await callSuperFeedbackFn({ op: "list" });
+  return (res.data && res.data.items) || [];
+}
+async function superAdminFeedbackDelete(id) {
+  await callSuperFeedbackFn({ op: "delete", id });
+}
 // הרשאת ניהול לחשבון השחקנית (כפתור "פאנל ניהול" במסך האישי שלה).
 // מחזיר { ok } או { ok:false, error } עם הנימוק מהשרת.
 async function setPlayerManagerRemote(playerId, on) {
@@ -528,6 +542,7 @@ export {
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote, testPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
   superAdminChatList, superAdminChatDelete, adminPushStatusRemote, setPlayerManagerRemote,
+  sendFeedbackRemote, superAdminFeedbackList, superAdminFeedbackDelete,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,

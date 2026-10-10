@@ -292,6 +292,74 @@ exports.superAdminChat = onCall(async (request) => {
 
   throw new HttpsError("invalid-argument", "op לא חוקי");
 });
+// ── משוב מהמשתמשות ───────────────────────────────────────────────────────────
+// נשלח מכרטיס המשוב שב"אודות". נשמר באוסף גלובלי feedback שרק ה-Admin SDK נוגע
+// בו (אין לו כלל Firestore, כלומר חסום מהלקוח), ונקרא רק בפאנל של בעל המוצר.
+// הפונקציה פתוחה גם למי שלא התחברה (אודות נגיש ממסך הבית), ולכן שני שומרים:
+// אורכים מוגבלים ותקרה יומית.
+const FEEDBACK_CAP = 40; // ליום, לכל הקבוצות יחד
+
+exports.sendFeedback = onCall(async (request) => {
+  const d = request.data || {};
+  const rating = Math.round(Number(d.rating));
+  if (!(rating >= 1 && rating <= 5)) throw new HttpsError("invalid-argument", "חסר דירוג");
+  const text = String(d.text || "").trim().slice(0, 1000);
+  const name = String(d.name || "").trim().slice(0, 60);
+  const teamId = SAFE_ID.test(String(d.teamId || "")) ? String(d.teamId).slice(0, 40) : "";
+  const ua = String(d.ua || "").slice(0, 200);
+
+  const day = ilDate(0);
+  const capRef = db.doc("feedbackMeta/cap");
+  const over = await db.runTransaction(async (tx) => {
+    const cur = (await tx.get(capRef)).data() || {};
+    const used = cur.day === day ? Number(cur.count || 0) : 0;
+    if (used >= FEEDBACK_CAP) return true;
+    tx.set(capRef, { day, count: used + 1 });
+    return false;
+  });
+  if (over) throw new HttpsError("resource-exhausted", "יותר מדי משובים היום");
+
+  const ts = Date.now();
+  await db.collection("feedback").add({ rating, text, name, teamId, ua, ts, anon: !request.auth || !request.auth.token.email });
+
+  // מייל לבעל המוצר — אחרי שהמשוב כבר שמור, כך שמייל שנכשל לא מבליע אותו
+  try {
+    const key = process.env.RESEND_API_KEY;
+    if (key) {
+      const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          from: "Volleyball App <onboarding@resend.dev>",
+          to: [SUPER_ADMIN_EMAIL],
+          subject: `💬 משוב חדש ${stars}`,
+          html: `<div dir="rtl" style="font-family:Arial"><h2>${stars}</h2><p style="white-space:pre-wrap">${escapeHtml(text) || "(בלי טקסט)"}</p><p>${escapeHtml(name) || "בלי שם"} · ${escapeHtml(teamId) || "—"}</p></div>`,
+        }),
+      });
+    }
+  } catch (e) { console.error("sendFeedback mail:", e); }
+  console.log("sendFeedback:", teamId || "-", rating);
+  return { ok: true };
+});
+
+// קריאה ומחיקה של משוב — בעל המוצר בלבד
+exports.superAdminFeedback = onCall(async (request) => {
+  const email = ((request.auth && request.auth.token && request.auth.token.email) || "").toLowerCase();
+  if (email !== SUPER_ADMIN_EMAIL) throw new HttpsError("permission-denied", "מותר לבעל המוצר בלבד");
+  const { op, id } = request.data || {};
+  if (op === "list") {
+    const snap = await db.collection("feedback").orderBy("ts", "desc").limit(100).get();
+    return { ok: true, items: snap.docs.map((x) => ({ id: x.id, ...x.data() })) };
+  }
+  if (op === "delete") {
+    if (!id || !SAFE_ID.test(String(id))) throw new HttpsError("invalid-argument", "id לא חוקי");
+    await db.doc(`feedback/${id}`).delete();
+    return { ok: true };
+  }
+  throw new HttpsError("invalid-argument", "op לא חוקי");
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // שלב 4 — תזכורות אמיתיות (Web Push) + מייל תקציר שגיאות
 // ═══════════════════════════════════════════════════════════════════════════════

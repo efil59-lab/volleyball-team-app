@@ -12,6 +12,7 @@ import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
+import KitchenBanner from "../components/KitchenBanner";
 import { TournamentCard } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 
@@ -259,6 +260,9 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             <div style={{ fontSize: 22, color: pc, flexShrink: 0 }}>←</div>
           </button>
         </div>
+
+        {/* הזמנה ל"המטבח שלי" — מושתקת יחד עם שאר הפרסומות של הקבוצה */}
+        {!settings.hidePromoBanner && <div style={{ padding: "14px 16px 0" }}><KitchenBanner /></div>}
 
         {adminLink}
       </div>

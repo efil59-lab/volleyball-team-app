@@ -1,6 +1,7 @@
 import { S } from "../styles/S";
 import { useIsDesktop } from "../site/Site";
 import { WHATS_NEW } from "../lib/constants";
+import FeedbackBox from "../components/FeedbackBox";
 
 // ── HELP SCREEN ───────────────────────────────────────────────────────────────
 function HelpScreen({ pc, sc, settings, onBack }) {
@@ -79,6 +80,8 @@ function AboutScreen({ pc, sc, settings, onBack, embedded = false }) {
           </div>
           <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 12 }}>{WHATS_NEW.versionName || `גרסה ${WHATS_NEW.version}`}</div>
         </div>
+        {isDesk && !embedded && <div style={{ height: 14 }} />}
+        <FeedbackBox pc={pc} sc={sc} card={S.card} />
       </>
   );
 

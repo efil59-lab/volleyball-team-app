@@ -1,0 +1,83 @@
+/* באנר "המטבח שלי" — ראה components/KitchenBanner.jsx.
+   צבעים של המטבח ולא של הקבוצה; מצב לילה מוגדר כאן ולא ב-dark.css המחולל,
+   כי הבאנר בנוי ממחלקות ולא מ-inline styles. */
+.kb {
+  position: relative;
+  border-radius: 16px;
+  background: linear-gradient(120deg, #fff8ef, #fdeef0 70%, #fbdfe5);
+  border: 1px solid #f3cdd6;
+  box-shadow: 0 6px 18px rgba(217, 96, 127, 0.16);
+}
+.kb-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* הריפוד הרחב בצד שמאל משאיר מקום ל-✕ */
+  padding: 12px 13px 12px 32px;
+  color: #3b2a2f;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.kb-ic {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  background: #d9607f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 4px 10px rgba(217, 96, 127, 0.35);
+}
+.kb-tx { flex: 1; min-width: 0; display: block; }
+.kb-nm {
+  display: block;
+  font-family: "Amatic SC", Heebo, "Segoe UI", sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 0.95;
+  letter-spacing: 0.5px;
+  color: #c2456a;
+}
+.kb-pt {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #5a4349;
+}
+.kb-go {
+  flex: 0 0 auto;
+  background: #d9607f;
+  color: #fff;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.kb-x {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #b99aa2;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kb-link:focus-visible, .kb-x:focus-visible { outline: 2px solid #d9607f; outline-offset: 2px; border-radius: 16px; }
+
+html[data-theme="dark"] .kb {
+  background: linear-gradient(120deg, #2a1f2b, #3a2230 70%, #4a2437);
+  border-color: #5c3346;
+  box-shadow: none;
+}
+html[data-theme="dark"] .kb-link { color: #f3e6ea; }
+html[data-theme="dark"] .kb-nm { color: #ff9db6; }
+html[data-theme="dark"] .kb-pt { color: #d9c3ca; }
+html[data-theme="dark"] .kb-x { color: #8c6f78; }
