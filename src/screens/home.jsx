@@ -261,8 +261,9 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
           </button>
         </div>
 
-        {/* הזמנה ל"המטבח שלי" — מושתקת יחד עם שאר הפרסומות של הקבוצה */}
-        {!settings.hidePromoBanner && <div style={{ padding: "14px 16px 0" }}><KitchenBanner /></div>}
+        {/* הזמנה ל"המטבח שלי". לא תלויה ב-hidePromoBanner: המתג ההוא משתיק את
+            הצעת המכירה של האפליקציה עצמה, וזו הזמנה אחרת. */}
+        <div style={{ padding: "14px 16px 0" }}><KitchenBanner /></div>
 
         {adminLink}
       </div>

@@ -16,6 +16,7 @@ import CalendarDesk from "../site/CalendarDesk";
 import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
+import KitchenBanner from "../components/KitchenBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import { createPager, tabAfterSettle } from "../lib/swipe";
 import { holidayLabel } from "../lib/holidays";
@@ -669,6 +670,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
               {/* 🔔 תזכורות לטלפון (Web Push) — מוצג רק כשהפיצ'ר מוגדר */}
               {!isViewer && !preview && <ReminderCard role="player" playerId={player.id} pc={pc} notify={notify} hideWhenOn />}
+
+              {/* הזמנה ל"המטבח שלי". כאן ולא רק בדף הבית: שחקנית שהמכשיר זוכר
+                  נכנסת ישר למסך הזה ואת דף הבית לא רואה בכלל. */}
+              {!isDesk && <div style={{ marginBottom: 14 }}><KitchenBanner /></div>}
 
               {/* 📊 Personal stats — based on archived (verified) events only.
                   לצופה אין: היא אינה מסמנת נוכחות, וכל המספרים היו אפס —

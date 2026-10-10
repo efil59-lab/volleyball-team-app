@@ -189,7 +189,7 @@ export default function HomeSite({
                   <span><b>הצ׳אט הקבוצתי</b><span>מה מתחדש אצל הבנות</span></span>
                 </button>
               </div>
-              {!settings.hidePromoBanner && <div style={{ maxWidth: 520 }}><KitchenBanner /></div>}
+              <div style={{ maxWidth: 520 }}><KitchenBanner /></div>
             </>
           ) : (
             <section className="st-p-card">
