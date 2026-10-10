@@ -18,6 +18,8 @@
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
 }
+/* בלי ✕ אין צורך במקום שנשמר לו */
+.kb-fixed .kb-link { padding-left: 13px; }
 .kb-ic {
   flex: 0 0 auto;
   width: 50px;

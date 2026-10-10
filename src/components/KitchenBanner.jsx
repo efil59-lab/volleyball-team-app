@@ -11,6 +11,9 @@ const SRC = "volleyball";
 const URL = "https://hamitbach.vercel.app/"
   + `?utm_source=${SRC}&utm_medium=app-banner&utm_campaign=cross-promo&ref=${SRC}`;
 
+// בשלב זה הבאנר קבוע (אפי, 10.10.26): בלי ✕, ולחיצה לא מסתירה אותו. מנגנון
+// המנוחה נשאר בקוד — כדי להחזיר אותו מספיק להפוך את PERMANENT ל-false.
+const PERMANENT = true;
 const KEY = "vb_kitchen_promo";
 const DAY = 86400000;
 const REST_AFTER_CLOSE = 7 * DAY;    // ✕ — חוזר אחרי שבוע
@@ -34,14 +37,14 @@ function loadLogoFont() {
 }
 
 export default function KitchenBanner() {
-  const [hidden, setHidden] = useState(resting);
+  const [hidden, setHidden] = useState(() => !PERMANENT && resting());
   useEffect(() => { if (!hidden) loadLogoFont(); }, [hidden]);
   if (hidden) return null;
 
   return (
-    <div className="kb">
+    <div className={"kb" + (PERMANENT ? " kb-fixed" : "")}>
       <a className="kb-link" href={URL} target="_blank" rel="noopener"
-        onClick={() => { rest(REST_AFTER_VISIT); setTimeout(() => setHidden(true), 400); }}>
+        onClick={() => { if (PERMANENT) return; rest(REST_AFTER_VISIT); setTimeout(() => setHidden(true), 400); }}>
         <span className="kb-ic" aria-hidden="true">🍲</span>
         <span className="kb-tx">
           <span className="kb-nm">המטבח שלי</span>
@@ -49,8 +52,10 @@ export default function KitchenBanner() {
         </span>
         <span className="kb-go">לטעימה ←</span>
       </a>
-      <button className="kb-x" aria-label="סגירת הבאנר"
-        onClick={() => { rest(REST_AFTER_CLOSE); setHidden(true); }}>✕</button>
+      {!PERMANENT && (
+        <button className="kb-x" aria-label="סגירת הבאנר"
+          onClick={() => { rest(REST_AFTER_CLOSE); setHidden(true); }}>✕</button>
+      )}
     </div>
   );
 }
