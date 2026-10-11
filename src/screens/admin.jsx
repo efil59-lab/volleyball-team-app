@@ -1838,7 +1838,14 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
       const cur = (ev.attendanceData || []).find(a => String(a.playerId) === String(p.id));
       const next = cur?.status === "coming" ? "notcoming" : cur?.status === "notcoming" ? null : "coming";
       const data = (ev.attendanceData || []).filter(a => String(a.playerId) !== String(p.id));
-      if (next) data.push({ ...(cur || {}), playerId: p.id, status: next });
+      // אסמכתא: מה היה הסימון לפני התיקון הראשון, מי תיקן ומתי. חזרה לסימון
+      // המקורי מוחקת את הרישום — אין מה לתעד כשלא השתנה כלום.
+      const orig = cur?.adminEdit ? cur.adminEdit.from : (cur?.status || null);
+      const { adminEdit: _old, ...rest } = cur || {};
+      if (next !== orig) {
+        data.push({ ...rest, playerId: p.id, status: next,
+          adminEdit: { by: (auth.currentUser && auth.currentUser.email) || "מנהל/ת", at: new Date().toISOString(), from: orig } });
+      } else if (next) data.push({ ...rest, playerId: p.id, status: next });
       await upd.archive(archive.map(a =>
         a.id === ev.id ? { ...a, attendanceData: data, editedAt: new Date().toISOString() } : a
       ));
@@ -2175,6 +2182,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
                           return (
                             <td key={ev.id} style={{ textAlign: "center", padding: "7px 4px", background: came ? "#f0fdf4" : notCame ? "#fef2f2" : "transparent" }}>
                               <span style={{ fontSize: 15 }}>{came ? "✅" : notCame ? "❌" : <span style={{ color: "#cbd5e1", fontSize: 16 }}>—</span>}</span>
+                              {rec?.adminEdit && <span title="תוקן על ידי המנהלת" style={{ fontSize: 9, marginRight: 1, verticalAlign: "top" }}>✏️</span>}
                             </td>
                           );
                         })}
@@ -2210,6 +2218,50 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
             </div>
           )
       )}
+
+      {/* יומן התיקונים — בשתי התצוגות, מתחת לדירוג ומתחת לטבלה */}
+      <AttendanceEditLog archive={archive} players={players} pc={pc} />
+    </div>
+  );
+}
+
+// ── יומן תיקוני נוכחות ───────────────────────────────────────────────────────
+// כל סימון שהמנהלת שינתה — בחלון הארכוב או במטריצה אחריו — נשמר על הרשומה
+// עצמה (adminEdit: מה היה קודם, מי, מתי). כאן הוא מוצג, כדי שתהיה אסמכתא
+// כששחקנית שואלת למה נרשם לה אחרת ממה שסימנה.
+function AttendanceEditLog({ archive, players, pc }) {
+  const word = (st) => st === "coming" ? "הגיעה" : st === "notcoming" ? "לא הגיעה" : "לא סימנה";
+  const said = (st) => st === "coming" ? "אישרה הגעה" : st === "notcoming" ? "סימנה שלא תגיע" : "לא סימנה";
+  const rows = [];
+  for (const ev of archive || []) {
+    for (const a of ev.attendanceData || []) {
+      if (!a.adminEdit) continue;
+      const p = (players || []).find(x => String(x.id) === String(a.playerId));
+      rows.push({ key: ev.id + "_" + a.playerId, name: p ? p.name : "שחקנית שהוסרה", ev, from: a.adminEdit.from || null, to: a.status || null, at: a.adminEdit.at });
+    }
+  }
+  if (!rows.length) return null;
+  rows.sort((x, y) => String(y.at || "").localeCompare(String(x.at || "")));
+  const when = (iso) => {
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric" }) + " · " + d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+  };
+  return (
+    <div style={{ ...S.card, marginTop: 12 }}>
+      <div style={{ fontWeight: 800, color: "#1e293b", fontSize: 14, marginBottom: 2 }}>✏️ תיקוני נוכחות ({rows.length})</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>סימונים שהמנהלת שינתה, עם מה שהיה רשום קודם.</div>
+      {rows.map(r => (
+        <div key={r.key} style={{ borderTop: "1px solid #f1f5f9", padding: "8px 0" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>
+            {r.name} <span style={{ fontWeight: 600, color: "#64748b" }}>· {r.ev.type === "training" ? "אימון" : "משחק"} {formatShort(r.ev.date)}</span>
+          </div>
+          <div style={{ fontSize: 12.5, color: "#374151", marginTop: 2 }}>
+            {said(r.from)} ← <b style={{ color: r.to === "coming" ? "#16a34a" : r.to === "notcoming" ? "#dc2626" : "#64748b" }}>נרשם: {word(r.to)}</b>
+          </div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>תוקן {when(r.at)}</div>
+        </div>
+      ))}
     </div>
   );
 }
