@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { storage, auth } from "../firebase";
-import { ref, deleteObject } from "firebase/storage";
+import { ref, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage";
 import { S } from "../styles/S";
 import { KEYS, DEFAULT_TEAM } from "../lib/constants";
 import {
@@ -16,7 +16,7 @@ import { TournamentAdmin, TourDayRows } from "../components/Tournament";
 import { activeTournament, tournamentDay } from "../lib/tournament";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
-import { loadExcelJS } from "../lib/images";
+import { loadExcelJS, compressImage } from "../lib/images";
 import { AttModal, CalEventRow, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
 import useNow from "../lib/useNow";
 import { useIsDesktop, SiteChrome, AdminStrip } from "../site/Site";
@@ -745,7 +745,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   // צופה (מאמנת) אינה מסמנת נוכחות ואינה נספרת
   const roster = rosterOf(players);
   const [archEdits, setArchEdits] = useState({}); // playerId -> "coming" | "notcoming"
-  function openArchiveDialog(ev) { setArchEdits({}); setArchiveDialog(ev); }
+  const [archNotes, setArchNotes] = useState({}); // playerId -> סיבת התיקון (רשות)
+  function openArchiveDialog(ev) { setArchEdits({}); setArchNotes({}); setArchiveDialog(ev); }
   const archStatus = (ev, p) => (p.id in archEdits)
     ? archEdits[p.id]
     : ((attendance[`${ev.id}_${p.id}`] || {}).status || null);
@@ -798,7 +799,8 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
       const from = cur.status || null;
       const to = archEdits[p.id];
       if (from === to) continue;
-      next[key] = { ...cur, status: to, adminEdit: { by, at: new Date().toISOString(), from } };
+      const why = String(archNotes[p.id] || "").trim().slice(0, 300);
+      next[key] = { ...cur, status: to, adminEdit: { by, at: new Date().toISOString(), from, ...(why ? { note: why } : {}) } };
       changed.push({ p, from, to });
     }
     if (changed.length) await upd.attendance(next);
@@ -917,6 +919,12 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                             <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                             {st === null && <div style={{ fontSize: 10.5, color: "#b45309", fontWeight: 700 }}>לא סימנה</div>}
                             {touched && <div style={{ fontSize: 10.5, color: "#2563eb", fontWeight: 700 }}>✏️ תוקן</div>}
+                            {touched && (
+                              <input value={archNotes[p.id] || ""} maxLength={300}
+                                onChange={e => setArchNotes(n => ({ ...n, [p.id]: e.target.value }))}
+                                placeholder="סיבה (לא חובה) — למשל: הודיעה בווטסאפ"
+                                style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "6px 8px", borderRadius: 7, border: "1px solid #cbd5e1", fontSize: 12, fontFamily: "inherit" }} />
+                            )}
                           </div>
                           <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                             <button onClick={() => setArchEdits(e => ({ ...e, [p.id]: "coming" }))}
@@ -1844,7 +1852,7 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
       const { adminEdit: _old, ...rest } = cur || {};
       if (next !== orig) {
         data.push({ ...rest, playerId: p.id, status: next,
-          adminEdit: { by: (auth.currentUser && auth.currentUser.email) || "מנהל/ת", at: new Date().toISOString(), from: orig } });
+          adminEdit: { by: (auth.currentUser && auth.currentUser.email) || "מנהל/ת", at: new Date().toISOString(), from: orig, ...(_old && _old.note ? { note: _old.note } : {}), ...(_old && _old.proof ? { proof: _old.proof } : {}) } });
       } else if (next) data.push({ ...rest, playerId: p.id, status: next });
       await upd.archive(archive.map(a =>
         a.id === ev.id ? { ...a, attendanceData: data, editedAt: new Date().toISOString() } : a
@@ -1919,7 +1927,7 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
 }
 
 // ── ARCHIVE & STATS ───────────────────────────────────────────────────────────
-function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
+function ArchiveStats({ archive, players, playerProfiles, upd, askConfirm, pc, sc, notify }) {
   const isDesk = useIsDesktop();
   const [view, setView] = useState("stats"); // "stats" | "table"
   const [exporting, setExporting] = useState(false);
@@ -2220,7 +2228,7 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
       )}
 
       {/* יומן התיקונים — בשתי התצוגות, מתחת לדירוג ומתחת לטבלה */}
-      <AttendanceEditLog archive={archive} players={players} pc={pc} />
+      <AttendanceEditLog archive={archive} players={players} upd={upd} askConfirm={askConfirm} notify={notify} pc={pc} />
     </div>
   );
 }
@@ -2229,7 +2237,48 @@ function ArchiveStats({ archive, players, playerProfiles, pc, sc, notify }) {
 // כל סימון שהמנהלת שינתה — בחלון הארכוב או במטריצה אחריו — נשמר על הרשומה
 // עצמה (adminEdit: מה היה קודם, מי, מתי). כאן הוא מוצג, כדי שתהיה אסמכתא
 // כששחקנית שואלת למה נרשם לה אחרת ממה שסימנה.
-function AttendanceEditLog({ archive, players, pc }) {
+function AttendanceEditLog({ archive, players, upd, askConfirm, notify, pc }) {
+  const [editKey, setEditKey] = useState(null);  // השורה שההערה שלה בעריכה
+  const [draft, setDraft] = useState("");
+  const [busyKey, setBusyKey] = useState(null);
+  // כתיבה של שדות לתוך adminEdit של רשומה אחת בארכיון
+  async function patchEdit(r, fields) {
+    await upd.archive(archive.map(a => a.id !== r.ev.id ? a : {
+      ...a,
+      attendanceData: (a.attendanceData || []).map(x =>
+        String(x.playerId) === String(r.pid) && x.adminEdit ? { ...x, adminEdit: { ...x.adminEdit, ...fields } } : x),
+    }));
+  }
+  async function saveNote(r) {
+    setBusyKey(r.key);
+    try { await patchEdit(r, { note: draft.trim().slice(0, 300) }); setEditKey(null); }
+    catch { notify && notify("השמירה נכשלה, נסי שוב."); }
+    setBusyKey(null);
+  }
+  async function attach(r, file) {
+    if (!file) return;
+    if (!String(file.type || "").startsWith("image/")) { notify && notify("אפשר לצרף רק תמונה (למשל צילום מסך)."); return; }
+    setBusyKey(r.key);
+    try {
+      const img = await compressImage(file);
+      const path = `teams/${CURRENT_TEAM}/gallery/proof_${r.ev.id}_${r.pid}_${Date.now()}.jpg`;
+      const sref = ref(storage, path);
+      await uploadBytes(sref, img);
+      const url = await getDownloadURL(sref);
+      // אסמכתא קודמת מוחלפת — מוחקים את הקובץ הישן כדי שלא יישאר יתום
+      if (r.proof && r.proof.path) { try { await deleteObject(ref(storage, r.proof.path)); } catch {} }
+      await patchEdit(r, { proof: { url, path } });
+    } catch (e) { console.error("proof upload:", e); notify && notify("צירוף התמונה נכשל, נסי שוב."); }
+    setBusyKey(null);
+  }
+  async function removeProof(r) {
+    setBusyKey(r.key);
+    try {
+      if (r.proof && r.proof.path) { try { await deleteObject(ref(storage, r.proof.path)); } catch {} }
+      await patchEdit(r, { proof: null });
+    } catch { notify && notify("המחיקה נכשלה, נסי שוב."); }
+    setBusyKey(null);
+  }
   const word = (st) => st === "coming" ? "הגיעה" : st === "notcoming" ? "לא הגיעה" : "לא סימנה";
   const said = (st) => st === "coming" ? "אישרה הגעה" : st === "notcoming" ? "סימנה שלא תגיע" : "לא סימנה";
   const rows = [];
@@ -2237,7 +2286,7 @@ function AttendanceEditLog({ archive, players, pc }) {
     for (const a of ev.attendanceData || []) {
       if (!a.adminEdit) continue;
       const p = (players || []).find(x => String(x.id) === String(a.playerId));
-      rows.push({ key: ev.id + "_" + a.playerId, name: p ? p.name : "שחקנית שהוסרה", ev, from: a.adminEdit.from || null, to: a.status || null, at: a.adminEdit.at });
+      rows.push({ key: ev.id + "_" + a.playerId, pid: a.playerId, note: a.adminEdit.note || "", proof: a.adminEdit.proof || null, name: p ? p.name : "שחקנית שהוסרה", ev, from: a.adminEdit.from || null, to: a.status || null, at: a.adminEdit.at });
     }
   }
   if (!rows.length) return null;
@@ -2250,7 +2299,7 @@ function AttendanceEditLog({ archive, players, pc }) {
   return (
     <div style={{ ...S.card, marginTop: 12 }}>
       <div style={{ fontWeight: 800, color: "#1e293b", fontSize: 14, marginBottom: 2 }}>✏️ תיקוני נוכחות ({rows.length})</div>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>סימונים שהמנהלת שינתה, עם מה שהיה רשום קודם.</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>סימונים שהמנהלת שינתה, עם מה שהיה רשום קודם. לכל תיקון אפשר להוסיף הערה ולצרף תמונה (למשל צילום מסך של ההודעה).</div>
       {rows.map(r => (
         <div key={r.key} style={{ borderTop: "1px solid #f1f5f9", padding: "8px 0" }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>
@@ -2260,6 +2309,44 @@ function AttendanceEditLog({ archive, players, pc }) {
             {said(r.from)} ← <b style={{ color: r.to === "coming" ? "#16a34a" : r.to === "notcoming" ? "#dc2626" : "#64748b" }}>נרשם: {word(r.to)}</b>
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>תוקן {when(r.at)}</div>
+
+          {editKey === r.key ? (
+            <div style={{ marginTop: 6 }}>
+              <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={2} maxLength={300} autoFocus
+                placeholder="למשל: הודיעה בווטסאפ בבוקר שלא תגיע"
+                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 9, border: "1px solid #cbd5e1", fontSize: 13, fontFamily: "inherit", resize: "vertical" }} />
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <button onClick={() => saveNote(r)} disabled={busyKey === r.key}
+                  style={{ padding: "7px 16px", background: pc, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>שמירה</button>
+                <button onClick={() => setEditKey(null)}
+                  style={{ padding: "7px 14px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12.5 }}>ביטול</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {r.note && <div style={{ fontSize: 12.5, color: "#1e293b", background: "#f8fafc", borderRadius: 8, padding: "6px 9px", marginTop: 6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>📝 {r.note}</div>}
+              {r.proof && r.proof.url && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <a href={r.proof.url} target="_blank" rel="noopener">
+                    <img src={r.proof.url} alt="אסמכתא" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0", display: "block" }} />
+                  </a>
+                  <button onClick={() => askConfirm("למחוק את התמונה שצורפה לתיקון?", () => removeProof(r))} disabled={busyKey === r.key}
+                    style={{ background: "#fef2f2", color: "#ef4444", border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>🗑️ הסרה</button>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                <button onClick={() => { setDraft(r.note); setEditKey(r.key); }}
+                  style={{ background: "#f1f5f9", color: "#334155", border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                  {r.note ? "✏️ עריכת הערה" : "📝 הוספת הערה"}
+                </button>
+                <label style={{ background: "#f1f5f9", color: "#334155", borderRadius: 7, padding: "5px 10px", cursor: busyKey === r.key ? "default" : "pointer", fontSize: 12, fontWeight: 700, opacity: busyKey === r.key ? 0.6 : 1 }}>
+                  {busyKey === r.key ? "שומר…" : r.proof ? "📎 החלפת תמונה" : "📎 צירוף תמונה"}
+                  <input type="file" accept="image/*" disabled={busyKey === r.key} style={{ display: "none" }}
+                    onChange={e => { const fl = e.target.files && e.target.files[0]; e.target.value = ""; attach(r, fl); }} />
+                </label>
+              </div>
+            </>
+          )}
         </div>
       ))}
     </div>
