@@ -55,3 +55,7 @@ html[data-theme="dark"] .st-h-alert-in { color: #fca5a5; }
 html[data-theme="dark"] .st-result:hover { background: #232b45; }
 html[data-theme="dark"] .st-result-title { color: #e6e9f4; }
 html[data-theme="dark"] .st-p-ev.st-next { background: rgba(245, 200, 66, 0.14); }
+
+/* תיבת "המשחק הבא" בכרטיס הספורטיאדה: במצב לילה הכתב שבתוכה מתבהר (dark.css),
+   ולכן הרקע הלבן שלה חייב להתכהות — אחרת כתב בהיר על רקע בהיר (אפי, 13.10.26). */
+html[data-theme="dark"] .tour-next { background: rgba(14, 18, 40, 0.86) !important; }

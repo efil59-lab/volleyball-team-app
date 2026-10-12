@@ -87,7 +87,7 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
     const title = phase === "before" ? (d === 1 ? "מחר יוצאות לאילת!" : `עוד ${d} ימים ל${t.short}`)
       : phase === "during" ? `${t.name} עכשיו` : sum.title;
     const sub = phase === "before" ? `${t.city} · ${dateRange(t)}`
-      : phase === "during" ? (place ? `מקום ${place} ב${t.group}` : `${t.city} · בהצלחה, בנות!`)
+      : phase === "during" ? (place ? `מקום ${place} ב${t.group}` : `${t.city} · בהצלחה!`)
       : [`${t.city} ${t.year}`, record(sum.won, sum.lost)].filter(Boolean).join(" · ");
     const Tag = clickable ? "button" : "div";
     return (
@@ -138,10 +138,10 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
           <i style={{ width: 7, height: 7, borderRadius: "50%", background: CORAL, animation: "tourPulse 1.2s infinite" }} /> {t.name} עכשיו
         </span>
         <div style={{ fontSize: 19, fontWeight: 900, marginTop: 8 }}>
-          {place ? `מקום ${place} ב${t.group}` : "בהצלחה, בנות! 🏐"}
+          {place ? `מקום ${place} ב${t.group}` : "בהצלחה! 🏐"}
         </div>
         {g ? (
-          <div style={{ background: "rgba(255,255,255,0.95)", color: "#16203a", borderRadius: 13, padding: "10px 12px", marginTop: 10 }}>
+          <div className="tour-next" style={{ background: "rgba(255,255,255,0.95)", color: "#16203a", borderRadius: 13, padding: "10px 12px", marginTop: 10 }}>
             <small style={{ fontSize: 10.5, fontWeight: 800, color: CORAL }}>המשחק הבא</small>
             <b style={{ display: "block", fontSize: 14.5, fontWeight: 800, marginTop: 1 }}>{dsc.title}</b>
             <span style={{ fontSize: 11.5, color: "#64748b" }}>{dayLabel(g.date)} · {g.time} · {dsc.hall}</span>
@@ -354,7 +354,7 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true, des
   if (phase === "before") {
     medal = "☀️"; headline = daysToStart(t, now) === 1 ? "מחר יוצאות לאילת!" : `עוד ${daysToStart(t, now)} ימים`; line = `3 משחקים ב${t.group}. מקום 1 או 2 ממשיכים לשישי`;
   } else if (phase === "during") {
-    medal = place || "🏐"; headline = place ? `מקום ${place} ב${t.group}` : "בהצלחה, בנות!";
+    medal = place || "🏐"; headline = place ? `מקום ${place} ב${t.group}` : "בהצלחה!";
     line = !place ? "הטבלה תתעדכן אחרי התוצאה הראשונה"
       : groupDone(t, results) ? (t.ko[place] ? `ממשיכות לחצי הגמר ה${t.ko[place].bracket}` : `סיימנו את המשחקים ב${t.group}`)
       : place <= 2 ? "כרגע במקומות שממשיכים לשישי 💪" : "צריך ניצחון כדי לעלות";
