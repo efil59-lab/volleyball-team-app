@@ -66,21 +66,42 @@ export default function App() {
 
   // ── באנר "יש עדכון": משווים את מזהה ה-build המוטמע מול /version.json בשרת ─────
   // נבדק בכל חזרה לאפליקציה (focus) וכל 5 דקות. אין SW-cache, אז רענון = קוד חדש מיד.
+  //
+  // רענון אוטומטי בכניסה (אפי, 13.10.26): מי שנכנסת לאפליקציה וגרסה חדשה מחכה —
+  // מתרעננת לבד, בלי ללחוץ על הבאנר. "כניסה" = פתיחת האפליקציה, או חזרה אליה
+  // אחרי שהייתה ברקע חמש דקות ומעלה. שלושה מקרים שבהם נשאר הבאנר ולא מרעננים:
+  //   • גרסה שהתגלתה באמצע שימוש (הבדיקה התקופתית) — לא מושכים את המסך מתחת לאצבע.
+  //   • קפיצה קצרה לאפליקציה אחרת וחזרה — סביר שהיא באמצע משהו (חלון פתוח, טופס).
+  //   • שדה הקלדה בפוקוס.
+  // ושומר מפני לולאה: לכל גרסה מרעננים פעם אחת בלבד (sessionStorage).
   useEffect(() => {
     if (import.meta.env.DEV) return; // בפיתוח אין version.json
     let stop = false;
-    async function check() {
+    let hiddenAt = 0;
+    const typing = () => { const a = document.activeElement; return !!a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"); };
+    async function check(entry = false) {
       try {
         const r = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
         if (!r.ok) return;
         const v = await r.json();
-        if (!stop && v.id && v.id !== __BUILD_ID__) setUpdateReady(true);
+        if (stop || !v.id || v.id === __BUILD_ID__) return;
+        let tried = null;
+        try { tried = sessionStorage.getItem("vbAutoReload"); } catch {}
+        if (entry && !typing() && tried !== v.id) {
+          try { sessionStorage.setItem("vbAutoReload", v.id); } catch { setUpdateReady(true); return; }
+          window.location.reload();
+          return;
+        }
+        setUpdateReady(true);
       } catch { /* אופליין/שגיאת רשת — ננסה שוב בפעם הבאה */ }
     }
-    const onVisible = () => { if (document.visibilityState === "visible") check(); };
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") { hiddenAt = Date.now(); return; }
+      check(hiddenAt > 0 && Date.now() - hiddenAt >= 5 * 60 * 1000);
+    };
     document.addEventListener("visibilitychange", onVisible);
-    const iv = setInterval(check, 5 * 60 * 1000);
-    const t0 = setTimeout(check, 15 * 1000); // בדיקה ראשונה קצת אחרי הטעינה
+    const iv = setInterval(() => check(false), 5 * 60 * 1000);
+    const t0 = setTimeout(() => check(true), 1500); // בכניסה — מיד, לפני שהיא מתחילה לעבוד
     return () => { stop = true; document.removeEventListener("visibilitychange", onVisible); clearInterval(iv); clearTimeout(t0); };
   }, []);
 
