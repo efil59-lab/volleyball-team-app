@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   TOURNAMENTS, activeTournament, tournamentPhase, daysToStart, resultOf, standings, groupDone,
-  ourPlace, describeGame, ourScore, ourGames, nextOurGame, dayLabel,
+  ourPlace, describeGame, ourScore, ourGames, nextOurGame, dayLabel, isoLocal,
 } from "../lib/tournament";
 import { notifyTeamPushRemote, mergeTournament } from "../lib/db";
 
@@ -180,6 +180,60 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
         <Scene />
       </Tag>
     </>
+  );
+}
+
+// ── "המשחקים שלנו" — במקום "אין אירועים קרובים" ─────────────────────────────
+// לפני הטורניר ובמהלכו אין אימון בלוח, והמסך היה מכריז "אין אירועים קרובים"
+// ממש מתחת ל"מחר יוצאות לאילת" (אפי, 12.10.26). במקומו: המשחקים שלנו, עם
+// יום, שעה, אולם, ותוצאה למשחק שהסתיים. אחרי הטורניר מחזיר null, והמסך חוזר
+// להודעה הרגילה — ההחלטה אצל מי שמרנדר (ראה tournamentFillsEmpty).
+export function tournamentFillsEmpty(t, now = new Date()) {
+  return !!t && tournamentPhase(t, now) !== "after";
+}
+export function TournamentOurGames({ t, state, now = new Date(), onOpen }) {
+  if (!tournamentFillsEmpty(t, now)) return null;
+  const results = (state && state.results) || {};
+  const today = isoLocal(now);
+  const phase = tournamentPhase(t, now);
+  const rows = ourGames(t)
+    .map((g) => ({ g, d: describeGame(t, results, g), s: ourScore(t, results, g) }))
+    .filter((r) => !r.d.out);
+  const playsToday = rows.some((r) => r.g.date === today && !r.s);
+  const head = phase === "before"
+    ? (daysToStart(t, now) === 1 ? "🧳 אורזות! המשחקים שלנו ב" + t.city : "🏐 המשחקים שלנו ב" + t.city)
+    : playsToday ? "🏐 היום משחקות!"
+    : today === t.start ? "🚌 בדרך ל" + t.city + " · המשחקים שלנו"
+    : today === t.end ? "🏠 חוזרות הביתה"
+    : "🏐 המשחקים שלנו ב" + t.city;
+  return (
+    <div style={{ background: "white", borderRadius: 16, padding: "13px 14px 6px", marginBottom: 12, boxShadow: "0 2px 10px rgba(26,35,126,0.08)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <b style={{ flex: 1, fontSize: 14.5, fontWeight: 800, color: "#1e293b" }}>{head}</b>
+        {onOpen && <button onClick={onOpen} style={{ flexShrink: 0, background: "transparent", border: "none", color: CORAL, fontSize: 12.5, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>הלוח המלא ←</button>}
+      </div>
+      {rows.map(({ g, d, s }) => {
+        const isToday = g.date === today && !s;
+        return (
+          <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: "1px solid #f1f5f9", opacity: d.locked ? 0.6 : 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>
+                {d.title}
+                {isToday && <span style={{ marginRight: 6, background: CORAL, color: "white", borderRadius: 20, padding: "1px 8px", fontSize: 10.5, fontWeight: 800 }}>היום</span>}
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 1 }}>
+                {dayLabel(g.date)} · {g.time}{d.hall && !d.locked && d.hall !== "—" ? " · " + d.hall : ""}{d.locked && d.sub ? " · " + d.sub : ""}
+              </div>
+            </div>
+            {s && (
+              <span style={{ flexShrink: 0, borderRadius: 9, padding: "4px 10px", fontSize: 13, fontWeight: 800, fontVariantNumeric: "tabular-nums", background: s.won ? "#dcfce7" : "#fee2e2", color: s.won ? "#166534" : "#b91c1c" }}>
+                {s.won ? "ניצחון" : "הפסד"} {s.us}–{s.them}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

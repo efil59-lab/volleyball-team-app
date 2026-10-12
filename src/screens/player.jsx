@@ -20,7 +20,7 @@ import KitchenBanner from "../components/KitchenBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import { createPager, tabAfterSettle } from "../lib/swipe";
 import { holidayLabel } from "../lib/holidays";
-import { TournamentCard, TournamentScreen, TourDayRows } from "../components/Tournament";
+import { TournamentCard, TournamentScreen, TourDayRows, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase, tournamentDay } from "../lib/tournament";
 import ReminderCard from "../components/ReminderCard";
 import Confetti from "../components/Confetti";
@@ -513,7 +513,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               {/* ברכת חג — מיד אחרי כרטיס האירוע, לפני המספרים: כרטיס האימון
                   הוא הסיבה שפתחו את האפליקציה ואסור לדחוף אותו למטה, אבל מתחת
                   למונים ולרשימות הברכה נקברת. ביום בלי אירוע היא עולה מעצמה. */}
-              {!nextEvent ? <><HolidayBanner slim={myBdayToday} />{showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}<Empty icon="😴" text="אין אירועים קרובים" /></> : (
+              {!nextEvent ? <><HolidayBanner slim={myBdayToday} />{showTour && <TournamentCard t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} />}{showTour && tournamentFillsEmpty(tour, now) ? <TournamentOurGames t={tour} state={tourState} now={now} onOpen={() => setTab("tournament")} /> : <Empty icon="😴" text="אין אירועים קרובים" />}</> : (
                 <>
                   {/* הספורטיאדה — פס דק מעל כרטיס האימון (בקשת אפי 28.9.26).
                       הכלל: כל עוד יש אימון עתידי — דק, גם בשבוע האחרון. בלי אירוע

@@ -13,7 +13,7 @@ import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import KitchenBanner from "../components/KitchenBanner";
-import { TournamentCard } from "../components/Tournament";
+import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
@@ -236,8 +236,10 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
             </div>
           ) : null}
           {tour && canSeeTournament(tourState, me) && <TournamentCard t={tour} state={tourState} now={now} size={tourSize} onOpen={() => openTour(me)} />}
-          {!nextEvent && (
-            <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
+          {/* בתקופת הטורניר "אין אירועים קרובים" מטעה — מציגים את המשחקים שלנו */}
+          {!nextEvent && (tour && canSeeTournament(tourState, me) && tournamentFillsEmpty(tour, now)
+            ? <TournamentOurGames t={tour} state={tourState} now={now} onOpen={() => openTour(me)} />
+            : <div style={{ background: "white", borderRadius: 16, padding: 22, textAlign: "center", color: "#94a3b8", fontSize: 14, fontWeight: 600 }}>😴 אין אירועים קרובים כרגע</div>
           )}
         </div>
 
