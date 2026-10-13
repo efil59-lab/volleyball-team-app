@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>אפליקציית הכדורשת — פרומו</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=Rubik:wght@800;900&display=swap" rel="stylesheet" />
+<style>
+  /* A 36-second vertical promo, all CSS animation on one global clock: every
+     element carries --t (the second it enters). scripts/make-promo.mjs steps
+     that clock frame by frame, so the result is smooth whatever the machine.
+     Audience: whoever runs a team (captain / manager), not the players. */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 540px; height: 960px; overflow: hidden; background: #eef1f8; font-family: Heebo, Arial, sans-serif; color: #141a3d; }
+  .sc { position: absolute; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; opacity: 0;
+        animation: scene calc((var(--e) - var(--s)) * 1s) linear calc(var(--s) * 1s) both; }
+  .sc.last { animation: sceneIn 1s ease-out calc(var(--s) * 1s) both; }
+  @keyframes scene { 0% { opacity: 0; transform: scale(1.04); } 7% { opacity: 1; transform: none; } 92% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(.97); } }
+  @keyframes sceneIn { from { opacity: 0; transform: scale(1.05); } to { opacity: 1; transform: none; } }
+  .light { background: radial-gradient(120% 80% at 50% 0%, #fff 0%, #eef1f8 55%, #dfe4f3 100%); }
+  .chat { background: linear-gradient(175deg, #e9f5ee 0%, #d6ebdf 100%); }
+  .navy { background: linear-gradient(165deg, #2a36a8 0%, #1a237e 55%, #10164f 100%); color: #fff; }
+  .gold { background: linear-gradient(170deg, #fff7dc 0%, #fde9a3 100%); }
+
+  .a { animation-duration: .7s; animation-timing-function: cubic-bezier(.2, 1.35, .35, 1); animation-delay: calc(var(--t) * 1s); animation-fill-mode: both; }
+  .pop { animation-name: pop; }
+  .up { animation-name: up; }
+  .inr { animation-name: inr; }
+  .inl { animation-name: inl; }
+  @keyframes pop { from { opacity: 0; transform: scale(.3) rotate(var(--r, 0deg)); } to { opacity: 1; transform: scale(1) rotate(var(--r, 0deg)); } }
+  @keyframes up { from { opacity: 0; transform: translateY(70px); } to { opacity: 1; transform: none; } }
+  @keyframes inr { from { opacity: 0; transform: translateX(420px) rotate(var(--r, 0deg)); } to { opacity: 1; transform: translateX(0) rotate(var(--r, 0deg)); } }
+  @keyframes inl { from { opacity: 0; transform: translateX(-420px) rotate(var(--r, 0deg)); } to { opacity: 1; transform: translateX(0) rotate(var(--r, 0deg)); } }
+
+  h1 { font-family: Rubik, Heebo, sans-serif; font-weight: 900; font-size: 52px; line-height: 1.14; text-align: center; letter-spacing: -.5px; padding: 0 30px; }
+  h1 em { font-style: normal; color: #2a36a8; }
+  .chat h1 em { color: #128c4a; }
+  .navy h1 em, .navy h2 em { font-style: normal; color: #f5c842; }
+  h2 { font-weight: 700; font-size: 30px; line-height: 1.3; text-align: center; padding: 0 40px; }
+
+  /* --- 1: the WhatsApp mess --- */
+  .msg { max-width: 400px; border-radius: 22px; padding: 13px 20px; font-size: 27px; font-weight: 600; line-height: 1.25; box-shadow: 0 6px 16px rgba(20, 60, 40, .14); background: #fff; align-self: flex-start; margin: 0 26px; white-space: nowrap; }
+  .msg.me { background: #d9fdd3; align-self: flex-end; }
+  .msg small { display: block; font-size: 17px; font-weight: 800; color: #128c4a; margin-bottom: 1px; }
+  .msgs { width: 100%; display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
+
+  /* --- 2: and then practice comes --- */
+  .q { background: #fff; border-radius: 999px; padding: 16px 28px; font-size: 30px; font-weight: 700; box-shadow: 0 10px 26px rgba(26, 35, 126, .16); white-space: nowrap; }
+
+  /* --- phones --- */
+  .phone { width: 290px; height: 590px; border-radius: 46px; border: 11px solid #10164f; background: #10164f; overflow: hidden; box-shadow: 0 30px 60px rgba(16, 22, 79, .38); position: relative; flex: 0 0 auto; }
+  .phone img { width: 100%; display: block; animation: pan calc(var(--pd, 4) * 1s) ease-in-out calc(var(--pt, 0) * 1s) both; }
+  @keyframes pan { from { transform: translateY(0); } to { transform: translateY(var(--py, 0px)); } }
+  .tag { position: absolute; background: #fff; color: #141a3d; border-radius: 20px; padding: 12px 20px; font-size: 26px; font-weight: 800; box-shadow: 0 12px 28px rgba(16, 22, 79, .28); white-space: nowrap; }
+  .tag.ok { background: #22c55e; color: #fff; }
+  .tag.no { background: #ef4444; color: #fff; }
+  .tag.dark { background: #1a237e; color: #fff; }
+  .tag.gold { background: #f5c842; color: #10163f; }
+
+  /* --- 7: extras --- */
+  .card { width: 486px; white-space: nowrap; background: #fff; border-radius: 28px; padding: 20px 26px; display: flex; align-items: center; gap: 16px; font-size: 28px; font-weight: 800; box-shadow: 0 12px 28px rgba(26, 35, 126, .14); }
+  .card span { font-size: 50px; line-height: 1; }
+
+  /* --- 3 + 8 --- */
+  .ball { width: 190px; height: 190px; border-radius: 50%; background: #f5c842; display: flex; align-items: center; justify-content: center; font-size: 112px; line-height: 1; box-shadow: 0 24px 50px rgba(0, 0, 0, .4); }
+  .name { font-family: Rubik, Heebo, sans-serif; font-weight: 900; line-height: 1.05; text-align: center; }
+  .burst { position: absolute; font-size: 70px; left: 50%; top: 42%; animation: burst 1.6s cubic-bezier(.15, .8, .3, 1) calc(var(--t) * 1s) both; }
+  @keyframes burst { from { opacity: 0; transform: translate(-50%, -50%) scale(.2); } 30% { opacity: 1; } to { opacity: 1; transform: translate(calc(-50% + var(--bx)), calc(-50% + var(--by))) scale(1) rotate(var(--r, 0deg)); } }
+  .cta { background: #f5c842; color: #10163f; border-radius: 999px; padding: 18px 34px; font-size: 32px; font-weight: 900; box-shadow: 0 16px 36px rgba(0, 0, 0, .35); white-space: nowrap; }
+  .url { direction: ltr; font-size: 22px; font-weight: 700; opacity: .92; }
+  .pulse { animation: pulse 1.4s ease-in-out calc(var(--t) * 1s) infinite both; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+</style>
+</head>
+<body>
+
+<!-- 1 · the problem: counting hands in the group chat -->
+<section class="sc chat" style="--s:0; --e:4.6">
+  <h1 class="a up" style="--t:.2; margin-top:70px">״מי מגיעה<br>לאימון מחר?״</h1>
+  <div class="msgs">
+    <div class="msg a inl" style="--t:.9"><small>מיכל</small>אני! 🙋‍♀️</div>
+    <div class="msg a inl" style="--t:1.3"><small>שירה</small>👍</div>
+    <div class="msg a inl" style="--t:1.7"><small>יעל</small>עוד לא יודעת, אעדכן</div>
+    <div class="msg a inl" style="--t:2.1"><small>רוני</small>רגע, באיזו שעה?</div>
+    <div class="msg a inl" style="--t:2.5"><small>דנה</small>👍</div>
+    <div class="msg me a inr" style="--t:3.0">אז כמה אנחנו בסוף?? 😵‍💫</div>
+  </div>
+</section>
+
+<!-- 2 · and then practice comes -->
+<section class="sc light" style="--s:4.6; --e:8.6; justify-content:center; gap:26px">
+  <h1 class="a pop" style="--t:4.8; font-size:58px; margin-bottom:14px">ואז מגיע <em>האימון</em>…</h1>
+  <div class="q a inr" style="--t:5.2; --r:-3deg">😬 הגיעו רק חמש</div>
+  <div class="q a inl" style="--t:5.6; --r:2deg">🤷‍♀️ ״לא ראיתי את ההודעה״</div>
+  <div class="q a inr" style="--t:6.0; --r:-2deg">📍 ״איפה זה בכלל?״</div>
+  <div class="q a inl" style="--t:6.4; --r:3deg">📜 240 הודעות בקבוצה</div>
+</section>
+
+<!-- 3 · the answer -->
+<section class="sc navy" style="--s:8.6; --e:12.6; justify-content:center">
+  <div class="burst" style="--t:9.0; --bx:-190px; --by:-310px; --r:-18deg">✅</div>
+  <div class="burst" style="--t:9.1; --bx:190px;  --by:-320px; --r:14deg">🗓️</div>
+  <div class="burst" style="--t:9.2; --bx:-200px; --by:320px;  --r:12deg">🏆</div>
+  <div class="burst" style="--t:9.3; --bx:200px;  --by:310px;  --r:-10deg">💬</div>
+  <div class="burst" style="--t:9.4; --bx:-215px; --by:10px;   --r:8deg">🔔</div>
+  <div class="burst" style="--t:9.5; --bx:215px;  --by:-10px;  --r:-8deg">📊</div>
+  <div class="ball a pop" style="--t:8.8">🏐</div>
+  <div class="name a pop" style="--t:9.2; font-size:66px; margin-top:30px">אפליקציה<br><em style="font-style:normal; color:#f5c842">לקבוצה שלך</em></div>
+  <h2 class="a up" style="--t:9.9; margin-top:18px; font-size:34px; font-weight:800">כל הקבוצה. במקום אחד.</h2>
+</section>
+
+<!-- 4 · one tap -->
+<section class="sc light" style="--s:12.6; --e:18">
+  <h1 class="a up" style="--t:12.8; margin-top:54px">מגיעה? לא מגיעה?<br><em>לחיצה אחת</em> 👆</h1>
+  <div class="phone a up" style="--t:13.2; margin-top:34px; animation-duration:.9s"><img src="SHOTS/home.png" alt="" /></div>
+  <div class="tag ok a pop" style="--t:14.3; right:10px; top:560px; --r:5deg">✅ מגיעה</div>
+  <div class="tag no a pop" style="--t:14.8; left:10px; top:600px; --r:-6deg">❌ לא מגיעה</div>
+  <div class="tag dark a pop" style="--t:15.6; left:50%; margin-left:-190px; top:850px; font-size:24px">בלי הודעות, בלי לגלול בקבוצה</div>
+</section>
+
+<!-- 5 · the count, live -->
+<section class="sc gold" style="--s:18; --e:23.4">
+  <h1 class="a up" style="--t:18.2; margin-top:54px">ואת יודעת בדיוק<br><em>מי מגיעה</em> 🙌</h1>
+  <div class="phone a up" style="--t:18.6; margin-top:34px; animation-duration:.9s"><img src="SHOTS/event-tall.png" alt="" style="--pt:20.2; --pd:2.6; --py:-150px" /></div>
+  <div class="tag ok a pop" style="--t:19.6; right:8px; top:470px; --r:5deg">8 מגיעות</div>
+  <div class="tag no a pop" style="--t:20.1; left:8px; top:540px; --r:-5deg">2 לא מגיעות</div>
+  <div class="tag a pop" style="--t:20.6; right:8px; top:640px; --r:-4deg">3 טרם ענו</div>
+  <div class="tag gold a pop" style="--t:21.4; left:50%; margin-left:-200px; top:850px; font-size:24px">🔔 והן מקבלות תזכורת — לבד</div>
+</section>
+
+<!-- 6 · the calendar -->
+<section class="sc light" style="--s:23.4; --e:27.8">
+  <h1 class="a up" style="--t:23.6; margin-top:54px">כל האימונים<br>והמשחקים <em>בלוח</em> 🗓️</h1>
+  <div class="phone a up" style="--t:24.0; margin-top:34px; animation-duration:.9s"><img src="SHOTS/calendar.png" alt="" /></div>
+  <div class="tag dark a pop" style="--t:25.0; right:6px; top:500px; --r:4deg">🏋️ אימונים</div>
+  <div class="tag gold a pop" style="--t:25.6; left:6px; top:620px; --r:-4deg">🏆 משחקים ותוצאות</div>
+</section>
+
+<!-- 7 · and more -->
+<section class="sc gold" style="--s:27.8; --e:31.6; justify-content:center; gap:16px">
+  <h1 class="a pop" style="--t:28; margin-bottom:12px">ויש עוד <em>🏐</em></h1>
+  <div class="card a inr" style="--t:28.3"><span>📊</span>סטטיסטיקת הגעה אישית</div>
+  <div class="card a inl" style="--t:28.7"><span>💬</span>צ׳אט קבוצתי וסקרים</div>
+  <div class="card a inr" style="--t:29.1"><span>📸</span>תמונות מהמשחקים</div>
+  <div class="card a inl" style="--t:29.5"><span>🎂</span>ימי הולדת ומחיאות כפיים</div>
+</section>
+
+<!-- 8 · call to action -->
+<section class="sc navy last" style="--s:31.6; justify-content:center">
+  <div class="ball a pop" style="--t:31.8; width:150px; height:150px; font-size:88px">🏐</div>
+  <div class="name a pop" style="--t:32.1; font-size:58px; margin-top:24px">אפליקציה<br><em style="font-style:normal; color:#f5c842">לקבוצה שלך</em></div>
+  <h2 class="a up" style="--t:32.6; margin-top:14px; font-size:27px; font-weight:700; white-space:nowrap; padding:0">ניהול קבוצת כדורשת, בלי הבלגן</h2>
+  <div class="a pop" style="--t:33.2; margin-top:42px"><div class="cta pulse" style="--t:34">🎁 14 יום ניסיון חינם</div></div>
+  <h2 class="a up" style="--t:33.9; margin-top:26px; font-size:25px; font-weight:500; opacity:.95">בלי כרטיס אשראי · בלי להתקין כלום</h2>
+  <div class="url a up" style="--t:34.4; margin-top:30px">volleyball-team-app-green.vercel.app</div>
+</section>
+
+</body>
+</html>
