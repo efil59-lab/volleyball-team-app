@@ -63,6 +63,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [feedback, setFeedback] = useState(null);   // משוב מהמשתמשות (null = טוען)
   const [fbConfirm, setFbConfirm] = useState(null); // המשוב שעומד להימחק
   const [fbBusy, setFbBusy] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(null); // איזה קישור שיווקי הועתק זה עתה
 
   // יוצר קבוצה ריקה + הזמנה למייל. משותף ל"כלי ידני" ול"אישור בקשה".
   async function createTeamForEmail(email) {
@@ -240,6 +241,39 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
       </div>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ background: "#fff", borderRadius: 14, padding: "12px 16px", color: "#64748b", fontSize: 12 }}>מחובר כבעל המוצר: {authUser.email}</div>
+        {/* ── חומרי שיווק — העמודים שנשלחים למי שמתעניינת. אין אליהם כפתור משום
+            מסך של האפליקציה, ולכן הם כאן: לפתוח, להעתיק קישור, לשלוח בווטסאפ. ── */}
+        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 20 }}>📣</span>
+            <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14 }}>חומרי שיווק</span>
+          </div>
+          {[
+            { key: "pricing", icon: "💰", title: "עמוד שיווקי עם מחירים", sub: "מה האפליקציה עושה, שלושת הצעדים, מסלולים ושאלות נפוצות", path: "/pricing.html",
+              msg: "🏐 אפליקציה לקבוצת הכדורשת — מה היא עושה וכמה זה עולה:" },
+            { key: "promo", icon: "🎬", title: "סרטון הפרומו", sub: "43 שניות, עם מוזיקה", path: "/promo.html", file: "/promo.mp4",
+              msg: "🏐 אפליקציה לקבוצת הכדורשת — סרטון קצר:" },
+          ].map(m => {
+            const url = window.location.origin + m.path;
+            const btn = { border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, textDecoration: "none", display: "inline-block" };
+            return (
+              <div key={m.key} style={{ borderTop: "1px solid #f1f5f9", paddingTop: 10, marginTop: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#1e293b" }}>{m.icon} {m.title}</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 1 }}>{m.sub}</div>
+                <div dir="ltr" style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 4, wordBreak: "break-all", textAlign: "right" }}>{url}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  <a href={m.path} target="_blank" rel="noopener noreferrer" style={{ ...btn, background: pc, color: "white" }}>👁️ פתיחה</a>
+                  <button onClick={async () => {
+                    try { await navigator.clipboard.writeText(url); setCopiedLink(m.key); setTimeout(() => setCopiedLink(null), 2000); } catch {}
+                  }} style={{ ...btn, background: "#f1f5f9", color: "#334155" }}>{copiedLink === m.key ? "✓ הועתק" : "📋 העתקת קישור"}</button>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(m.msg + "\n" + url)}`} target="_blank" rel="noopener noreferrer" style={{ ...btn, background: "#dcfce7", color: "#166534" }}>💬 שליחה בווטסאפ</a>
+                  {m.file && <a href={m.file} download="volleyball-promo.mp4" style={{ ...btn, background: "#f1f5f9", color: "#334155" }}>⬇️ הורדת הסרטון</a>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         <a href="https://github.com/efil59-lab/volleyball-team-app/blob/main/ROADMAP.md" target="_blank" rel="noopener noreferrer"
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
