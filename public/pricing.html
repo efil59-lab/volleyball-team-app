@@ -76,10 +76,15 @@
     .plan.best { border-color: var(--navy); }
     .plan .flag { position: absolute; top: -13px; inset-inline-start: 20px; background: var(--navy); color: #fff; border-radius: 999px; padding: 2px 14px; font-size: 13px; font-weight: 800; }
     .plan.group .flag { background: #0f766e; }
-    .plan.group .price { font-size: 38px; }
+    .tiers { margin-top: 16px; }
+    .tiers div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .tiers div:last-child { border-bottom: 0; }
+    .tiers span { font-size: 16px; font-weight: 700; }
+    .tiers b { font-family: Rubik, Heebo, sans-serif; font-weight: 900; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .plan h3 { font-size: 21px; font-weight: 900; }
     .plan .who { color: var(--ink2); font-size: 14.5px; margin-top: 2px; }
     .plan .price { font-family: Rubik, Heebo, sans-serif; font-weight: 900; font-size: 46px; line-height: 1; margin-top: 16px; font-variant-numeric: tabular-nums; }
+    .plan .price { white-space: nowrap; }
     .plan .price small { font-family: Heebo, sans-serif; font-size: 16px; font-weight: 700; color: var(--ink2); }
     .plan .calc { font-size: 14.5px; color: var(--ok); font-weight: 700; margin-top: 6px; min-height: 22px; }
     .plan ul { list-style: none; margin-top: 14px; font-size: 15.5px; color: var(--ink2); }
@@ -212,11 +217,14 @@
         <ul><li>כל האפליקציה</li><li>שחקניות ללא הגבלה</li></ul>
       </div>
       <div class="plan group">
-        <span class="flag">כמה קבוצות יחד</span>
-        <h3>קבוצתי</h3>
-        <div class="who">לארגון, לליגה או למקום עבודה עם כמה קבוצות</div>
-        <div class="price">₪190–220 <small>לקבוצה לשנה</small></div>
-        <div class="calc">לפי מספר הקבוצות</div>
+        <span class="flag">הנחה לארגונים</span>
+        <h3>כמה קבוצות יחד</h3>
+        <div class="who">ארגון, ליגה או מקום עבודה שמצרף כמה קבוצות</div>
+        <div class="tiers">
+          <div><span>3 עד 5 קבוצות</span><b>₪220</b></div>
+          <div><span>6 קבוצות ומעלה</span><b>₪190</b></div>
+        </div>
+        <div class="calc">המחיר לכל קבוצה, לשנה (במקום ₪290)</div>
         <ul><li>כל האפליקציה לכל קבוצה</li><li>שחקניות ללא הגבלה</li></ul>
       </div>
     </div>
@@ -230,7 +238,7 @@
     <div class="faq">
       <details><summary>צריך להתקין משהו?</summary><p>לא. האפליקציה נפתחת בדפדפן מקישור שאת שולחת לקבוצה, ואפשר להוסיף אותה למסך הבית של הטלפון. היא עובדת באנדרואיד ובאייפון.</p></details>
       <details><summary>כמה זמן לוקח להתחיל?</summary><p>כמה דקות. נכנסים עם חשבון Google, מקלידים את שמות השחקניות, ושולחים להן את הקישור. הקבוצה נפתחת מיד.</p></details>
-      <details><summary>איך עובד המחיר הקבוצתי?</summary><p>כשכמה קבוצות מאותו ארגון, ליגה או מקום עבודה מצטרפות יחד, כל קבוצה משלמת ₪190–220 לשנה במקום ₪290, לפי מספר הקבוצות. כתבו לנו כמה קבוצות אתן, ונחזור עם מחיר מדויק.</p></details>
+      <details><summary>איך עובדת ההנחה לכמה קבוצות?</summary><p>כשכמה קבוצות מאותו ארגון, ליגה או מקום עבודה מצטרפות יחד, כל קבוצה משלמת פחות: ₪220 לשנה כשמצטרפות 3 עד 5 קבוצות, ו-₪190 לשנה כשמצטרפות 6 ומעלה (במקום ₪290). כל קבוצה מקבלת אפליקציה משלה. כתבו לנו כמה קבוצות אתן ונסדר את זה.</p></details>
       <details><summary>מה קורה בסוף 14 ימי הניסיון?</summary><p>אם מתאים לכן, בוחרים מסלול ומשלמים בביט. אם לא, פשוט לא ממשיכים. לא נדרש כרטיס אשראי, ואין חיוב אוטומטי.</p></details>
       <details><summary>השחקניות צריכות לשלם?</summary><p>לא. המחיר הוא לקבוצה כולה, והשחקניות נכנסות בחינם.</p></details>
       <details><summary>המידע של הקבוצה מאובטח?</summary><p>לכל שחקנית חשבון אישי עם סיסמה משלה, והיא עורכת רק את הפרטים שלה. הסיסמאות שמורות מוצפנות ואינן גלויות לאיש.</p></details>
