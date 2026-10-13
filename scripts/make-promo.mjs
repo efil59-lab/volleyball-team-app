@@ -129,6 +129,16 @@ if (still) {
   fs.mkdirSync(OUT, { recursive: true });
   const mp4 = path.join(OUT, 'promo.mp4');
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(TMP, 'f%05d.jpg'), '-vf', 'scale=1080:1920:flags=lanczos', '-c:v', 'libx264', '-preset', 'medium', '-crf', '21', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', mp4], { stdio: 'inherit' });
+  // The soundtrack (scripts/promo/music.m4a — Efi's own track, made in Suno). It is
+  // shorter than the clip, so it is looped once with a crossfade and faded out.
+  const music = path.join(HERE, 'promo', 'music.m4a');
+  if (fs.existsSync(music)) {
+    const silent = path.join(TMP, 'silent.mp4');
+    fs.renameSync(mp4, silent);
+    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', silent, '-i', music, '-i', music, '-filter_complex',
+      `[1:a][2:a]acrossfade=d=1.5:c1=tri:c2=tri,atrim=0:${SECONDS},afade=t=in:st=0:d=0.3,afade=t=out:st=${SECONDS - 2.7}:d=2.7,volume=-3dB[a]`,
+      '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', mp4], { stdio: 'inherit' });
+  }
   // the poster: the closing frame
   await seek((SECONDS - 0.5) * 1000);
   await page.screenshot({ path: path.join(OUT, 'promo.jpg'), type: 'jpeg', quality: 86 });
