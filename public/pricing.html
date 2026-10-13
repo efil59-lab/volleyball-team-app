@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a237e" />
+  <title>אפליקציה לקבוצת הכדורשת — מה היא עושה וכמה זה עולה</title>
+  <meta name="description" content="קובעת אימון, הבנות מאשרות בלחיצה, והסטטיסטיקה וקובץ האקסל מתעדכנים לבד. ₪39 לחודש לקבוצה, 14 יום ניסיון חינם." />
+  <meta property="og:title" content="אפליקציה לקבוצת הכדורשת שלך 🏐" />
+  <meta property="og:description" content="בלי מחברת ובלי רישום ידני. ₪39 לחודש לקבוצה · 14 יום ניסיון חינם." />
+  <meta property="og:image" content="https://volleyball-team-app-green.vercel.app/promo.jpg" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Rubik:wght@800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* The page to send when someone asks "what is it and what does it cost".
+       Plain HTML, no app bundle. The prices live in ONE place — the PRICES block
+       in the markup below — and should match PAYMENT.priceText in
+       src/lib/constants.js. The phone screens are the promo's (scripts/make-promo.mjs,
+       an invented team). */
+    :root { --navy: #1a237e; --deep: #10164f; --gold: #f5c842; --ink: #141a3d; --ink2: #56607f; --ground: #f3f5fb; --line: #dfe3f0; --ok: #15803d; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: Heebo, "Segoe UI", Tahoma, Arial, sans-serif; color: var(--ink); background: var(--ground); line-height: 1.6; }
+    h1, h2, h3 { font-family: Rubik, Heebo, sans-serif; line-height: 1.15; text-wrap: balance; }
+    a { color: inherit; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 18px; }
+
+    .hero { background: linear-gradient(165deg, #2a36a8 0%, var(--navy) 55%, var(--deep) 100%); color: #fff; padding: 44px 0 52px; text-align: center; }
+    .hero .ball { width: 84px; height: 84px; border-radius: 50%; background: var(--gold); display: inline-flex; align-items: center; justify-content: center; font-size: 48px; box-shadow: 0 12px 28px rgba(0, 0, 0, .35); }
+    .hero h1 { font-size: clamp(32px, 7vw, 52px); font-weight: 900; margin-top: 18px; }
+    .hero h1 b { color: var(--gold); }
+    .hero p { font-size: clamp(17px, 3.6vw, 21px); max-width: 600px; margin: 14px auto 0; opacity: .95; }
+    .btn { display: inline-block; text-decoration: none; border-radius: 999px; padding: 14px 28px; font-size: 18px; font-weight: 800; }
+    .btn.gold { background: var(--gold); color: #10163f; box-shadow: 0 10px 26px rgba(0, 0, 0, .3); }
+    .btn.ghost { border: 2px solid rgba(255, 255, 255, .55); color: #fff; }
+    .btn.navy { background: var(--navy); color: #fff; }
+    .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+    .hero .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+    .hero small { display: block; margin-top: 12px; font-size: 14px; opacity: .85; }
+
+    section { padding: 46px 0; }
+    section > .wrap > h2 { font-size: clamp(26px, 5.4vw, 36px); font-weight: 900; text-align: center; }
+    section > .wrap > .sub { text-align: center; color: var(--ink2); font-size: 17px; max-width: 620px; margin: 10px auto 0; }
+
+    .before { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 26px; }
+    .before div { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; font-size: 16px; font-weight: 500; }
+    .before span { font-size: 26px; display: block; margin-bottom: 4px; }
+
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; margin-top: 30px; }
+    .step { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 20px 20px 0; text-align: center; overflow: hidden; display: flex; flex-direction: column; }
+    .step i { font-style: normal; display: inline-block; background: var(--navy); color: #fff; border-radius: 999px; padding: 3px 14px; font-size: 13px; font-weight: 800; align-self: center; }
+    .step h3 { font-size: 22px; font-weight: 900; margin-top: 10px; }
+    .step p { color: var(--ink2); font-size: 15.5px; margin: 6px 0 16px; }
+    .shot { margin: auto auto 0; width: 210px; border: 8px solid var(--deep); border-bottom: 0; border-radius: 30px 30px 0 0; overflow: hidden; height: 300px; background: var(--deep); }
+    .shot img { width: 100%; display: block; }
+
+    .stats { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 26px; align-items: center; margin-top: 28px; }
+    .duo .shots { display: flex; gap: 14px; justify-content: center; }
+    .duo .shot { height: 340px; width: 200px; margin: 0; border-bottom: 8px solid var(--deep); border-radius: 30px; }
+    .ticks { list-style: none; font-size: 17px; }
+    .ticks li { padding: 9px 0 9px; padding-inline-start: 34px; position: relative; border-bottom: 1px solid var(--line); }
+    .ticks li:last-child { border-bottom: 0; }
+    .ticks li::before { content: "✓"; position: absolute; inset-inline-start: 0; top: 9px; width: 24px; height: 24px; border-radius: 50%; background: #dcfce7; color: var(--ok); font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+    .ticks b { font-weight: 800; }
+
+    .more { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 26px; }
+    .more div { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 12px; text-align: center; font-weight: 700; font-size: 15.5px; }
+    .more span { display: block; font-size: 30px; margin-bottom: 4px; }
+
+    .prices { background: linear-gradient(170deg, #fff7dc 0%, #fde9a3 100%); }
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin-top: 30px; align-items: stretch; }
+    .plan { background: #fff; border-radius: 22px; padding: 24px 22px; border: 2px solid transparent; box-shadow: 0 10px 26px rgba(90, 70, 0, .12); display: flex; flex-direction: column; position: relative; }
+    .plan.best { border-color: var(--navy); }
+    .plan .flag { position: absolute; top: -13px; inset-inline-start: 20px; background: var(--navy); color: #fff; border-radius: 999px; padding: 2px 14px; font-size: 13px; font-weight: 800; }
+    .plan.launch .flag { background: #c2410c; }
+    .plan h3 { font-size: 21px; font-weight: 900; }
+    .plan .who { color: var(--ink2); font-size: 14.5px; margin-top: 2px; }
+    .plan .price { font-family: Rubik, Heebo, sans-serif; font-weight: 900; font-size: 46px; line-height: 1; margin-top: 16px; font-variant-numeric: tabular-nums; }
+    .plan .price small { font-family: Heebo, sans-serif; font-size: 16px; font-weight: 700; color: var(--ink2); }
+    .plan .calc { font-size: 14.5px; color: var(--ok); font-weight: 700; margin-top: 6px; min-height: 22px; }
+    .plan ul { list-style: none; margin-top: 14px; font-size: 15.5px; color: var(--ink2); }
+    .plan li { padding: 3px 0; }
+    .prices .all { text-align: center; margin-top: 24px; font-size: 16px; font-weight: 500; }
+    .prices .all b { font-weight: 800; }
+    .org { margin-top: 18px; background: rgba(255, 255, 255, .7); border-radius: 16px; padding: 14px 18px; text-align: center; font-size: 16px; }
+
+    .faq { max-width: 720px; margin: 24px auto 0; }
+    .faq details { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; }
+    .faq summary { font-weight: 800; font-size: 16.5px; cursor: pointer; }
+    .faq p { color: var(--ink2); margin-top: 8px; font-size: 15.5px; }
+
+    .end { background: linear-gradient(165deg, #2a36a8 0%, var(--navy) 55%, var(--deep) 100%); color: #fff; text-align: center; padding: 50px 0 calc(50px + env(safe-area-inset-bottom)); }
+    .end h2 { font-size: clamp(26px, 5.6vw, 38px); font-weight: 900; }
+    .end p { margin-top: 10px; font-size: 17px; opacity: .95; }
+    .end .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+    .end .mail { margin-top: 22px; font-size: 15.5px; opacity: .92; }
+    .end .mail a { font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="ball">🏐</div>
+    <h1>אפליקציה <b>לקבוצה שלך</b></h1>
+    <p>את קובעת אימון. הבנות מאשרות בלחיצה. הסטטיסטיקה וקובץ האקסל מתעדכנים לבד.</p>
+    <div class="row">
+      <a class="btn gold" href="/?from=pricing">🎁 להתחיל 14 יום ניסיון חינם</a>
+      <a class="btn ghost" href="/promo.html">▶ לצפות בסרטון (43 שניות)</a>
+    </div>
+    <small>בלי כרטיס אשראי · בלי להתקין כלום · הקבוצה נפתחת מיד</small>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>מה יורד ממך</h2>
+    <p class="sub">מי שמנהלת קבוצה מכירה את זה מקרוב.</p>
+    <div class="before">
+      <div><span>💬</span>לספור "מי מגיעה?" מתוך עשרות הודעות בקבוצה</div>
+      <div><span>📓</span>לרשום נוכחות במחברת או בזיכרון</div>
+      <div><span>⌨️</span>להקליד הכול לאקסל בסוף העונה</div>
+      <div><span>🔔</span>להזכיר שוב ושוב למי שלא ענתה</div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <h2>שלושה צעדים, וזה הכול</h2>
+    <div class="steps">
+      <div class="step">
+        <i>שלב 1</i>
+        <h3>קובעת אימון או משחק</h3>
+        <p>תאריך, שעה ומיקום. חצי דקה, וכל הקבוצה רואה אותו.</p>
+        <div class="shot"><img src="/pricing/add.jpg" alt="טופס הוספת אימון: סוג, תאריך, שעה ומיקום" loading="lazy" /></div>
+      </div>
+      <div class="step">
+        <i>שלב 2</i>
+        <h3>הבנות מאשרות בלחיצה</h3>
+        <p>"מגיעה" או "לא מגיעה". מי ששכחה והפעילה התראות מקבלת תזכורת לטלפון.</p>
+        <div class="shot"><img src="/pricing/home.jpg" alt="מסך הבית של שחקנית עם כפתורי מגיעה ולא מגיעה" loading="lazy" /></div>
+      </div>
+      <div class="step">
+        <i>שלב 3</i>
+        <h3>האימון נגמר? כפתור אחד</h3>
+        <p>מאשרת מי הגיעה בפועל, והנוכחות עוברת לסטטיסטיקה.</p>
+        <div class="shot"><img src="/pricing/archive.jpg" alt="חלון ארכוב האירוע עם רשימת השחקניות" loading="lazy" /></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap">
+    <h2>והסטטיסטיקה מתעדכנת לבד</h2>
+    <div class="duo">
+      <div class="shots">
+        <div class="shot"><img src="/pricing/rank.jpg" alt="דירוג שחקניות לפי אחוז הגעה" loading="lazy" /></div>
+        <div class="shot"><img src="/pricing/table.jpg" alt="טבלת נוכחות של כל שחקנית בכל אימון" loading="lazy" /></div>
+      </div>
+      <ul class="ticks">
+        <li><b>אחוז הגעה לכל שחקנית</b>, ודירוג של כל הקבוצה</li>
+        <li><b>טבלת נוכחות מלאה</b>: כל אימון ומשחק, כל שחקנית</li>
+        <li><b>ייצוא לאקסל בלחיצה</b>, עם סיכומים ואחוזים מחושבים</li>
+        <li><b>תיקון נוכחות</b> גם אחרי האימון, עם תיעוד של מה ששונה</li>
+        <li><b>סיכום הגעה למנהלת</b> בבוקר כל אימון</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>ויש עוד</h2>
+    <div class="more">
+      <div><span>🗓️</span>לוח אימונים ומשחקים</div>
+      <div><span>🏆</span>תוצאות משחקים</div>
+      <div><span>💬</span>צ׳אט קבוצתי</div>
+      <div><span>🗳️</span>סקרים</div>
+      <div><span>📸</span>תמונות מהמשחקים</div>
+      <div><span>🎂</span>ימי הולדת</div>
+      <div><span>👏</span>מחיאות כפיים</div>
+      <div><span>📱</span>עובד בכל טלפון</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICES — the one place to change them (and PAYMENT.priceText in src/lib/constants.js) -->
+<section class="prices" id="prices">
+  <div class="wrap">
+    <h2>כמה זה עולה</h2>
+    <p class="sub">מחיר אחד לכל הקבוצה, לא משנה כמה שחקניות יש בה.</p>
+    <div class="plans">
+      <div class="plan">
+        <h3>חודשי</h3>
+        <div class="who">גמיש, אפשר להפסיק בכל חודש</div>
+        <div class="price">₪39 <small>לחודש</small></div>
+        <div class="calc"></div>
+        <ul><li>כל האפליקציה</li><li>שחקניות ללא הגבלה</li></ul>
+      </div>
+      <div class="plan best">
+        <span class="flag">הכי משתלם</span>
+        <h3>עונתי</h3>
+        <div class="who">ספטמבר עד יוני, תשלום אחד</div>
+        <div class="price">₪290 <small>לעונה</small></div>
+        <div class="calc">₪29 לחודש · חיסכון של ₪100</div>
+        <ul><li>כל האפליקציה</li><li>שחקניות ללא הגבלה</li></ul>
+      </div>
+      <div class="plan launch">
+        <span class="flag">מחיר השקה · ספורטיאדה 2026</span>
+        <h3>עונה ראשונה</h3>
+        <div class="who">לקבוצות שנרשמות עד 30.11.2026</div>
+        <div class="price">₪190 <small>לעונה</small></div>
+        <div class="calc">₪19 לחודש · חיסכון של ₪200</div>
+        <ul><li>כל האפליקציה</li><li>שחקניות ללא הגבלה</li></ul>
+      </div>
+    </div>
+    <p class="all"><b>כל מסלול מתחיל ב-14 יום ניסיון חינם</b>, בלי כרטיס אשראי. התשלום פשוט, בביט.</p>
+    <div class="org">🏢 כמה קבוצות מאותו ארגון או מאותה ליגה? <b>יש מחיר מיוחד</b> — כתבו לנו.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>שאלות נפוצות</h2>
+    <div class="faq">
+      <details><summary>צריך להתקין משהו?</summary><p>לא. האפליקציה נפתחת בדפדפן מקישור שאת שולחת לקבוצה, ואפשר להוסיף אותה למסך הבית של הטלפון. היא עובדת באנדרואיד ובאייפון.</p></details>
+      <details><summary>כמה זמן לוקח להתחיל?</summary><p>כמה דקות. נכנסים עם חשבון Google, מקלידים את שמות השחקניות, ושולחים להן את הקישור. הקבוצה נפתחת מיד.</p></details>
+      <details><summary>מה קורה בסוף 14 ימי הניסיון?</summary><p>אם מתאים לכן, בוחרים מסלול ומשלמים בביט. אם לא, פשוט לא ממשיכים. לא נדרש כרטיס אשראי, ואין חיוב אוטומטי.</p></details>
+      <details><summary>השחקניות צריכות לשלם?</summary><p>לא. המחיר הוא לקבוצה כולה, והשחקניות נכנסות בחינם.</p></details>
+      <details><summary>המידע של הקבוצה מאובטח?</summary><p>לכל שחקנית חשבון אישי עם סיסמה משלה, והיא עורכת רק את הפרטים שלה. הסיסמאות שמורות מוצפנות ואינן גלויות לאיש.</p></details>
+      <details><summary>זה מתאים גם לענף אחר?</summary><p>האפליקציה נבנתה לקבוצות כדורשת. אם יש לכן קבוצה בענף אחר, כתבו לנו ונבדוק יחד.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer class="end">
+  <div class="wrap">
+    <h2>בלי מחברת. בלי רישום ידני.</h2>
+    <p>14 יום ניסיון חינם, ואת רואה אם זה מתאים לקבוצה שלך.</p>
+    <div class="row">
+      <a class="btn gold" href="/?from=pricing">🎁 להתחיל ניסיון חינם</a>
+      <a class="btn ghost" href="/promo.html">▶ לצפות בסרטון</a>
+    </div>
+    <div class="mail">שאלות? <a href="mailto:efil59@gmail.com?subject=%D7%90%D7%A4%D7%9C%D7%99%D7%A7%D7%A6%D7%99%D7%99%D7%AA%20%D7%94%D7%9B%D7%93%D7%95%D7%A8%D7%A9%D7%AA" dir="ltr">efil59@gmail.com</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
