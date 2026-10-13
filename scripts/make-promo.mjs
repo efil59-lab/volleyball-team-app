@@ -23,7 +23,7 @@ const APP = arg('--app', 'http://localhost:5200');
 const OUT = arg('--out', ROOT);
 const TMP = path.join(ROOT, 'node_modules', '.promo');
 const CHROME = arg('--chrome', ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', '/usr/bin/google-chrome'].find((p) => fs.existsSync(p)));
-const SECONDS = Number(arg('--seconds', 36)), FPS = 30;
+const SECONDS = Number(arg('--seconds', 43)), FPS = 30;
 const still = arg('--still', '');
 const shotsOnly = process.argv.includes('--shots');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -51,18 +51,49 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
     document.querySelectorAll('*').forEach((e) => { if (getComputedStyle(e).position === 'fixed') e.style.display = 'none'; });
   });
 
+  // click the visible button (not one in a neighbouring carousel pane) whose text includes t
+  const click = (t) => page.evaluate((t) => { const el = [...document.querySelectorAll('button')].filter((e) => !e.closest('.vb-incoming') && e.getClientRects().length).find((e) => e.innerText.includes(t)); if (!el) throw new Error('no button: ' + t); el.click(); }, t);
+  const tall = async (name, max = 2400) => {
+    await unroll(); await sleep(400);
+    const h = await page.evaluate(() => document.documentElement.scrollHeight);
+    await snap(name, { clip: { x: 0, y: 0, width: 390, height: Math.min(h, max) }, captureBeyondViewport: true });
+    console.log(name, 'height:', h);
+  };
+
+  // the player's side: one tap
   await open('home');
   await snap('home');
 
-  await open('event');
-  await snap('event');
-  await unroll(); await sleep(400);
-  const h = await page.evaluate(() => document.documentElement.scrollHeight);
-  await snap('event-tall', { clip: { x: 0, y: 0, width: 390, height: Math.min(h, 2400) }, captureBeyondViewport: true });
-  console.log('event-tall height:', h);
+  // the manager's side
+  await open('admin');
+  await click('אירועים'); await sleep(900);
+  await snap('events');                       // "ארכוב האירוע" on yesterday's practice
+  await click('ארכוב האירוע'); await sleep(900);
+  await snap('archive');                      // the list she confirms, and "ארכב · N הגיעו"
 
-  await open('calendar');
-  await snap('calendar');
+  // adding an event: the calendar, a day, the form
+  await open('admin');
+  await click('אירועים'); await sleep(700);
+  await click('לוח'); await sleep(900);
+  const d = new Date(); d.setDate(d.getDate() + 3);
+  await page.evaluate((n) => {
+    const leaf = [...document.querySelectorAll('.vb-pane:not(.vb-incoming) *')].find((e) => !e.children.length && e.textContent.trim() === String(n) && e.getClientRects().length);
+    if (!leaf) throw new Error('no day cell ' + n);
+    leaf.click();
+  }, d.getDate());
+  await sleep(700);
+  await click('אירוע חדש'); await sleep(900);
+  await snap('add');
+
+  // statistics: the ranking, then the full table
+  await open('admin');
+  await click('סטטיסטיקה'); await sleep(1000);
+  await snap('rank');
+  await tall('rank-tall');
+  await open('admin');
+  await click('סטטיסטיקה'); await sleep(700);
+  await click('טבלת נוכחות'); await sleep(900);
+  await snap('table');
   await page.close();
 }
 if (shotsOnly) {

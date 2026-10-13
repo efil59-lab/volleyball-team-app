@@ -5,10 +5,13 @@
 <title>אפליקציית הכדורשת — פרומו</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=Rubik:wght@800;900&display=swap" rel="stylesheet" />
 <style>
-  /* A 36-second vertical promo, all CSS animation on one global clock: every
+  /* A 43-second vertical promo, all CSS animation on one global clock: every
      element carries --t (the second it enters). scripts/make-promo.mjs steps
      that clock frame by frame, so the result is smooth whatever the machine.
-     Audience: whoever runs a team (captain / manager), not the players. */
+
+     Audience: whoever runs the team. The story (Efi, 13.10.26): the app takes
+     the manual tracking off her — she only sets a practice, the players answer,
+     one tap moves it into the statistics, and the Excel file is one more tap. */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 540px; height: 960px; overflow: hidden; background: #eef1f8; font-family: Heebo, Arial, sans-serif; color: #141a3d; }
   .sc { position: absolute; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; opacity: 0;
@@ -17,9 +20,10 @@
   @keyframes scene { 0% { opacity: 0; transform: scale(1.04); } 7% { opacity: 1; transform: none; } 92% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(.97); } }
   @keyframes sceneIn { from { opacity: 0; transform: scale(1.05); } to { opacity: 1; transform: none; } }
   .light { background: radial-gradient(120% 80% at 50% 0%, #fff 0%, #eef1f8 55%, #dfe4f3 100%); }
-  .chat { background: linear-gradient(175deg, #e9f5ee 0%, #d6ebdf 100%); }
+  .paper { background: linear-gradient(175deg, #fbf7ee 0%, #f1e9d6 100%); }
   .navy { background: linear-gradient(165deg, #2a36a8 0%, #1a237e 55%, #10164f 100%); color: #fff; }
   .gold { background: linear-gradient(170deg, #fff7dc 0%, #fde9a3 100%); }
+  .green { background: linear-gradient(170deg, #eefaf1 0%, #cfeed9 100%); }
 
   .a { animation-duration: .7s; animation-timing-function: cubic-bezier(.2, 1.35, .35, 1); animation-delay: calc(var(--t) * 1s); animation-fill-mode: both; }
   .pop { animation-name: pop; }
@@ -31,20 +35,25 @@
   @keyframes inr { from { opacity: 0; transform: translateX(420px) rotate(var(--r, 0deg)); } to { opacity: 1; transform: translateX(0) rotate(var(--r, 0deg)); } }
   @keyframes inl { from { opacity: 0; transform: translateX(-420px) rotate(var(--r, 0deg)); } to { opacity: 1; transform: translateX(0) rotate(var(--r, 0deg)); } }
 
-  h1 { font-family: Rubik, Heebo, sans-serif; font-weight: 900; font-size: 52px; line-height: 1.14; text-align: center; letter-spacing: -.5px; padding: 0 30px; }
+  h1 { font-family: Rubik, Heebo, sans-serif; font-weight: 900; font-size: 50px; line-height: 1.14; text-align: center; letter-spacing: -.5px; padding: 0 28px; }
   h1 em { font-style: normal; color: #2a36a8; }
-  .chat h1 em { color: #128c4a; }
+  .paper h1 em { color: #b4530a; }
+  .green h1 em { color: #15803d; }
   .navy h1 em, .navy h2 em { font-style: normal; color: #f5c842; }
   h2 { font-weight: 700; font-size: 30px; line-height: 1.3; text-align: center; padding: 0 40px; }
+  .step { font-size: 22px; font-weight: 900; letter-spacing: .5px; color: #fff; background: #1a237e; border-radius: 999px; padding: 6px 20px; margin-top: 42px; }
+  .gold .step, .green .step { background: #10163f; }
 
-  /* --- 1: the WhatsApp mess --- */
-  .msg { max-width: 400px; border-radius: 22px; padding: 13px 20px; font-size: 27px; font-weight: 600; line-height: 1.25; box-shadow: 0 6px 16px rgba(20, 60, 40, .14); background: #fff; align-self: flex-start; margin: 0 26px; white-space: nowrap; }
-  .msg.me { background: #d9fdd3; align-self: flex-end; }
-  .msg small { display: block; font-size: 17px; font-weight: 800; color: #128c4a; margin-bottom: 1px; }
-  .msgs { width: 100%; display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
+  /* --- 1: the notebook --- */
+  .note { width: 400px; background: #fffdf6; border-radius: 10px; padding: 22px 26px 26px; margin-top: 34px; box-shadow: 0 16px 36px rgba(90, 60, 20, .22); transform: rotate(-2.5deg);
+          background-image: repeating-linear-gradient(#fffdf6 0 43px, #cfdcec 43px 45px); font-size: 27px; font-weight: 600; line-height: 45px; color: #26324f; }
+  .note b { display: block; font-weight: 800; color: #b4530a; }
+  .note s { color: #94a3b8; }
+  .note .w { animation: fadein .35s ease-out calc(var(--t) * 1s) both; display: block; white-space: nowrap; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
-  /* --- 2: and then practice comes --- */
-  .q { background: #fff; border-radius: 999px; padding: 16px 28px; font-size: 30px; font-weight: 700; box-shadow: 0 10px 26px rgba(26, 35, 126, .16); white-space: nowrap; }
+  /* --- 2: end of season --- */
+  .q { background: #fff; border-radius: 999px; padding: 16px 28px; font-size: 29px; font-weight: 700; box-shadow: 0 10px 26px rgba(26, 35, 126, .16); white-space: nowrap; }
 
   /* --- phones --- */
   .phone { width: 290px; height: 590px; border-radius: 46px; border: 11px solid #10164f; background: #10164f; overflow: hidden; box-shadow: 0 30px 60px rgba(16, 22, 79, .38); position: relative; flex: 0 0 auto; }
@@ -55,12 +64,31 @@
   .tag.no { background: #ef4444; color: #fff; }
   .tag.dark { background: #1a237e; color: #fff; }
   .tag.gold { background: #f5c842; color: #10163f; }
+  .tag.amber { background: #f59e0b; color: #fff; }
+  /* the finger that taps */
+  .tap { position: absolute; font-size: 64px; line-height: 1; animation: tap 1.5s ease-in-out calc(var(--t) * 1s) both; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .3)); }
+  @keyframes tap { 0% { opacity: 0; transform: translate(60px, 90px); } 35% { opacity: 1; transform: translate(0, 0); } 50% { transform: translate(0, 0) scale(.82); } 65% { transform: translate(0, 0) scale(1); } 100% { opacity: 1; transform: translate(0, 0); } }
 
-  /* --- 7: extras --- */
-  .card { width: 486px; white-space: nowrap; background: #fff; border-radius: 28px; padding: 20px 26px; display: flex; align-items: center; gap: 16px; font-size: 28px; font-weight: 800; box-shadow: 0 12px 28px rgba(26, 35, 126, .14); }
-  .card span { font-size: 50px; line-height: 1; }
+  /* --- the Excel sheet --- */
+  .xl { width: 492px; margin-top: 30px; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 54px rgba(16, 80, 40, .28); direction: rtl; }
+  .xl-bar { background: #107c41; color: #fff; display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 18px; font-weight: 700; }
+  .xl-bar i { font-style: normal; background: #fff; color: #107c41; border-radius: 5px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 17px; }
+  .xl table { width: 100%; border-collapse: collapse; font-size: 17px; font-variant-numeric: tabular-nums; }
+  .xl th, .xl td { border: 1px solid #d5dbe6; padding: 0 4px; height: 30px; text-align: center; }
+  .xl thead th { background: #2f5597; color: #fff; font-weight: 800; }
+  .xl thead .k th { background: #dbe7f6; color: #2f5597; font-size: 13px; height: 22px; }
+  .xl td:first-child, .xl th:first-child { text-align: right; padding-right: 10px; font-weight: 700; background: #f2f2f2; color: #141a3d; width: 132px; white-space: nowrap; }
+  .xl thead th:first-child { background: #2f5597; color: #fff; }
+  .xl td.v { background: #c6efce; color: #0a6b2a; font-weight: 900; }
+  .xl td.s { background: #e2efda; font-weight: 800; }
+  .xl tfoot td { background: #e2efda; font-weight: 900; }
+  .xl tfoot td:first-child { background: #2f5597; color: #fff; }
+  .xl tbody tr { animation: fadein .3s ease-out calc(var(--t) * 1s) both; }
+  .xl-tabs { display: flex; gap: 2px; background: #eef1f4; padding: 6px 10px 0; font-size: 15px; font-weight: 700; color: #64748b; }
+  .xl-tabs span { padding: 6px 16px; border-radius: 8px 8px 0 0; }
+  .xl-tabs .on { background: #fff; color: #107c41; border-bottom: 3px solid #107c41; }
 
-  /* --- 3 + 8 --- */
+  /* --- 3 + last --- */
   .ball { width: 190px; height: 190px; border-radius: 50%; background: #f5c842; display: flex; align-items: center; justify-content: center; font-size: 112px; line-height: 1; box-shadow: 0 24px 50px rgba(0, 0, 0, .4); }
   .name { font-family: Rubik, Heebo, sans-serif; font-weight: 900; line-height: 1.05; text-align: center; }
   .burst { position: absolute; font-size: 70px; left: 50%; top: 42%; animation: burst 1.6s cubic-bezier(.15, .8, .3, 1) calc(var(--t) * 1s) both; }
@@ -69,90 +97,136 @@
   .url { direction: ltr; font-size: 22px; font-weight: 700; opacity: .92; }
   .pulse { animation: pulse 1.4s ease-in-out calc(var(--t) * 1s) infinite both; }
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .line { font-size: 31px; font-weight: 800; white-space: nowrap; }
+  .line s { text-decoration-thickness: 3px; opacity: .75; }
 </style>
 </head>
 <body>
 
-<!-- 1 · the problem: counting hands in the group chat -->
-<section class="sc chat" style="--s:0; --e:4.6">
-  <h1 class="a up" style="--t:.2; margin-top:70px">״מי מגיעה<br>לאימון מחר?״</h1>
-  <div class="msgs">
-    <div class="msg a inl" style="--t:.9"><small>מיכל</small>אני! 🙋‍♀️</div>
-    <div class="msg a inl" style="--t:1.3"><small>שירה</small>👍</div>
-    <div class="msg a inl" style="--t:1.7"><small>יעל</small>עוד לא יודעת, אעדכן</div>
-    <div class="msg a inl" style="--t:2.1"><small>רוני</small>רגע, באיזו שעה?</div>
-    <div class="msg a inl" style="--t:2.5"><small>דנה</small>👍</div>
-    <div class="msg me a inr" style="--t:3.0">אז כמה אנחנו בסוף?? 😵‍💫</div>
+<!-- 1 · the problem: the manager's notebook -->
+<section class="sc paper" style="--s:0; --e:4.4">
+  <h1 class="a up" style="--t:.2; margin-top:64px">עדיין רושמת<br>נוכחות <em>ביד</em>?</h1>
+  <div class="note a up" style="--t:.7">
+    <b>אימון · יום שלישי</b>
+    <span class="w" style="--t:1.2">מיכל ✓ &nbsp; שירה ✓ &nbsp; יעל ✗</span>
+    <span class="w" style="--t:1.6">תמר ✓ &nbsp; רוני <s>✓</s> ✗ &nbsp; דנה ?</span>
+    <span class="w" style="--t:2.0">ליאת — אמרה שאולי</span>
+    <span class="w" style="--t:2.4">אורית ✓ &nbsp; הילה ✗ &nbsp; גלית ✓</span>
+    <span class="w" style="--t:2.8">סה״כ: <s>8</s> <s>9</s> 7 ??</span>
   </div>
 </section>
 
-<!-- 2 · and then practice comes -->
-<section class="sc light" style="--s:4.6; --e:8.6; justify-content:center; gap:26px">
-  <h1 class="a pop" style="--t:4.8; font-size:58px; margin-bottom:14px">ואז מגיע <em>האימון</em>…</h1>
-  <div class="q a inr" style="--t:5.2; --r:-3deg">😬 הגיעו רק חמש</div>
-  <div class="q a inl" style="--t:5.6; --r:2deg">🤷‍♀️ ״לא ראיתי את ההודעה״</div>
-  <div class="q a inr" style="--t:6.0; --r:-2deg">📍 ״איפה זה בכלל?״</div>
-  <div class="q a inl" style="--t:6.4; --r:3deg">📜 240 הודעות בקבוצה</div>
+<!-- 2 · and at the end of the season -->
+<section class="sc light" style="--s:4.4; --e:8.4; justify-content:center; gap:24px">
+  <h1 class="a pop" style="--t:4.6; font-size:54px; margin-bottom:14px">ובסוף העונה…</h1>
+  <div class="q a inr" style="--t:5.0; --r:-3deg">🤔 מי הגיעה הכי הרבה?</div>
+  <div class="q a inl" style="--t:5.4; --r:2deg">📓 איפה המחברת?</div>
+  <div class="q a inr" style="--t:5.8; --r:-2deg">💬 לגלול חודשים בווטסאפ</div>
+  <div class="q a inl" style="--t:6.2; --r:3deg">⌨️ להקליד הכול לאקסל</div>
 </section>
 
 <!-- 3 · the answer -->
-<section class="sc navy" style="--s:8.6; --e:12.6; justify-content:center">
-  <div class="burst" style="--t:9.0; --bx:-190px; --by:-310px; --r:-18deg">✅</div>
-  <div class="burst" style="--t:9.1; --bx:190px;  --by:-320px; --r:14deg">🗓️</div>
-  <div class="burst" style="--t:9.2; --bx:-200px; --by:320px;  --r:12deg">🏆</div>
-  <div class="burst" style="--t:9.3; --bx:200px;  --by:310px;  --r:-10deg">💬</div>
-  <div class="burst" style="--t:9.4; --bx:-215px; --by:10px;   --r:8deg">🔔</div>
-  <div class="burst" style="--t:9.5; --bx:215px;  --by:-10px;  --r:-8deg">📊</div>
-  <div class="ball a pop" style="--t:8.8">🏐</div>
-  <div class="name a pop" style="--t:9.2; font-size:66px; margin-top:30px">אפליקציה<br><em style="font-style:normal; color:#f5c842">לקבוצה שלך</em></div>
-  <h2 class="a up" style="--t:9.9; margin-top:18px; font-size:34px; font-weight:800">כל הקבוצה. במקום אחד.</h2>
+<section class="sc navy" style="--s:8.4; --e:12; justify-content:center">
+  <div class="burst" style="--t:8.8; --bx:-190px; --by:-310px; --r:-18deg">✅</div>
+  <div class="burst" style="--t:8.9; --bx:190px;  --by:-320px; --r:14deg">🗓️</div>
+  <div class="burst" style="--t:9.0; --bx:-200px; --by:320px;  --r:12deg">🏆</div>
+  <div class="burst" style="--t:9.1; --bx:200px;  --by:310px;  --r:-10deg">📥</div>
+  <div class="burst" style="--t:9.2; --bx:-215px; --by:10px;   --r:8deg">🔔</div>
+  <div class="burst" style="--t:9.3; --bx:215px;  --by:-10px;  --r:-8deg">📊</div>
+  <div class="ball a pop" style="--t:8.6">🏐</div>
+  <div class="name a pop" style="--t:9.0; font-size:66px; margin-top:30px">אפליקציה<br><em style="font-style:normal; color:#f5c842">לקבוצה שלך</em></div>
+  <h2 class="a up" style="--t:9.7; margin-top:18px; font-size:33px; font-weight:800">את הרישום והמעקב היא עושה.</h2>
 </section>
 
-<!-- 4 · one tap -->
-<section class="sc light" style="--s:12.6; --e:18">
-  <h1 class="a up" style="--t:12.8; margin-top:54px">מגיעה? לא מגיעה?<br><em>לחיצה אחת</em> 👆</h1>
-  <div class="phone a up" style="--t:13.2; margin-top:34px; animation-duration:.9s"><img src="SHOTS/home.png" alt="" /></div>
-  <div class="tag ok a pop" style="--t:14.3; right:10px; top:560px; --r:5deg">✅ מגיעה</div>
-  <div class="tag no a pop" style="--t:14.8; left:10px; top:600px; --r:-6deg">❌ לא מגיעה</div>
-  <div class="tag dark a pop" style="--t:15.6; left:50%; margin-left:-190px; top:850px; font-size:24px">בלי הודעות, בלי לגלול בקבוצה</div>
+<!-- 4 · step 1: set a practice -->
+<section class="sc light" style="--s:12; --e:16.8">
+  <div class="step a pop" style="--t:12.2">שלב 1</div>
+  <h1 class="a up" style="--t:12.3; margin-top:14px">קובעת אימון<br><em>בחצי דקה</em> 🗓️</h1>
+  <div class="phone a up" style="--t:12.7; margin-top:26px; animation-duration:.9s"><img src="SHOTS/add.png" alt="" /></div>
+  <div class="tag dark a pop" style="--t:13.8; right:8px; top:520px; --r:5deg">תאריך</div>
+  <div class="tag dark a pop" style="--t:14.2; left:8px; top:600px; --r:-5deg">שעה</div>
+  <div class="tag dark a pop" style="--t:14.6; right:8px; top:680px; --r:-4deg">מיקום</div>
+  <div class="tag gold a pop" style="--t:15.2; left:50%; margin-left:-150px; top:880px; font-size:24px">וזהו. כולן רואות אותו.</div>
 </section>
 
-<!-- 5 · the count, live -->
-<section class="sc gold" style="--s:18; --e:23.4">
-  <h1 class="a up" style="--t:18.2; margin-top:54px">ואת יודעת בדיוק<br><em>מי מגיעה</em> 🙌</h1>
-  <div class="phone a up" style="--t:18.6; margin-top:34px; animation-duration:.9s"><img src="SHOTS/event-tall.png" alt="" style="--pt:20.2; --pd:2.6; --py:-150px" /></div>
-  <div class="tag ok a pop" style="--t:19.6; right:8px; top:470px; --r:5deg">8 מגיעות</div>
-  <div class="tag no a pop" style="--t:20.1; left:8px; top:540px; --r:-5deg">2 לא מגיעות</div>
-  <div class="tag a pop" style="--t:20.6; right:8px; top:640px; --r:-4deg">3 טרם ענו</div>
-  <div class="tag gold a pop" style="--t:21.4; left:50%; margin-left:-200px; top:850px; font-size:24px">🔔 והן מקבלות תזכורת — לבד</div>
+<!-- 5 · step 2: they answer -->
+<section class="sc gold" style="--s:16.8; --e:21">
+  <div class="step a pop" style="--t:17">שלב 2</div>
+  <h1 class="a up" style="--t:17.1; margin-top:14px">הבנות מאשרות<br><em>בלחיצה אחת</em> 👆</h1>
+  <div class="phone a up" style="--t:17.5; margin-top:26px; animation-duration:.9s"><img src="SHOTS/home.png" alt="" /></div>
+  <div class="tag ok a pop" style="--t:18.5; right:10px; top:590px; --r:5deg">✅ מגיעה</div>
+  <div class="tag no a pop" style="--t:18.9; left:10px; top:630px; --r:-6deg">❌ לא מגיעה</div>
+  <div class="tag dark a pop" style="--t:19.6; left:50%; margin-left:-205px; top:880px; font-size:24px">🔔 ומי ששכחה — מקבלת תזכורת</div>
 </section>
 
-<!-- 6 · the calendar -->
-<section class="sc light" style="--s:23.4; --e:27.8">
-  <h1 class="a up" style="--t:23.6; margin-top:54px">כל האימונים<br>והמשחקים <em>בלוח</em> 🗓️</h1>
-  <div class="phone a up" style="--t:24.0; margin-top:34px; animation-duration:.9s"><img src="SHOTS/calendar.png" alt="" /></div>
-  <div class="tag dark a pop" style="--t:25.0; right:6px; top:500px; --r:4deg">🏋️ אימונים</div>
-  <div class="tag gold a pop" style="--t:25.6; left:6px; top:620px; --r:-4deg">🏆 משחקים ותוצאות</div>
+<!-- 6 · step 3: one tap into the statistics -->
+<section class="sc light" style="--s:21; --e:26">
+  <div class="step a pop" style="--t:21.2">שלב 3</div>
+  <h1 class="a up" style="--t:21.3; margin-top:14px">האימון נגמר?<br><em>כפתור אחד</em> 🔒</h1>
+  <div class="phone a up" style="--t:21.7; margin-top:26px; animation-duration:.9s"><img src="SHOTS/archive.png" alt="" /></div>
+  <div class="tap" style="--t:22.9; left:292px; top:672px">👆</div>
+  <div class="tag amber a pop" style="--t:23.9; left:8px; top:540px; --r:-5deg">🔒 ארכב</div>
+  <div class="tag gold a pop" style="--t:24.4; left:50%; margin-left:-190px; top:880px; font-size:24px">והנוכחות עוברת לסטטיסטיקה</div>
 </section>
 
-<!-- 7 · and more -->
-<section class="sc gold" style="--s:27.8; --e:31.6; justify-content:center; gap:16px">
-  <h1 class="a pop" style="--t:28; margin-bottom:12px">ויש עוד <em>🏐</em></h1>
-  <div class="card a inr" style="--t:28.3"><span>📊</span>סטטיסטיקת הגעה אישית</div>
-  <div class="card a inl" style="--t:28.7"><span>💬</span>צ׳אט קבוצתי וסקרים</div>
-  <div class="card a inr" style="--t:29.1"><span>📸</span>תמונות מהמשחקים</div>
-  <div class="card a inl" style="--t:29.5"><span>🎂</span>ימי הולדת ומחיאות כפיים</div>
+<!-- 7 · the statistics keep themselves -->
+<section class="sc gold" style="--s:26; --e:31">
+  <h1 class="a up" style="--t:26.2; margin-top:54px">הסטטיסטיקה<br><em>מתעדכנת לבד</em> 📊</h1>
+  <div class="phone a up" style="--t:26.6; margin-top:34px; animation-duration:.9s"><img src="SHOTS/rank-tall.png" alt="" style="--pt:27.8; --pd:2.6; --py:-330px" /></div>
+  <div class="tag dark a pop" style="--t:27.4; right:6px; top:470px; --r:4deg">אחוז הגעה לכל אחת</div>
+  <div class="tag ok a pop" style="--t:28.4; left:6px; top:650px; --r:-4deg">🥇 דירוג שחקניות</div>
 </section>
 
-<!-- 8 · call to action -->
-<section class="sc navy last" style="--s:31.6; justify-content:center">
-  <div class="ball a pop" style="--t:31.8; width:150px; height:150px; font-size:88px">🏐</div>
-  <div class="name a pop" style="--t:32.1; font-size:58px; margin-top:24px">אפליקציה<br><em style="font-style:normal; color:#f5c842">לקבוצה שלך</em></div>
-  <h2 class="a up" style="--t:32.6; margin-top:14px; font-size:27px; font-weight:700; white-space:nowrap; padding:0">ניהול קבוצת כדורשת, בלי הבלגן</h2>
-  <div class="a pop" style="--t:33.2; margin-top:42px"><div class="cta pulse" style="--t:34">🎁 14 יום ניסיון חינם</div></div>
-  <h2 class="a up" style="--t:33.9; margin-top:26px; font-size:25px; font-weight:500; opacity:.95">בלי כרטיס אשראי · בלי להתקין כלום</h2>
-  <div class="url a up" style="--t:34.4; margin-top:30px">volleyball-team-app-green.vercel.app</div>
+<!-- 8 · the full table -->
+<section class="sc light" style="--s:31; --e:35.2">
+  <h1 class="a up" style="--t:31.2; margin-top:54px">כל אימון, כל שחקנית<br><em>בטבלה אחת</em></h1>
+  <div class="phone a up" style="--t:31.6; margin-top:34px; animation-duration:.9s"><img src="SHOTS/table.png" alt="" /></div>
+  <div class="tag ok a pop" style="--t:32.6; right:6px; top:560px; --r:4deg">✅ הגיעה</div>
+  <div class="tag no a pop" style="--t:33.0; left:6px; top:640px; --r:-4deg">❌ לא הגיעה</div>
 </section>
 
+<!-- 9 · and one more tap: Excel -->
+<section class="sc green" style="--s:35.2; --e:39.6">
+  <h1 class="a up" style="--t:35.4; margin-top:50px">ובלחיצה —<br><em>קובץ אקסל מוכן</em> 📥</h1>
+  <div class="xl a up" style="--t:35.8; animation-duration:.9s">
+    <div class="xl-bar"><i>X</i>נוכחות שחקניות</div>
+    <table id="xl"></table>
+    <div class="xl-tabs"><span class="on">נוכחות</span><span>סיכום</span></div>
+  </div>
+  <div class="tag dark a pop" style="--t:38.2; left:50%; margin-left:-215px; top:880px; font-size:24px">סיכומים ואחוזים — כבר מחושבים</div>
+</section>
+
+<!-- 10 · call to action -->
+<section class="sc navy last" style="--s:39.6; justify-content:center">
+  <div class="ball a pop" style="--t:39.8; width:140px; height:140px; font-size:82px">🏐</div>
+  <div class="name a pop" style="--t:40.0; font-size:56px; margin-top:22px">אפליקציה<br><em style="font-style:normal; color:#f5c842">לקבוצה שלך</em></div>
+  <div class="line a up" style="--t:40.5; margin-top:18px">בלי מחברת. בלי רישום ידני.</div>
+  <div class="a pop" style="--t:41.0; margin-top:36px"><div class="cta pulse" style="--t:41.8">🎁 14 יום ניסיון חינם</div></div>
+  <h2 class="a up" style="--t:41.5; margin-top:24px; font-size:25px; font-weight:500; opacity:.95">בלי כרטיס אשראי · בלי להתקין כלום</h2>
+  <div class="url a up" style="--t:41.9; margin-top:26px">volleyball-team-app-green.vercel.app</div>
+</section>
+
+<script>
+  // The Excel sheet, built from the same invented team as the phone screens
+  // (scripts/promo/demo.jsx — keep NAMES and MISSES in step with it). It is a
+  // drawing of the exported file's "נוכחות" sheet, not a screenshot of Excel.
+  (function () {
+    var NAMES = ["נועה", "מיכל", "שירה", "יעל", "תמר", "רוני", "ליאת", "דנה", "אורית", "הילה", "גלית", "סיגל", "קרן"];
+    var MISSES = [0, 0, 1, 0, 2, 1, 0, 3, 1, 2, 0, 1, 3];
+    var OFF = [-34, -27, -20, -13, -6], KIND = ["אימון", "אימון", "משחק", "אימון", "אימון"];
+    var dates = OFF.map(function (n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getDate() + "/" + (d.getMonth() + 1); });
+    var h = "<thead><tr class='k'><th>סוג</th>" + KIND.map(function (k) { return "<th>" + k + "</th>"; }).join("") + "<th></th><th></th></tr>";
+    h += "<tr><th>שחקנית</th>" + dates.map(function (d) { return "<th>" + d + "</th>"; }).join("") + "<th>סה״כ</th><th>אחוז</th></tr></thead><tbody>";
+    var col = [0, 0, 0, 0, 0], all = 0;
+    NAMES.forEach(function (n, p) {
+      var sum = 0, row = "";
+      for (var i = 0; i < 5; i++) { var came = !((i + p + 1) % 5 < MISSES[p]); if (came) { sum++; col[i]++; } row += came ? "<td class='v'>✓</td>" : "<td></td>"; }
+      all += sum;
+      h += "<tr style='--t:" + (36.5 + p * 0.09).toFixed(2) + "'><td>" + n + "</td>" + row + "<td class='s'>" + sum + "</td><td class='s'>" + Math.round(sum / 5 * 100) + "%</td></tr>";
+    });
+    h += "</tbody><tfoot><tr><td>סה״כ נוכחות</td>" + col.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "<td>" + all + "</td><td></td></tr></tfoot>";
+    document.getElementById("xl").innerHTML = h;
+  })();
+</script>
 </body>
 </html>
