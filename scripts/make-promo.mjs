@@ -26,14 +26,15 @@ const CHROME = arg('--chrome', ['C:/Program Files/Google/Chrome/Application/chro
 const SECONDS = Number(arg('--seconds', 43)), FPS = 30;
 const still = arg('--still', '');
 const shotsOnly = process.argv.includes('--shots');
+const FROM = Number(arg('--from', 0));   // seconds; needs the frames of an earlier full run in node_modules/.promo
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-fs.rmSync(TMP, { recursive: true, force: true });
+if (!FROM) fs.rmSync(TMP, { recursive: true, force: true });
 fs.mkdirSync(path.join(TMP, 'shots'), { recursive: true });
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--hide-scrollbars', '--allow-file-access-from-files'] });
 
 // ---------- 1. the phone screens: the real screens, an invented team ----------
-{
+if (!FROM) {
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 796, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   // The demo team lives only in the page. Nothing may reach the real backend.
@@ -121,7 +122,7 @@ if (still) {
   console.log('stills:', still);
 } else {
   const total = SECONDS * FPS;
-  for (let f = 0; f < total; f++) {
+  for (let f = Math.round(FROM * FPS); f < total; f++) {
     await seek((f * 1000) / FPS);
     await page.screenshot({ path: path.join(TMP, 'f' + String(f).padStart(5, '0') + '.jpg'), type: 'jpeg', quality: 93 });
     if (f % 150 === 0) console.log(`frame ${f}/${total}`);
