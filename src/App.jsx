@@ -13,6 +13,7 @@ import {
 import { isIOS } from "./lib/utils";
 import { trackScreen } from "./lib/analytics";
 import { Confirm } from "./components/shared";
+import { CelebrationGate } from "./components/Celebration";
 import { useApplyTheme } from "./lib/theme";
 import { NoTeamScreen, InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin } from "./screens/gate";
 import { SuperAdminScreen } from "./screens/superadmin";
@@ -479,6 +480,8 @@ export default function App() {
       )}
 
       <div key={screen} className="screen-fade">
+        {/* הפתעת ניצחון בספורטיאדה — פעם אחת לכל מכשיר, רק אם הניצחון נשמר */}
+        {(screen === "home" || screen === "player") && <CelebrationGate tournaments={tournaments} player={currentPlayer} />}
         {screen === "home" && <HomeScreen {...common} onSelectPlayer={p => {
           setCurrentPlayer(p);
           const remembered = localStorage.getItem("rememberPlayer_" + p.id) === "1";

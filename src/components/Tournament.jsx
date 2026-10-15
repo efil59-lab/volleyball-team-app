@@ -4,6 +4,7 @@ import {
   ourPlace, describeGame, ourScore, ourGames, nextOurGame, dayLabel, isoLocal,
 } from "../lib/tournament";
 import { notifyTeamPushRemote, mergeTournament } from "../lib/db";
+import { celebratingToday, CelebrationAdmin } from "./Celebration";
 
 // ── הספורטיאדה ─────────────────────────────────────────────────────────────
 // שלושה רכיבים: כרטיס בדף הבית (ספירה לאחור → המשחק הבא → סיכום), מסך
@@ -14,6 +15,8 @@ import { notifyTeamPushRemote, mergeTournament } from "../lib/db";
 const SUNSET = "linear-gradient(160deg,#ff8a4c 0%,#f2557a 46%,#0b3b63 100%)";
 const DEEP = "#0b3b63";
 const CORAL = "#f2557a";
+// כרטיס ביום ניצחון גדול (ראה Celebration.jsx)
+const GOLD = "linear-gradient(160deg,#d4950c 0%,#b5740a 48%,#0b3b63 100%)";
 // ההתראה שיוצאת פעם אחת, בפרסום הראשון לקבוצה
 const ANNOUNCE = "☀️ הספורטיאדה באפליקציה — לוח המשחקים והספירה לאחור";
 
@@ -130,6 +133,7 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
     );
   } else if (phase === "during") {
     const place = ourPlace(t, results);
+    const gold = celebratingToday(t, state, now);
     const g = nextOurGame(t, results);
     const dsc = g && describeGame(t, results, g);
     body = (
@@ -138,8 +142,9 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
           <i style={{ width: 7, height: 7, borderRadius: "50%", background: CORAL, animation: "tourPulse 1.2s infinite" }} /> {t.name} עכשיו
         </span>
         <div style={{ fontSize: 19, fontWeight: 900, marginTop: 8 }}>
-          {place ? `מקום ${place} ב${t.group}` : "בהצלחה! 🏐"}
+          {gold ? "🏆 ניצחנו את המשטרה!" : place ? `מקום ${place} ב${t.group}` : "בהצלחה! 🏐"}
         </div>
+        {gold && place && <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, opacity: 0.95 }}>מקום {place} ב{t.group}</div>}
         {g ? (
           <div className="tour-next" style={{ background: "rgba(255,255,255,0.95)", color: "#16203a", borderRadius: 13, padding: "10px 12px", marginTop: 10 }}>
             <small style={{ fontSize: 10.5, fontWeight: 800, color: CORAL }}>המשחק הבא</small>
@@ -172,7 +177,7 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
       <Tag onClick={onOpen} style={{
         position: "relative", display: "block", width: "100%", textAlign: "right", border: "none",
         fontFamily: "inherit", cursor: clickable ? "pointer" : "default", overflow: "hidden",
-        borderRadius: 18, background: SUNSET, color: "white", padding: "14px 15px 60px",
+        borderRadius: 18, background: phase === "during" && celebratingToday(t, state, now) ? GOLD : SUNSET, color: "white", padding: "14px 15px 60px",
         marginBottom: 12, boxShadow: "0 10px 26px rgba(242,85,122,0.28)",
       }}>
         {state && !state.published && <div style={{ marginBottom: 8 }}><DraftPill /></div>}
@@ -659,6 +664,8 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
           </div>
         </div>
       )}
+
+      <CelebrationAdmin t={t} state={state} merge={merge} notify={notify} askConfirm={askConfirm} />
 
       <div style={{ fontSize: 14, fontWeight: 800, color: DEEP, marginBottom: 2 }}>תוצאות</div>
       <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.55 }}>
