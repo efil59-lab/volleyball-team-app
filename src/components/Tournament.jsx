@@ -467,6 +467,9 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true, des
 }
 
 // ── פאנל הדיווח (מירי / אפי) ────────────────────────────────────────────────
+// פוש על ניצחון/הפסד במשחק שלנו. כבוי לבקשת אפי (15.10.26).
+const RESULT_PUSH = false;
+
 function pushText(t, results, g, next) {
   const s = ourScore(t, next, g);
   if (!s) return null;
@@ -557,7 +560,9 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
     const mineGame = g.a === t.us || g.b === t.us;
     // התראה לכל הקבוצה רק אחרי פרסום, ורק על המשחקים שלנו — בטיוטה אסור
     // שתצא התראה אמיתית לבנות על תוצאת בדיקה.
-    const body = mineGame && state.published ? pushText(t, results, g, next) : null;
+    // כבויה בשלב זה (אפי, 15.10.26): תוצאה נשמרת ומוצגת, בלי פוש. להחזיר —
+    // RESULT_PUSH = true.
+    const body = RESULT_PUSH && mineGame && state.published ? pushText(t, results, g, next) : null;
     if (body) notifyTeamPushRemote(`🏐 ${t.name}`, body);
     notify(body ? "התוצאה נשמרה ונשלחה לקבוצה 📣" : "התוצאה נשמרה", { icon: "✅" });
   }
