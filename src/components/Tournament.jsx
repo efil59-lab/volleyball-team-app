@@ -77,6 +77,11 @@ function summary(t, results) {
 // size: "auto" (לפי התאריך) | "slim" | "big" — הכפייה משמשת את התצוגה בפאנל.
 const SLIM_UNTIL_DAYS = 7;
 
+// חצי גמר / גמר: "חצי גמר תחתון" לבד לא אומר מול מי. כשהשלב כבר נקבע — מוסיפים
+// את היריבה (שמה, אם הוזן, או "מקום 2 בבית ג"). הדווח: 15.10.26, היריבה נשמרה
+// ולא הופיעה בכרטיס וברשימה.
+const koTitle = (g, d) => (g.stage !== "group" && d.opp && !d.locked && !d.out ? `${d.title} · מול ${d.opp}` : d.title);
+
 export function TournamentCard({ t, state, onOpen, now = new Date(), size = "auto" }) {
   if (!t) return null;
   const results = (state && state.results) || {};
@@ -148,7 +153,7 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
         {g ? (
           <div className="tour-next" style={{ background: "rgba(255,255,255,0.95)", color: "#16203a", borderRadius: 13, padding: "10px 12px", marginTop: 10 }}>
             <small style={{ fontSize: 10.5, fontWeight: 800, color: CORAL }}>המשחק הבא</small>
-            <b style={{ display: "block", fontSize: 14.5, fontWeight: 800, marginTop: 1 }}>{dsc.title}</b>
+            <b style={{ display: "block", fontSize: 14.5, fontWeight: 800, marginTop: 1 }}>{koTitle(g, dsc)}</b>
             <span style={{ fontSize: 11.5, color: "#64748b" }}>{dayLabel(g.date)} · {g.time} · {dsc.hall}</span>
           </div>
         ) : (
@@ -223,7 +228,7 @@ export function TournamentOurGames({ t, state, now = new Date(), onOpen }) {
           <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: "1px solid #f1f5f9", opacity: d.locked ? 0.6 : 1 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>
-                {d.title}
+                {koTitle(g, d)}
                 {isToday && <span style={{ marginRight: 6, background: CORAL, color: "white", borderRadius: 20, padding: "1px 8px", fontSize: 10.5, fontWeight: 800 }}>היום</span>}
               </div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 1 }}>
