@@ -494,6 +494,10 @@ function AdminGame({ t, results, g, onSave, onClear }) {
   const d = describeGame(t, results, g);
   const aName = g.a, bName = ko ? (opp || d.opp || "היריבה") : g.b;
   const valid = a !== "" && b !== "" && Number(a) !== Number(b);
+  // חצי גמר / גמר: את היריבה יודעים לפני התוצאה (אפי, 15.10.26 — הכפתור היה
+  // נעול עד שיש ניקוד). שם בלבד, בלי ניקוד, נשמר כ-a/b ריקים — resultOf מתעלם.
+  const oppOnly = ko && a === "" && b === "" && !!opp.trim();
+  const hasScore = saved.a !== undefined && saved.a !== null && saved.a !== "";
   const dirty = String(a) !== String(saved.a ?? "") || String(b) !== String(saved.b ?? "") || opp !== (saved.opp || "");
   const inp = { width: 56, border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "8px 4px", textAlign: "center",
     fontSize: 17, fontWeight: 800, color: DEEP, background: "#f8fafc", fontFamily: "inherit" };
@@ -534,12 +538,12 @@ function AdminGame({ t, results, g, onSave, onClear }) {
         <div style={{ fontSize: 11.5, color: "#b91c1c", marginTop: 6 }}>אין תיקו — אחת הקבוצות חייבת לנצח</div>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
-        <button disabled={!valid || !dirty} onClick={() => onSave(g, { a: Number(a), b: Number(b), ...(ko && opp ? { opp } : {}) })}
+        <button disabled={!(valid || oppOnly) || !dirty} onClick={() => onSave(g, oppOnly ? { a: "", b: "", opp: opp.trim() } : { a: Number(a), b: Number(b), ...(ko && opp ? { opp } : {}) })}
           style={{ flex: 1, border: "none", borderRadius: 10, padding: 10, fontSize: 13.5, fontWeight: 900, color: "#fff", fontFamily: "inherit",
-            cursor: valid && dirty ? "pointer" : "default", opacity: valid && dirty ? 1 : 0.45, background: `linear-gradient(135deg,${CORAL},#ff8a4c)` }}>
-          {saved.a != null ? "עדכון תוצאה" : "שמירת תוצאה"}
+            cursor: (valid || oppOnly) && dirty ? "pointer" : "default", opacity: (valid || oppOnly) && dirty ? 1 : 0.45, background: `linear-gradient(135deg,${CORAL},#ff8a4c)` }}>
+          {oppOnly ? "שמירת היריבה" : hasScore ? "עדכון תוצאה" : "שמירת תוצאה"}
         </button>
-        {saved.a != null && (
+        {hasScore && (
           <button onClick={() => { setA(""); setB(""); setOpp(""); onClear(g); }}
             style={{ border: "none", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, fontWeight: 700, background: "#f1f5f9", color: "#64748b", cursor: "pointer", fontFamily: "inherit" }}>
             מחיקה
@@ -569,7 +573,7 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
     // RESULT_PUSH = true.
     const body = RESULT_PUSH && mineGame && state.published ? pushText(t, results, g, next) : null;
     if (body) notifyTeamPushRemote(`🏐 ${t.name}`, body);
-    notify(body ? "התוצאה נשמרה ונשלחה לקבוצה 📣" : "התוצאה נשמרה", { icon: "✅" });
+    notify(r.a === "" ? "היריבה נשמרה" : body ? "התוצאה נשמרה ונשלחה לקבוצה 📣" : "התוצאה נשמרה", { icon: "✅" });
   }
   async function clearResult(g) {
     await merge(t.id, { results: { [g.id]: null } });
