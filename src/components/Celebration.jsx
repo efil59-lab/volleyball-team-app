@@ -22,6 +22,20 @@ export function celebrationFor(t, state) {
   const score = game && ourScore(t, state.results || {}, game);
   return score && score.won ? { game, score } : null;
 }
+// מסך החגיגה בתוקף רק עד שמתחיל המשחק הבא שלנו (אפי, 15.10.26): מי שנכנסת
+// אחרי חצי הגמר כבר לא צריכה לקבל "עצרנו את המשטרה" כחדשה — אולי אפילו אחרי
+// הפסד. בלי משחק הבא (סיימנו) — עד סוף יום הניצחון.
+const at = (g) => new Date(`${g.date}T${g.time || "00:00"}:00`);
+function celebrationEnds(t, game) {
+  const next = t.games
+    .filter((g) => (g.a === t.us || g.b === t.us) && at(g) > at(game))
+    .sort((x, y) => at(x) - at(y))[0];
+  return next ? at(next) : new Date(`${game.date}T23:59:59`);
+}
+export function celebrationOpen(t, state, now = new Date()) {
+  const c = celebrationFor(t, state);
+  return !!c && now < celebrationEnds(t, c.game);
+}
 // הכרטיס מוזהב רק ביום הניצחון עצמו
 export function celebratingToday(t, state, now = new Date()) {
   const c = celebrationFor(t, state);
@@ -59,7 +73,7 @@ export function CelebrationGate({ tournaments, player }) {
   const state = t ? (tournaments || {})[t.id] : null;
   const key = `vb_celebrated_${CELEBRATE.tournamentId}_${CELEBRATE.gameId}`;
   const [open, setOpen] = useState(false);
-  const due = !!(t && state && canSeeTournament(state, player) && celebrationFor(t, state));
+  const due = !!(t && state && canSeeTournament(state, player) && celebrationOpen(t, state));
   useEffect(() => {
     if (!due) return;
     let seen = false;
@@ -108,7 +122,7 @@ export function CelebrationAdmin({ t, state, merge, notify, askConfirm }) {
     <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 14, padding: 14, marginBottom: 14 }}>
       <div style={{ fontSize: 14.5, fontWeight: 800, color: "#16203a" }}>🚨 הפתעה אם מנצחות את המשטרה</div>
       <div style={{ fontSize: 12.5, color: "#5b6478", margin: "4px 0 10px", lineHeight: 1.55 }}>
-        ברגע שנשמרת תוצאה של ניצחון במשחק מול המשטרה, כל שחקנית שנכנסת מקבלת פעם אחת מסך חגיגה, וכרטיס הספורטיאדה מוזהב עד סוף היום. בלי פוש. אפשר להוסיף תמונה.
+        ברגע שנשמרת תוצאה של ניצחון במשחק מול המשטרה, כל שחקנית שנכנסת מקבלת פעם אחת מסך חגיגה — עד שמתחיל המשחק הבא שלנו. כרטיס הספורטיאדה מוזהב עד סוף היום. בלי פוש. אפשר להוסיף תמונה.
       </div>
       {photo && <img src={photo} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, display: "block", marginBottom: 8 }} />}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
