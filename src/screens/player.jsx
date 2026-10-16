@@ -21,7 +21,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { createPager, tabAfterSettle } from "../lib/swipe";
 import { holidayLabel } from "../lib/holidays";
 import { TournamentCard, TournamentScreen, TourDayRows, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
-import { activeTournament, canSeeTournament, tournamentPhase, tournamentDay } from "../lib/tournament";
+import { activeTournament, calendarTournament, canSeeTournament, tournamentPhase, tournamentDay } from "../lib/tournament";
 import ReminderCard from "../components/ReminderCard";
 import Confetti from "../components/Confetti";
 
@@ -107,6 +107,10 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
   const showTour = !!tour && canSeeTournament(tourState, player);
   const tourLive = showTour && tournamentPhase(tour, now) === "during";
+  // לוח השנה מתעד את הטורניר גם אחרי שירד מהמסכים
+  const calTour = calendarTournament(now);
+  const calTourState = calTour ? (tournaments || {})[calTour.id] || {} : null;
+  const showCalTour = !!calTour && canSeeTournament(calTourState, player);
   // הספורטיאדה ירדה (hideAt) כשהלשונית שלה פתוחה — חוזרים ללשונית הראשית
   useEffect(() => { if (tab === "tournament" && !showTour) setTab("event"); }, [tab, showTour]);
   const nextEvent = getNextEvent(events);
@@ -724,7 +728,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           {/* במחשב: חודש במבט אחד עם טור צד (site/CalendarDesk) */}
           {tab === "calendar" && isDesk && (
             <CalendarDesk events={events} archive={archive} players={players} playerProfiles={playerProfiles}
-              attendance={attendance} player={player} pc={pc} tour={tour} tourState={tourState} showTour={showTour} />
+              attendance={attendance} player={player} pc={pc} tour={calTour} tourState={calTourState} showTour={showCalTour} />
           )}
           {tab === "calendar" && !isDesk && (() => {
             const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
@@ -792,7 +796,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     // חג: שם קצר במשבצת ורקע ירוק (בקשת אפי 28.9.26)
                     const hol = holidayLabel(new Date(info.ds + "T12:00:00"));
                     // ימי הספורטיאדה — היה רק בלוח של המחשב (דווח 6.10.26)
-                    const td = showTour ? tournamentDay(tour, tourState, info.ds) : null;
+                    const td = showCalTour ? tournamentDay(calTour, calTourState, info.ds) : null;
                     const isSel = info.ds === calSelected;
                     const hasTraining = info.evs.some(e => e.type === "training" && !e.cancelled);
                     const hasGame = info.evs.some(e => e.type === "game" && !e.cancelled);
@@ -818,13 +822,13 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 {calSelected && selInfo && (
                   <div style={{ marginTop: 14, background: "#f8fafc", borderRadius: 14, padding: 14 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: pc, marginBottom: 8 }}>{formatDate(calSelected)}</div>
-                    {showTour && <TourDayRows td={tournamentDay(tour, tourState, calSelected)} />}
+                    {showCalTour && <TourDayRows td={tournamentDay(calTour, calTourState, calSelected)} />}
                     {(() => { const hol = holidayLabel(new Date(calSelected + "T12:00:00")); return hol ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 10, background: hol.kind === "moed" ? "#f8fafc" : "#f0fdf4", border: `1px solid ${hol.kind === "moed" ? "#e2e8f0" : "#bbf7d0"}`, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
                         <span style={{ fontSize: 20 }}>{hol.kind === "moed" ? "🕯️" : "✡️"}</span>
                         <div style={{ fontSize: 14, fontWeight: 700, color: hol.kind === "moed" ? "#475569" : "#166534" }}>{hol.name}</div>
                       </div>) : null; })()}
-                    {selInfo.evs.length === 0 && selInfo.bdays.length === 0 && !(showTour && tournamentDay(tour, tourState, calSelected)) && <div style={{ fontSize: 13, color: "#94a3b8" }}>אין אירועים ביום זה.</div>}
+                    {selInfo.evs.length === 0 && selInfo.bdays.length === 0 && !(showCalTour && tournamentDay(calTour, calTourState, calSelected)) && <div style={{ fontSize: 13, color: "#94a3b8" }}>אין אירועים ביום זה.</div>}
                     {selInfo.evs.map(ev => (
                       <CalEventRow key={ev.id} ev={ev} players={players} pc={pc} bg="white" />
                     ))}

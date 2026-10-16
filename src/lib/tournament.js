@@ -66,6 +66,14 @@ function daysBetween(fromIso, toIso) {
   return Math.round((b - a) / 86400000);
 }
 
+// לוח השנה: הטורניר נשאר מתועד בו גם אחרי שירד מהמסכים (hideAt / showUntil) —
+// ימי אילת והתוצאות הם היסטוריה של הקבוצה (אפי, 16.10.26). כל טורניר שכבר
+// התחיל להופיע; האחרון גובר.
+function calendarTournament(now = new Date()) {
+  const t = isoLocal(now);
+  return [...TOURNAMENTS].reverse().find((x) => t >= x.showFrom) || null;
+}
+
 // הטורניר שבחלון התצוגה שלו נמצאים היום, או null
 function activeTournament(now = new Date()) {
   const t = isoLocal(now);
@@ -208,7 +216,7 @@ function tournamentDay(t, state, dateStr) {
 }
 
 export {
-  TOURNAMENTS, activeTournament, tournamentPhase, daysToStart, canSeeTournament,
+  TOURNAMENTS, activeTournament, calendarTournament, tournamentPhase, daysToStart, canSeeTournament,
   resultOf, standings, groupDone, ourPlace, describeGame, ourScore, ourGames, nextOurGame,
   dayLabel, isoLocal, tournamentDay,
 };

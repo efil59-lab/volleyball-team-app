@@ -13,7 +13,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import { useTabCarousel, usePhoneLayout } from "../lib/useTabCarousel";
 import { holidayLabel } from "../lib/holidays";
 import { TournamentAdmin, TourDayRows } from "../components/Tournament";
-import { activeTournament, tournamentDay } from "../lib/tournament";
+import { calendarTournament, tournamentDay } from "../lib/tournament";
 import PaymentCard from "../components/PaymentCard";
 import AdminGuide from "./adminGuide";
 import { loadExcelJS, compressImage } from "../lib/images";
@@ -692,8 +692,9 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
 
 // ── ADMIN EVENTS ──────────────────────────────────────────────────────────────
 function AdminEvents({ events, settings, attendance, archive, notifications, players, playerProfiles, tournaments, upd, pc, sc, askConfirm, notify }) {
-  // ימי הטורניר בלוח — המנהלת רואה אותם גם כשהטורניר עדיין בטיוטה
-  const tour = activeTournament();
+  // ימי הטורניר בלוח — המנהלת רואה אותם גם כשהטורניר עדיין בטיוטה, וגם
+  // אחרי שירד מהמסכים של הבנות (לוח השנה מתעד אותו)
+  const tour = calendarTournament();
   const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
   const [adding, setAdding] = useState(false);
   const [newEv, setNewEv] = useState({ type: "training", date: "", time: "16:30", location: settings.defaultTrainingLocation, note: "", open: true });
