@@ -107,6 +107,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   const tourState = tour ? (tournaments || {})[tour.id] || {} : null;
   const showTour = !!tour && canSeeTournament(tourState, player);
   const tourLive = showTour && tournamentPhase(tour, now) === "during";
+  // הספורטיאדה ירדה (hideAt) כשהלשונית שלה פתוחה — חוזרים ללשונית הראשית
+  useEffect(() => { if (tab === "tournament" && !showTour) setTab("event"); }, [tab, showTour]);
   const nextEvent = getNextEvent(events);
   const evPhase = eventPhase(nextEvent, now);
   const evState = eventStateLabel(nextEvent, evPhase);

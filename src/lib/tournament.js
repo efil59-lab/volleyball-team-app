@@ -30,6 +30,9 @@ const SPORTIADA_2026 = {
   end: "2026-10-17",
   showFrom: "2026-09-27",   // הספירה לאחור מופיעה מהיום
   showUntil: "2026-11-15",  // חודש אחרי — כדי שאפשר יהיה לחזור לתוצאות
+  // ...אבל אפי החליט לסגור אותה במוצאי שבת (16.10.26): ב-19:00 ביום החזרה
+  // הספורטיאדה יורדת מהאפליקציה של הבנות. פאנל הניהול ממשיך לראות אותה.
+  hideAt: "2026-10-17T19:00",
   us: US,
   teams: [US, POLICE, CLALIT, SHAMIR],
   points: { win: 2, loss: 1 },
@@ -66,7 +69,7 @@ function daysBetween(fromIso, toIso) {
 // הטורניר שבחלון התצוגה שלו נמצאים היום, או null
 function activeTournament(now = new Date()) {
   const t = isoLocal(now);
-  return TOURNAMENTS.find((x) => t >= x.showFrom && t <= x.showUntil) || null;
+  return TOURNAMENTS.find((x) => t >= x.showFrom && t <= x.showUntil && !(x.hideAt && now >= new Date(x.hideAt))) || null;
 }
 
 // "before" | "during" | "after"

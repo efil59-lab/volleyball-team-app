@@ -147,7 +147,7 @@ export function TournamentCard({ t, state, onOpen, now = new Date(), size = "aut
           <i style={{ width: 7, height: 7, borderRadius: "50%", background: CORAL, animation: "tourPulse 1.2s infinite" }} /> {t.name} עכשיו
         </span>
         <div style={{ fontSize: 19, fontWeight: 900, marginTop: 8 }}>
-          {gold ? gold : place ? `מקום ${place} ב${t.group}` : "בהצלחה! 🏐"}
+          {gold ? gold : ourScore(t, results, t.games.find((x) => x.stage === "semi")) ? summary(t, results).title : place ? `מקום ${place} ב${t.group}` : "בהצלחה! 🏐"}
         </div>
         {gold && place && <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2, opacity: 0.95 }}>מקום {place} ב{t.group}</div>}
         {g ? (
