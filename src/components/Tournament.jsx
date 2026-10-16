@@ -356,7 +356,8 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true, des
   const phase = tournamentPhase(t, now);
   const place = ourPlace(t, results);
   const next = phase === "during" ? nextOurGame(t, results) : null;
-  const mine = ourGames(t);
+  // משחק הכרעה שלא הגענו אליו לא מופיע (אפי, 16.10.26)
+  const mine = ourGames(t).filter((g) => !describeGame(t, results, g).out);
   const dates = [...new Set(mine.map((g) => g.date))];
   const others = t.games.filter((g) => g.stage === "group" && g.a !== t.us && g.b !== t.us);
 

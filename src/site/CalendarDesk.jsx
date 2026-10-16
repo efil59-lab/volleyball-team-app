@@ -57,8 +57,9 @@ export default function CalendarDesk({
     return b && b.slice(5) === date.slice(5);
   });
   const tourOn = (date) => showTour && tour && date >= tour.start && date <= tour.end;
-  const tourGamesOn = (date) => (showTour && tour ? ourGames(tour).filter((g) => g.date === date) : []);
   const results = (tourState && tourState.results) || {};
+  // משחק הכרעה שלא הגענו אליו לא מופיע בלוח
+  const tourGamesOn = (date) => (showTour && tour ? ourGames(tour).filter((g) => g.date === date && !describeGame(tour, results, g).out) : []);
 
   const onThis = y === now.getFullYear() && m === now.getMonth();
   const go = (delta) => {

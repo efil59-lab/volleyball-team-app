@@ -207,7 +207,8 @@ function dayLabel(iso) {
 function tournamentDay(t, state, dateStr) {
   if (!t || !dateStr || dateStr < t.start || dateStr > t.end) return null;
   const results = (state && state.results) || {};
-  const games = ourGames(t).filter((g) => g.date === dateStr).map((g) => {
+  // משחק הכרעה שלא הגענו אליו (out) לא מופיע בלוח
+  const games = ourGames(t).filter((g) => g.date === dateStr && !describeGame(t, results, g).out).map((g) => {
     const d = describeGame(t, results, g);
     const s = ourScore(t, results, g);
     return { id: g.id, time: g.time, title: d.title, sub: d.sub, hall: d.hall, score: s ? `${s.us}–${s.them}` : null, won: s ? s.won : null };
