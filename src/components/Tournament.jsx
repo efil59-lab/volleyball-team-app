@@ -368,6 +368,16 @@ export function TournamentScreen({ t, state, now = new Date(), bleed = true, des
     line = !place ? "הטבלה תתעדכן אחרי התוצאה הראשונה"
       : groupDone(t, results) ? (t.ko[place] ? `ממשיכות לחצי הגמר ה${t.ko[place].bracket}` : `סיימנו את המשחקים ב${t.group}`)
       : place <= 2 ? "כרגע במקומות שממשיכים לשישי 💪" : "צריך ניצחון כדי לעלות";
+    // שלב ההכרעה (שישי): ברגע שיש תוצאה בחצי הגמר הלוח עובר לספר את הסיפור
+    // שלו, ולא נשאר תקוע על "ממשיכות לחצי הגמר" (דווח 16.10.26 אחרי ההפסד).
+    const k = place && t.ko[place];
+    const sf = ourScore(t, results, t.games.find((g) => g.stage === "semi"));
+    const fn = ourScore(t, results, t.games.find((g) => g.stage === "final"));
+    if (k && sf) {
+      medal = fn ? (fn.won ? "🏆" : "🥈") : sf.won ? "🔥" : "💙";
+      headline = fn || !sf.won ? summary(t, results).title : `עלינו לגמר ה${k.bracket}! 🔥`;
+      line = next ? `${describeGame(t, results, next).title} · ${next.time} · ${k.finalHall}` : "סיימנו את המשחקים שלנו. תודה לכולן! 💙";
+    }
   } else {
     const s = summary(t, results);
     medal = "🏆"; headline = s.title; line = record(s.won, s.lost) || "";
