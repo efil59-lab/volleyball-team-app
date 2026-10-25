@@ -495,6 +495,49 @@ function ilHour() {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(new Date()));
 }
 
+// ── תזכורת ארכוב למנהלת ──────────────────────────────────────────────────────
+// אפי, 25.10.26: אחרי שאימון או משחק נגמרים, המנהלת מקבלת תזכורת לארכב — וכל
+// שעה מחדש, עד שהאירוע אורכב (ארכוב = האירוע יוצא מרשימת events). "נגמר" =
+// שעתיים אחרי שעת ההתחלה (אין לנו שעת סיום). לא בלילה (23:00–08:00), ולא על
+// אירועים בני יותר משבועיים. tag קבוע לקבוצה: כל תזכורת מחליפה את הקודמת
+// בטלפון במקום להיערם.
+const ARCHIVE_AFTER_MIN = 120;
+const ARCHIVE_QUIET = (h) => h >= 23 || h < 8;
+function ilMinutesNow() {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date());
+  const get = (t) => Number((p.find((x) => x.type === t) || {}).value || 0);
+  return get("hour") * 60 + get("minute");
+}
+async function remindArchive(teamId) {
+  const events = await getTeamValue(teamId, "events", []);
+  const today = ilDate(0), oldest = ilDate(-14), nowMin = ilMinutesNow();
+  const due = (Array.isArray(events) ? events : []).filter((e) => {
+    if (!e || e.cancelled || !e.date || e.date < oldest || e.date > today) return false;
+    if (e.date < today) return true;
+    const [h, m] = String(e.time || "00:00").split(":").map(Number);
+    return nowMin >= (h || 0) * 60 + (m || 0) + ARCHIVE_AFTER_MIN;
+  });
+  if (!due.length) return 0;
+  const admins = (await getTeamPushTokens(teamId)).filter((t) => hasRole(t, "admin"));
+  if (!admins.length) return 0;
+  const dm = (d) => { const [, mm, dd] = d.split("-"); return `${Number(dd)}.${Number(mm)}`; };
+  const needsResult = (e) => e.type === "game" && !e.outcome;
+  let title, body;
+  if (due.length === 1) {
+    const e = due[0];
+    title = `🔒 ${evLabel(e)} ${dm(e.date)} מחכה לארכוב`;
+    body = needsResult(e)
+      ? "המשחק הסתיים — הזיני תוצאה וארכבי, כדי שהנוכחות תיכנס לסטטיסטיקה."
+      : "האימון הסתיים — ארכבי אותו, כדי שהנוכחות תיכנס לסטטיסטיקה.";
+  } else {
+    title = `🔒 ${due.length} אירועים מחכים לארכוב`;
+    body = due.map((e) => `${evLabel(e)} ${dm(e.date)}`).join(" · ") + " — ארכבי כדי שהנוכחות תיכנס לסטטיסטיקה.";
+  }
+  const r = await sendPush(admins, { title, body, url: "/?team=" + teamId, tag: "archive_" + teamId });
+  console.log("remindArchive " + teamId + " due=" + due.length + " admins=" + admins.length + " sent=" + r.sent);
+  return r.sent;
+}
+
 // רץ כל שעה ובודק לכל קבוצה אם זו שעת התזכורת שלה (לפי ההגדרות שלה).
 // ברירות מחדל: ערב-לפני 19:00 · בוקר-האירוע 10:00 · פעיל. המנהלת שולטת בטאב ההגדרות.
 exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ }, async () => {
@@ -504,6 +547,10 @@ exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ 
   for (const teamId of teams) {
     try {
       const st = (await getTeamValue(teamId, "settings", {})) || {};
+      // תזכורת הארכוב למנהלת — לא תלויה בתזכורות לשחקניות
+      if (!ARCHIVE_QUIET(hour) && st.archiveReminders !== false) {
+        try { total += await remindArchive(teamId); } catch (e) { console.error("remindArchive team=" + teamId + ":", e); }
+      }
       if (st.remindersEnabled === false) continue; // המנהלת כיבתה — מדלגים
       const eveningHour = Number.isFinite(Number(st.reminderEveningHour)) ? Number(st.reminderEveningHour) : 19;
       const morningHour = Number.isFinite(Number(st.reminderMorningHour)) ? Number(st.reminderMorningHour) : 10;
