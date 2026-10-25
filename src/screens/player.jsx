@@ -1192,7 +1192,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             <Label>מייל</Label>
             <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
               placeholder="example@email.com" style={S.input} />
-            <Label>🎂 יום הולדת <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(בלי שנה)</span></Label>
+            <Label>🎂 יום הולדת</Label>
             <BirthdayInput value={editBirthday} onChange={setEditBirthday} />
             {/* תזכורות — כאן זה המקום הקבוע לניהול (הכרטיס בלשונית נוכחות נעלם אחרי ההפעלה) */}
             {!isViewer && (

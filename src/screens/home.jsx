@@ -527,7 +527,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
           <Label>מייל <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי)</span></Label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@email.com" style={S.input} />
 
-          <Label>🎂 יום הולדת <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי, בלי שנה)</span></Label>
+          <Label>🎂 יום הולדת <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי)</span></Label>
           <BirthdayInput value={birthday} onChange={setBirthday} />
         </div>
 
