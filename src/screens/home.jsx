@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
-import { getNextEvent, formatDate, formatShort, todayStr, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf, rememberOnly } from "../lib/utils";
+import { getNextEvent, formatDate, formatShort, todayStr, monthDay, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf, rememberOnly } from "../lib/utils";
 import useNow from "../lib/useNow";
 import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote, notifyPlayerActivityRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
@@ -13,6 +13,7 @@ import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import KitchenBanner from "../components/KitchenBanner";
+import BirthdayInput from "../components/BirthdayInput";
 import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 
@@ -415,7 +416,7 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
     rememberOnly(null); // המכשיר עבר לשחקנית הזו — דגל של אחרת הוא שריד מטעה
     const updated = {
       ...playerProfiles,
-      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday, setupDone: true }
+      [player.id]: { ...prof, photo, phone, whatsapp, email, birthday: monthDay(birthday), setupDone: true }
     };
     await upd.playerProfiles(updated);
     // Tell the team's admins that someone joined. After the profile write, so
@@ -526,8 +527,8 @@ function OnboardScreen({ player, playerProfiles, upd, pc, sc, onDone, onBack, no
           <Label>מייל <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי)</span></Label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="example@email.com" style={S.input} />
 
-          <Label>🎂 תאריך לידה <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי)</span></Label>
-          <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)} style={S.input} />
+          <Label>🎂 יום הולדת <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(אופציונלי, בלי שנה)</span></Label>
+          <BirthdayInput value={birthday} onChange={setBirthday} />
         </div>
 
         <button onClick={completeSetup}

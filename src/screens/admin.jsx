@@ -4,8 +4,8 @@ import { ref, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage
 import { S } from "../styles/S";
 import { KEYS, DEFAULT_TEAM } from "../lib/constants";
 import {
-  formatDate, formatShort, getNextEvent, todayStr, monthDay, DEFAULT_INVITE, buildInvite,
-  isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, attendanceWords, eventPhase, eventStateLabel, rosterOf,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, birthdayLabel, DEFAULT_INVITE, buildInvite,
+  isBirthdayToday, isBirthdayTomorrow, attendanceWords, eventPhase, eventStateLabel, rosterOf,
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote, setPlayerManagerRemote } from "../lib/db";
 import ReminderCard from "../components/ReminderCard";
@@ -1525,7 +1525,7 @@ function AdminPlayers({ players, playerProfiles, archive = [], upd, pc, sc, askC
                 <Label>🏠 כתובת</Label>
                 <input value={editData.address||""} onChange={e => setEditData({...editData, address: e.target.value})} style={{ ...S.input, marginBottom: 8 }} />
                 {prof.birthday && (
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>🎂 יום הולדת: {formatShort(prof.birthday)}{ageFromBirthday(prof.birthday) != null ? ` (גיל ${ageFromBirthday(prof.birthday)})` : ""}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>🎂 יום הולדת: {birthdayLabel(prof.birthday)}</div>
                 )}
                 {/* מנהלת מתוך חשבון השחקנית — כפתור "פאנל ניהול" במסך האישי שלה */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>

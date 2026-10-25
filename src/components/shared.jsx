@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { S } from "../styles/S";
-import { formatDate, formatShort, todayStr, monthDay, eventPhase } from "../lib/utils";
+import { formatDate, formatShort, todayStr, monthDay, birthdayLabel, eventPhase } from "../lib/utils";
 
 // ── CONFIRM DIALOG ────────────────────────────────────────────────────────────
 function Confirm({ msg, onOk, onCancel, icon, okLabel, tone }) {
@@ -197,7 +197,7 @@ function LegendEventsModal({ kind, events, archive, players, playerProfiles, pc,
       .sort((a, b) => monthDay(a.b).localeCompare(monthDay(b.b))) // לפי יום בשנה
       .map(({ p, b }) => ({
         key: "b" + p.id, icon: "🎂", title: p.name,
-        dateLabel: formatShort(b),
+        dateLabel: birthdayLabel(b),
       }));
   } else {
     const today = todayStr();

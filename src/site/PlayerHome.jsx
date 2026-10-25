@@ -9,7 +9,7 @@
 // הכל מגיע ב-props מאותו state של המסך הנייד. מסכי העומק (לוח מלא, תוצאות,
 // צ'אט מלא, גלריה) הם עמודים נפרדים — כאן רק התקצירים והקישור אליהם.
 import { useMemo } from "react";
-import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf, isBirthdayToday, todayStr } from "../lib/utils";
+import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf, isBirthdayToday, todayStr, monthDay } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
 import { Court, TallyBoard, WhoGroups } from "./Site";
 
@@ -110,8 +110,8 @@ export default function PlayerHome({
     const m = String(new Date().getMonth() + 1).padStart(2, "0");
     return roster
       .map(p => ({ p, b: (playerProfiles[p.id] || {}).birthday }))
-      .filter(x => x.b && x.b.slice(5, 7) === m)
-      .map(x => ({ name: x.p.name, day: Number(x.b.slice(8, 10)) }))
+      .filter(x => x.b && monthDay(x.b).slice(0, 2) === m)
+      .map(x => ({ name: x.p.name, day: Number(monthDay(x.b).slice(3, 5)) }))
       .sort((a, b) => a.day - b.day);
   }, [roster, playerProfiles]);
 

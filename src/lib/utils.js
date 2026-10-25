@@ -177,11 +177,20 @@ function todayStr() {
   const day = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${m}-${day}`;
 }
-// returns "MM-DD" for a yyyy-mm-dd birthday string
+// returns "MM-DD" for a birthday. Since 25.10.26 birthdays are stored without a
+// year ("MM-DD"); older ones still carry it ("YYYY-MM-DD") until next saved.
 function monthDay(dateStr) {
   if (!dateStr) return "";
-  const parts = dateStr.split("-");
-  return parts.length === 3 ? `${parts[1]}-${parts[2]}` : "";
+  const parts = String(dateStr).split("-");
+  return parts.length === 3 ? `${parts[1]}-${parts[2]}` : parts.length === 2 ? `${parts[0]}-${parts[1]}` : "";
+}
+// "12 במרץ" — a birthday for display, never with the year
+function birthdayLabel(b) {
+  const md = monthDay(b);
+  if (!md) return "";
+  const [m, d] = md.split("-").map(Number);
+  const months = ["בינואר", "בפברואר", "במרץ", "באפריל", "במאי", "ביוני", "ביולי", "באוגוסט", "בספטמבר", "באוקטובר", "בנובמבר", "בדצמבר"];
+  return `${d} ${months[m - 1] || ""}`;
 }
 function isBirthdayToday(birthday) {
   if (!birthday) return false;
@@ -219,4 +228,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, birthdayLabel, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };

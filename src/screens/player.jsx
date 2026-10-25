@@ -17,6 +17,7 @@ import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
 import KitchenBanner from "../components/KitchenBanner";
+import BirthdayInput from "../components/BirthdayInput";
 import ThemeToggle from "../components/ThemeToggle";
 import { createPager, tabAfterSettle } from "../lib/swipe";
 import { holidayLabel } from "../lib/holidays";
@@ -1191,8 +1192,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             <Label>מייל</Label>
             <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
               placeholder="example@email.com" style={S.input} />
-            <Label>🎂 תאריך לידה</Label>
-            <input type="date" value={editBirthday} onChange={e => setEditBirthday(e.target.value)} style={S.input} />
+            <Label>🎂 יום הולדת <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 400 }}>(בלי שנה)</span></Label>
+            <BirthdayInput value={editBirthday} onChange={setEditBirthday} />
             {/* תזכורות — כאן זה המקום הקבוע לניהול (הכרטיס בלשונית נוכחות נעלם אחרי ההפעלה) */}
             {!isViewer && (
               <div style={{ marginTop: 6, marginBottom: 12 }}>
@@ -1201,7 +1202,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             )}
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={async () => {
-                const updated = { ...playerProfiles, [player.id]: { ...prof, phone: editPhone, whatsapp: editWhatsapp, email: editEmail, birthday: editBirthday } };
+                const updated = { ...playerProfiles, [player.id]: { ...prof, phone: editPhone, whatsapp: editWhatsapp, email: editEmail, birthday: monthDay(editBirthday) } };
                 await upd.playerProfiles(updated);
                 setEditProfile(false);
               }} style={{ flex: 1, padding: 12, background: pc, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 700 }}>שמור</button>

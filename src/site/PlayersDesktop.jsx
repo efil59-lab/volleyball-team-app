@@ -6,7 +6,7 @@
 // כל הלוגיקה נשארה ב-AdminPlayers ומגיעה לכאן כ-props. הקומפוננטה הזו היא
 // פריסה בלבד — כדי ששינוי בהתנהגות לא יצטרך להיכתב פעמיים.
 import { useState, useMemo } from "react";
-import { formatShort, ageFromBirthday } from "../lib/utils";
+import { formatShort, birthdayLabel } from "../lib/utils";
 import "./site.css";
 
 const ini = (n) => String(n || "?").trim().slice(0, 2);
@@ -103,7 +103,7 @@ export default function PlayersDesktop({
                   {sel.viewer && <span className="st-pl-chip st-view">👁️ צופה</span>}
                   {sel.ghost && <span className="st-pl-chip st-view">👻 בדיקה</span>}
                   {hasPush(sel) === false && <span className="st-pl-chip st-warn">🔕 ללא התראות</span>}
-                  {prof.birthday && <span className="st-pl-chip">🎂 {formatShort(prof.birthday)}{ageFromBirthday(prof.birthday) != null ? ` · גיל ${ageFromBirthday(prof.birthday)}` : ""}</span>}
+                  {prof.birthday && <span className="st-pl-chip">🎂 {birthdayLabel(prof.birthday)}</span>}
                 </div>
               </div>
               <div className="st-pl-reach">
