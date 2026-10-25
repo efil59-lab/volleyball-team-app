@@ -206,7 +206,11 @@ function AdminPanel(props) {
   // ראשון בפונקציה: יש כאן early return על אשף ההקמה, ו-useState אחריו הוא
   // "Rendered more hooks than during the previous render" ומסך לבן.
   const isDesk = useIsDesktop();
-  const [tab, setTab] = useState("attendance");
+  // לשונית פתיחה מבחוץ (תזכורת הארכוב → "events"), פעם אחת
+  const [tab, setTab] = useState(() => {
+    try { const t = sessionStorage.getItem("adminTab"); if (t) { sessionStorage.removeItem("adminTab"); return t; } } catch {}
+    return "attendance";
+  });
   // המטריצה אינה בניווט התחתון. אם המסך הצטמצם בזמן שהיא פתוחה, נשארת לשונית
   // בלי כפתור שמוביל אליה — מחזירים לסטטיסטיקה, שהיא המקבילה הניידת שלה.
   useEffect(() => { if (!isDesk && tab === "matrix") setTab("archive"); }, [isDesk, tab]);

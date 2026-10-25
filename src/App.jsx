@@ -36,6 +36,20 @@ export default function App() {
   useApplyTheme();
   // הפאנל נפתח מהמסך האישי של מנהלת-שחקנית (כפתור "פאנל ניהול")
   const [adminFromPlayer, setAdminFromPlayer] = useState(false);
+  // ?open=archive מגיע מתזכורת הארכוב: הפאנל ייפתח על לשונית האירועים. הפרמטר
+  // יורד מהכתובת מיד, כדי שרענון לא יחזיר לשם שוב.
+  const openArchiveRef = useRef(false);
+  if (!openArchiveRef.current) {
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get("open") === "archive") {
+        openArchiveRef.current = true;
+        sessionStorage.setItem("adminTab", "events");
+        u.searchParams.delete("open");
+        window.history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+      }
+    } catch {}
+  }
   const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [archive, setArchive] = useState([]);
@@ -280,9 +294,12 @@ export default function App() {
       // אחרת תישאר אנונימית ותיחסם בצ'אט/קריאת נוכחות (permission-denied).
       const authedWithEmail = auth.currentUser && !auth.currentUser.isAnonymous;
       const remembered = authedWithEmail ? (td?.players || []).find(p => localStorage.getItem("rememberPlayer_" + p.id) === "1") : null;
+      // מנהלת-שחקנית שלחצה על תזכורת הארכוב (?open=archive): ישר לפאנל, ללשונית האירועים
+      const toArchive = !!(remembered && remembered.manager && openArchiveRef.current);
       setTimeout(() => {
         if (!isStandalone) setShowInstall(true);
         else if (seenWhatsNew < WHATS_NEW.version) setShowWhatsNew(true);
+        else if (toArchive) { setCurrentPlayer(remembered); setAdminFromPlayer(true); setScreen(s => s === "splash" ? "admin" : s); }
         else if (remembered) { setCurrentPlayer(remembered); setScreen(s => s === "splash" ? "player" : s); }
         else setScreen(s => s === "splash" ? "home" : s);
       }, 1200);

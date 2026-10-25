@@ -533,7 +533,8 @@ async function remindArchive(teamId) {
     title = `🔒 ${due.length} אירועים מחכים לארכוב`;
     body = due.map((e) => `${evLabel(e)} ${dm(e.date)}`).join(" · ") + " — ארכבי כדי שהנוכחות תיכנס לסטטיסטיקה.";
   }
-  const r = await sendPush(admins, { title, body, url: "/?team=" + teamId, tag: "archive_" + teamId });
+  // ?open=archive — לחיצה פותחת ישר את לשונית האירועים בפאנל, שם כפתור הארכוב
+  const r = await sendPush(admins, { title, body, url: "/?team=" + teamId + "&open=archive", tag: "archive_" + teamId });
   console.log("remindArchive " + teamId + " due=" + due.length + " admins=" + admins.length + " sent=" + r.sent);
   return r.sent;
 }
