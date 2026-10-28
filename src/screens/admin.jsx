@@ -1091,7 +1091,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
                     style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, border: isSel ? `2px solid ${pc}` : td ? "1px solid #fbcfe8" : hol && hol.kind !== "moed" ? "1px solid #bbf7d0" : "1px solid #eef2f7", borderRadius: 10, background: isToday ? pc : td ? "#fff1f3" : hol ? (hol.kind === "moed" ? "#f8fafc" : "#f0fdf4") : (marks.length ? `${pc}0a` : "white"), cursor: "pointer", padding: 0, overflow: "hidden" }}>
                     <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "white" : "#1e293b" }}>{d}</span>
                     {hol && <span style={{ fontSize: 8.5, fontWeight: 700, lineHeight: 1.1, color: isToday ? "white" : hol.kind === "moed" ? "#64748b" : "#15803d", maxWidth: "100%", padding: "0 2px", boxSizing: "border-box", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hol.short}</span>}
-                    {(marks.length > 0 || td) && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}{td ? (td.games.length ? "🏐" : "☀️") : ""}</span>}
+                    {(marks.length > 0 || td) && <span style={{ fontSize: 9, lineHeight: 1 }}>{marks.join("")}{td ? (td.trophy ? "🏆" : td.games.length ? "🏐" : "☀️") : ""}</span>}
                   </button>
                 );
               })}

@@ -32,6 +32,9 @@ const SPORTIADA_2026 = {
   showUntil: "2026-11-15",  // חודש אחרי — כדי שאפשר יהיה לחזור לתוצאות
   // ...אבל אפי החליט לסגור אותה במוצאי שבת (16.10.26): ב-19:00 ביום החזרה
   // הספורטיאדה יורדת מהאפליקציה של הבנות. פאנל הניהול ממשיך לראות אותה.
+  // חזרנו מאילת עם גביע (אפי, 28.10.26) — מסומן בלוח השנה ביום החזרה. התמונה
+  // (state.trophyPhoto) מועלית מפאנל הניהול ולא יושבת בקוד: הריפו ציבורי.
+  trophy: "חזרנו עם גביע!",
   hideAt: "2026-10-17T00:00",   // הוקדם (17.10.26, "אתה יכול לחזור לשגרה")
   us: US,
   teams: [US, POLICE, CLALIT, SHAMIR],
@@ -213,7 +216,8 @@ function tournamentDay(t, state, dateStr) {
     const s = ourScore(t, results, g);
     return { id: g.id, time: g.time, title: d.title, sub: d.sub, hall: d.hall, score: s ? `${s.us}–${s.them}` : null, won: s ? s.won : null };
   });
-  return { name: t.name, city: t.city, first: dateStr === t.start, last: dateStr === t.end, games };
+  const trophy = dateStr === t.end && t.trophy ? { text: t.trophy, photo: (state && state.trophyPhoto) || null } : null;
+  return { name: t.name, city: t.city, first: dateStr === t.start, last: dateStr === t.end, games, trophy };
 }
 
 export {

@@ -4,7 +4,7 @@ import {
   ourPlace, describeGame, ourScore, ourGames, nextOurGame, dayLabel, isoLocal,
 } from "../lib/tournament";
 import { notifyTeamPushRemote, mergeTournament } from "../lib/db";
-import { celebratingToday, CelebrationAdmin } from "./Celebration";
+import { celebratingToday, CelebrationAdmin, TrophyPhotoAdmin } from "./Celebration";
 
 // ── הספורטיאדה ─────────────────────────────────────────────────────────────
 // שלושה רכיבים: כרטיס בדף הבית (ספירה לאחור → המשחק הבא → סיכום), מסך
@@ -251,14 +251,36 @@ export function TournamentOurGames({ t, state, now = new Date(), onOpen }) {
 // השורה שנפתחת כשלוחצים על יום בטווח הטורניר: שם הטורניר והמשחקים שלנו באותו
 // יום. td מגיע מ-tournamentDay() ב-lib/tournament.
 export function TourDayRows({ td }) {
+  const [big, setBig] = useState(false);
   if (!td) return null;
   return (
     <div style={{ borderRadius: 12, overflow: "hidden", marginBottom: 8, border: "1px solid #fbcfe8" }}>
       <div style={{ background: SUNSET, color: "#fff", padding: "8px 12px", fontSize: 13.5, fontWeight: 800 }}>
         ☀️ {td.name} · {td.city}{td.first ? " — יוצאות!" : td.last ? " — חוזרות הביתה" : ""}
       </div>
+      {/* יום החזרה: הגביע, ולחיצה פותחת את התמונה */}
+      {td.trophy && (
+        <button onClick={() => td.trophy.photo && setBig(true)}
+          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "right", border: "none", fontFamily: "inherit",
+            background: "linear-gradient(135deg,#fff7d6,#fde68a)", padding: "10px 12px", cursor: td.trophy.photo ? "pointer" : "default" }}>
+          <span style={{ fontSize: 26, flexShrink: 0 }}>🏆</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ display: "block", fontSize: 14.5, fontWeight: 900, color: "#78350f" }}>{td.trophy.text}</b>
+            {td.trophy.photo && <span style={{ fontSize: 11.5, color: "#92400e", fontWeight: 700 }}>לחצי לתמונה 📸</span>}
+          </span>
+          {td.trophy.photo && <img src={td.trophy.photo} alt="" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 9, flexShrink: 0, border: "2px solid #fff" }} />}
+        </button>
+      )}
+      {big && td.trophy && td.trophy.photo && (
+        <div onClick={() => setBig(false)} role="dialog" aria-label="תמונת הגביע"
+          style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(8,10,30,0.92)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <img src={td.trophy.photo} alt="הגביע" style={{ maxWidth: "100%", maxHeight: "82vh", borderRadius: 14, objectFit: "contain", boxShadow: "0 18px 50px rgba(0,0,0,0.5)" }} />
+          <div style={{ color: "#fde68a", fontSize: 17, fontWeight: 900, marginTop: 12 }}>🏆 {td.trophy.text}</div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12.5, marginTop: 4 }}>נגיעה לסגירה</div>
+        </div>
+      )}
       {td.games.length === 0 ? (
-        <div style={{ background: "#fff1f3", padding: "8px 12px", fontSize: 12.5, color: "#64748b" }}>אין לנו משחק ביום הזה</div>
+        !td.trophy && <div style={{ background: "#fff1f3", padding: "8px 12px", fontSize: 12.5, color: "#64748b" }}>אין לנו משחק ביום הזה</div>
       ) : td.games.map((g) => (
         <div key={g.id} style={{ background: "#fff1f3", padding: "8px 12px", display: "flex", alignItems: "center", gap: 10, borderTop: "1px solid #fbcfe8" }}>
           <b style={{ flex: "0 0 auto", fontSize: 14, fontWeight: 800, color: "#1e293b", fontVariantNumeric: "tabular-nums" }}>{g.time}</b>
@@ -685,6 +707,7 @@ export function TournamentAdmin({ tournaments = {}, notify, askConfirm, merge = 
         </div>
       )}
 
+      <TrophyPhotoAdmin t={t} state={state} merge={merge} notify={notify} askConfirm={askConfirm} />
       <CelebrationAdmin t={t} state={state} merge={merge} notify={notify} askConfirm={askConfirm} />
 
       <div style={{ fontSize: 14, fontWeight: 800, color: DEEP, marginBottom: 2 }}>תוצאות</div>

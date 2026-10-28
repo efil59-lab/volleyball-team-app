@@ -160,6 +160,14 @@ export default function CalendarDesk({
               {!sel && <p className="st-cal-day-k">{selEvents.length ? "האירוע הקרוב" : "היום"}</p>}
               {selHol && <p className="st-cal-day-hol">{selHol.name}</p>}
               {tourOn(selected) && <p className="st-cal-day-hol st-tourline">☀️ {tour.name} · {tour.city}</p>}
+              {tourOn(selected) && selected === tour.end && tour.trophy && (
+                <a href={(tourState && tourState.trophyPhoto) || undefined} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#fff7d6,#fde68a)", borderRadius: 12, padding: "9px 12px", margin: "6px 0", textDecoration: "none", color: "#78350f", fontWeight: 900 }}>
+                  <span style={{ fontSize: 24 }}>🏆</span>
+                  <span style={{ flex: 1 }}>{tour.trophy}{tourState && tourState.trophyPhoto ? <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#92400e" }}>לתמונה 📸</span> : null}</span>
+                  {tourState && tourState.trophyPhoto && <img src={tourState.trophyPhoto} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 9 }} />}
+                </a>
+              )}
             </div>
           </div>
           {selEvents.length === 0 && selBdays.length === 0 && tourGamesOn(selected).length === 0 && (

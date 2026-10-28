@@ -123,6 +123,53 @@ export function CelebrationGate({ tournaments, player }) {
   return <Celebration t={t} state={state} win={win} onClose={close} />;
 }
 
+// ── פאנל הניהול: תמונת הגביע ליום החזרה בלוח השנה (state.trophyPhoto) ──
+export function TrophyPhotoAdmin({ t, state, merge, notify, askConfirm }) {
+  const [busy, setBusy] = useState(false);
+  if (!t || !t.trophy) return null;
+  const photo = state.trophyPhoto || null;
+  async function upload(file) {
+    if (!file) return;
+    if (!String(file.type || "").startsWith("image/")) { notify && notify("אפשר להעלות רק תמונה"); return; }
+    setBusy(true);
+    try {
+      const img = await compressImage(file);
+      const path = `teams/${CURRENT_TEAM}/gallery/trophy_${Date.now()}.jpg`;
+      const r = ref(storage, path);
+      await uploadBytes(r, img);
+      const url = await getDownloadURL(r);
+      if (state.trophyPhotoPath) { try { await deleteObject(ref(storage, state.trophyPhotoPath)); } catch {} }
+      await merge(t.id, { trophyPhoto: url, trophyPhotoPath: path });
+      notify && notify("תמונת הגביע נשמרה", { icon: "🏆" });
+    } catch (e) { console.error("trophy photo:", e); notify && notify("העלאת התמונה נכשלה, נסי שוב"); }
+    setBusy(false);
+  }
+  async function remove() {
+    setBusy(true);
+    try {
+      if (state.trophyPhotoPath) { try { await deleteObject(ref(storage, state.trophyPhotoPath)); } catch {} }
+      await merge(t.id, { trophyPhoto: null, trophyPhotoPath: null });
+    } catch {}
+    setBusy(false);
+  }
+  const btn = { border: "none", borderRadius: 10, padding: "8px 11px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" };
+  return (
+    <div style={{ background: "#fff7d6", border: "1.5px solid #fcd34d", borderRadius: 14, padding: 14, marginBottom: 14 }}>
+      <div style={{ fontSize: 14.5, fontWeight: 800, color: "#16203a" }}>🏆 {t.trophy}</div>
+      <div style={{ fontSize: 12.5, color: "#5b6478", margin: "4px 0 8px", lineHeight: 1.55 }}>מסומן בלוח השנה ביום החזרה. לחיצה שם פותחת את התמונה.</div>
+      {photo && <img src={photo} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, display: "block", marginBottom: 8 }} />}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <label style={{ ...btn, background: "#1a237e", color: "#fff", opacity: busy ? 0.6 : 1 }}>
+          {busy ? "מעלה…" : photo ? "📷 החלפת תמונה" : "📷 הוספת תמונה"}
+          <input type="file" accept="image/*" disabled={busy} style={{ display: "none" }}
+            onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; upload(f); }} />
+        </label>
+        {photo && <button disabled={busy} onClick={() => askConfirm ? askConfirm("להסיר את תמונת הגביע?", remove) : remove()} style={{ ...btn, background: "#fef2f2", color: "#ef4444" }}>🗑️ הסרה</button>}
+      </div>
+    </div>
+  );
+}
+
 // ── פאנל הניהול: לכל חגיגה — תמונה ותצוגה מקדימה (גם לפני שיש ניצחון) ──
 const LABELS = { g3: "🚨 ניצחון על המשטרה", sf: "🔥 ניצחון בחצי הגמר", fn: "🏆 ניצחון בגמר" };
 // תוצאות מדומות לתצוגה המקדימה: ניצחון בכל מה שצריך כדי להגיע לחגיגה
