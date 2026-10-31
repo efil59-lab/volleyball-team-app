@@ -184,6 +184,13 @@ function monthDay(dateStr) {
   const parts = String(dateStr).split("-");
   return parts.length === 3 ? `${parts[1]}-${parts[2]}` : parts.length === 2 ? `${parts[0]}-${parts[1]}` : "";
 }
+// "שבוע טוב" במוצאי שבת וביום ראשון (אפי, 31.10.26), אחרת ריק. מוצאי שבת = שבת
+// מ-18:00, ובחודשי הקיץ (אפריל–ספטמבר, השקיעה מאוחרת) מ-20:00.
+function isWeekStart(now = new Date()) {
+  const day = now.getDay(), m = now.getMonth() + 1;
+  if (day === 0) return true;
+  return day === 6 && now.getHours() >= (m >= 4 && m <= 9 ? 20 : 18);
+}
 // "12 במרץ" — a birthday for display, never with the year
 function birthdayLabel(b) {
   const md = monthDay(b);
@@ -228,4 +235,4 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, birthdayLabel, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, birthdayLabel, isWeekStart, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };

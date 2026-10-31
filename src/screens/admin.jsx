@@ -4,7 +4,7 @@ import { ref, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage
 import { S } from "../styles/S";
 import { KEYS, DEFAULT_TEAM } from "../lib/constants";
 import {
-  formatDate, formatShort, getNextEvent, todayStr, monthDay, birthdayLabel, DEFAULT_INVITE, buildInvite,
+  formatDate, formatShort, getNextEvent, todayStr, monthDay, birthdayLabel, isWeekStart, DEFAULT_INVITE, buildInvite,
   isBirthdayToday, isBirthdayTomorrow, attendanceWords, eventPhase, eventStateLabel, rosterOf,
 } from "../lib/utils";
 import { CURRENT_TEAM, load, save, adminResetPlayer, adminDeletePlayerRemote, adminResetPlayerToSetupRemote, notifyTeamPushRemote, adminPushStatusRemote, setPlayerManagerRemote } from "../lib/db";
@@ -466,7 +466,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   function sendWAOne(p) {
     const wa = waNumber(p);
     if (!wa) return;
-    const msg = `היי ${p.name}, ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`;
+    const msg = `היי ${p.name}, ${isWeekStart() ? "שבוע טוב! " : ""}ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`;
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
     setWaSent(prev => {
       const next = { ...prev, [waKey(p)]: Date.now() };
@@ -491,7 +491,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     if (pending.length === 0) return;
     const names = pending.map(p => p.name).join(", ");
     const kind = nextEvent.type === "training" ? "לאימון" : "למשחק";
-    const text = `🏐 טרם סימנו הגעה ${kind} ב-${formatShort(nextEvent.date)}: ${names}.\nאנא סמנו באפליקציה 🙏`;
+    const text = `🏐 ${isWeekStart() ? "שבוע טוב! " : ""}טרם סימנו הגעה ${kind} ב-${formatShort(nextEvent.date)}: ${names}.\nאנא סמנו באפליקציה 🙏`;
     try {
       if (navigator.share) {
         await navigator.share({ text });
