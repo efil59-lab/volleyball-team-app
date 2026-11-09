@@ -9,7 +9,7 @@ import {
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
-import { AttModal, CalEventRow, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail } from "../components/shared";
+import { AttModal, CalEventRow, Collapsible, Empty, Label, LegendEventsModal, OutcomeBadge, BottomNav, SideRail, NotifTicker } from "../components/shared";
 import { useIsDesktop, SiteChrome } from "../site/Site";
 import PlayerHome from "../site/PlayerHome";
 import CalendarDesk from "../site/CalendarDesk";
@@ -518,6 +518,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           {/* ── EVENT TAB ── */}
           {tab === "event" && (
             <>
+              {/* הודעות המנהלת — גם במסך האישי, לא רק בדף הבית: רוב הבנות נכנסות
+                  ישר לכאן ולא רואות את דף הבית (אפי, 9.11.26) */}
+              {activeNotifs.length > 0 && <NotifTicker notifs={activeNotifs} pc={pc} sc={sc} />}
               {/* ברכת חג — מיד אחרי כרטיס האירוע, לפני המספרים: כרטיס האימון
                   הוא הסיבה שפתחו את האפליקציה ואסור לדחוף אותו למטה, אבל מתחת
                   למונים ולרשימות הברכה נקברת. ביום בלי אירוע היא עולה מעצמה. */}
