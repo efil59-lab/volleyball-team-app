@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { S } from "../styles/S";
 import { formatDate, formatShort, todayStr, monthDay, birthdayLabel, eventPhase } from "../lib/utils";
+import { splitLink, openLink, LinkViewer } from "./NotifLink";
 
 // ── CONFIRM DIALOG ────────────────────────────────────────────────────────────
 function Confirm({ msg, onOk, onCancel, icon, okLabel, tone }) {
@@ -73,6 +74,7 @@ function PurchaseBanner({ pc, sc, onClick }) {
 function NotifTicker({ notifs, pc, sc }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const [viewer, setViewer] = useState(null);
 
   // קדימות לביטול: אם יש הודעת ביטול פעילה — מציגים רק אותה/ן, בלי שאר ההודעות
   const cancels = notifs.filter(x => x.type === "cancel");
@@ -97,11 +99,16 @@ function NotifTicker({ notifs, pc, sc }) {
   const isCoach = n.type === "coach";
   const bgColor = isCancel ? "#ef4444" : pc;
   const borderColor = isCancel ? "#ff6b6b" : sc;
-  const displayText = isCoach ? `הודעה מהמאמן/ת: ${n.text}` : n.text;
+  // קישור בהודעה: הכתובת לא מוצגת, וכל ההודעה נהיית לחיצה (ראה NotifLink)
+  const { text: bare, url } = splitLink(n.text);
+  const shown = url ? (bare || "לחצי לצפייה") : n.text;
+  const displayText = isCoach ? `הודעה מהמאמן/ת: ${shown}` : shown;
 
   return (
     <div style={{ marginBottom: 12, overflow: "hidden" }}>
-      <div style={{
+      <LinkViewer url={viewer} onClose={() => setViewer(null)} />
+      <div onClick={url ? () => openLink(url, setViewer) : undefined} role={url ? "button" : undefined} style={{
+        cursor: url ? "pointer" : "default",
         background: bgColor,
         borderRadius: 12,
         padding: "10px 14px",
@@ -114,7 +121,7 @@ function NotifTicker({ notifs, pc, sc }) {
         textAlign: "center",
       }}>
         <div style={{ height: list.length > 1 ? 58 : "auto", display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto", overflowX: "hidden" }}>
-          <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4, overflowWrap: "break-word", wordBreak: "break-word", width: "100%" }}>{displayText}</div>
+          <div style={{ color: "white", fontWeight: isCancel ? 800 : 700, fontSize: 13, lineHeight: 1.4, overflowWrap: "break-word", wordBreak: "break-word", width: "100%" }}>{displayText}{url && <span style={{ display: "inline-block", marginRight: 6, background: "rgba(255,255,255,0.22)", borderRadius: 999, padding: "1px 9px", fontSize: 12, fontWeight: 800 }}>🔗 לצפייה</span>}</div>
         </div>
         {list.length > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>

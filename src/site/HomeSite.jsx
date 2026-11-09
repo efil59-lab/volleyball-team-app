@@ -10,6 +10,7 @@ import { useState } from "react";
 import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
 import KitchenBanner from "../components/KitchenBanner";
+import { NotifText } from "../components/NotifLink";
 import { Brand, Court, TallyBoard, WhoGroups } from "./Site";
 import ThemeToggle from "../components/ThemeToggle";
 import "./site.css";
@@ -99,7 +100,7 @@ export default function HomeSite({
       </header>
 
       {cancels.map(n => (
-        <div key={n.id} className="st-h-alert"><div className="st-h-alert-in">{n.text}</div></div>
+        <div key={n.id} className="st-h-alert"><div className="st-h-alert-in"><NotifText text={n.text} color="inherit" /></div></div>
       ))}
 
       <section className="st-p-hero">
@@ -233,7 +234,7 @@ export default function HomeSite({
             </button>
           )}
           {others.map(n => (
-            <div key={n.id} className="st-h-note"><b>💬 עדכון</b>{n.text}</div>
+            <div key={n.id} className="st-h-note"><b>💬 עדכון</b><NotifText text={n.text} /></div>
           ))}
         </aside>
       </div>

@@ -18,6 +18,7 @@ import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
 import KitchenBanner from "../components/KitchenBanner";
 import BirthdayInput from "../components/BirthdayInput";
+import { NotifText } from "../components/NotifLink";
 import ThemeToggle from "../components/ThemeToggle";
 import { createPager, tabAfterSettle } from "../lib/swipe";
 import { holidayLabel } from "../lib/holidays";
@@ -983,7 +984,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
                     {n.type === "cancel" ? "❌ ביטול" : n.type === "coach" ? "📢 המאמן" : "💬 עדכון"} • {new Date(n.createdAt).toLocaleDateString("he-IL")}
                   </div>
-                  <div style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{n.text}</div>
+                  <div style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}><NotifText text={n.text} /></div>
                 </div>
               ))}
             </div>
