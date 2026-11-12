@@ -16,7 +16,7 @@ import CalendarDesk from "../site/CalendarDesk";
 import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
-import KitchenBanner from "../components/KitchenBanner";
+import AppPromo from "../components/AppPromo";
 import BirthdayInput from "../components/BirthdayInput";
 import { NotifText } from "../components/NotifLink";
 import ThemeToggle from "../components/ThemeToggle";
@@ -725,7 +725,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
               {/* הזמנה ל"המטבח שלי" — אחרון במסך, מתחת לסטטיסטיקה (אפי, 10.10.26).
                   כאן ולא רק בדף הבית: שחקנית שהמכשיר זוכר נכנסת ישר למסך הזה. */}
-              {!isDesk && <div style={{ marginTop: 14 }}><KitchenBanner /></div>}
+              {!isDesk && <div style={{ marginTop: 14 }}><AppPromo /></div>}
             </>
           )}
 

@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
-import KitchenBanner from "../components/KitchenBanner";
+import AppPromo from "../components/AppPromo";
 import { NotifText } from "../components/NotifLink";
 import { Brand, Court, TallyBoard, WhoGroups } from "./Site";
 import ThemeToggle from "../components/ThemeToggle";
@@ -190,7 +190,7 @@ export default function HomeSite({
                   <span><b>הצ׳אט הקבוצתי</b><span>מה מתחדש אצל הבנות</span></span>
                 </button>
               </div>
-              <div style={{ maxWidth: 520 }}><KitchenBanner /></div>
+              <div style={{ maxWidth: 520 }}><AppPromo /></div>
             </>
           ) : (
             <section className="st-p-card">

@@ -12,7 +12,7 @@ import { useIsDesktop } from "../site/Site";
 import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
-import KitchenBanner from "../components/KitchenBanner";
+import AppPromo from "../components/AppPromo";
 import BirthdayInput from "../components/BirthdayInput";
 import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
@@ -266,7 +266,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
 
         {/* הזמנה ל"המטבח שלי". לא תלויה ב-hidePromoBanner: המתג ההוא משתיק את
             הצעת המכירה של האפליקציה עצמה, וזו הזמנה אחרת. */}
-        <div style={{ padding: "14px 16px 0" }}><KitchenBanner /></div>
+        <div style={{ padding: "14px 16px 0" }}><AppPromo /></div>
 
         {adminLink}
       </div>

@@ -83,3 +83,14 @@ html[data-theme="dark"] .kb-link { color: #f3e6ea; }
 html[data-theme="dark"] .kb-nm { color: #ff9db6; }
 html[data-theme="dark"] .kb-pt { color: #d9c3ca; }
 html[data-theme="dark"] .kb-x { color: #8c6f78; }
+
+/* CartFlow — אותו באנר, בצבעים של CartFlow (כתום) ובלי גופן כתב היד */
+.kb-cf { background: linear-gradient(120deg, #fff7f2, #ffece3 70%, #ffdccc); border-color: #ffc7ad; box-shadow: 0 6px 18px rgba(255, 112, 67, 0.18); }
+.kb-cf .kb-ic { background: #ff7043; box-shadow: 0 4px 10px rgba(255, 112, 67, 0.35); }
+.kb-cf .kb-nm { font-family: Heebo, "Segoe UI", sans-serif; font-weight: 900; font-size: 21px; line-height: 1.1; letter-spacing: 0; color: #e65a2b; }
+.kb-cf .kb-pt { color: #5b4036; }
+.kb-cf .kb-go { background: #ff7043; }
+.kb-cf .kb-link:focus-visible { outline-color: #ff7043; }
+html[data-theme="dark"] .kb-cf { background: linear-gradient(120deg, #2b211c, #3a2a22 70%, #4a2e22); border-color: #5c3a2c; }
+html[data-theme="dark"] .kb-cf .kb-nm { color: #ffa37f; }
+html[data-theme="dark"] .kb-cf .kb-pt { color: #e2cfc6; }
