@@ -45,6 +45,7 @@ export default function App() {
       if (u.searchParams.get("open") === "archive") {
         openArchiveRef.current = true;
         sessionStorage.setItem("adminTab", "events");
+        sessionStorage.setItem("adminOpenArchive", "1");
         u.searchParams.delete("open");
         window.history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
       }

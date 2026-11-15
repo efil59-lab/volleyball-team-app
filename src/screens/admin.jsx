@@ -752,6 +752,19 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
   const [archEdits, setArchEdits] = useState({}); // playerId -> "coming" | "notcoming"
   const [archNotes, setArchNotes] = useState({}); // playerId -> סיבת התיקון (רשות)
   function openArchiveDialog(ev) { setArchEdits({}); setArchNotes({}); setArchiveDialog(ev); }
+  // הגעה מתזכורת הארכוב (?open=archive, ראה App.jsx): חלון הארכוב נפתח מיד על
+  // האירוע הוותיק שמחכה. משחק בלי תוצאה לא נפתח — שם הלשונית מבקשת תוצאה קודם.
+  useEffect(() => {
+    let want = false;
+    try { want = sessionStorage.getItem("adminOpenArchive") === "1"; if (want) sessionStorage.removeItem("adminOpenArchive"); } catch {}
+    if (!want) return;
+    const d = new Date(), today = todayStr();
+    const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const due = (events || [])
+      .filter(e => !e.cancelled && (e.date < today || (e.date === today && (e.time || "00:00") <= hm)) && (e.type !== "game" || e.outcome))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
+    if (due) openArchiveDialog(due);
+  }, []);
   const archStatus = (ev, p) => (p.id in archEdits)
     ? archEdits[p.id]
     : ((attendance[`${ev.id}_${p.id}`] || {}).status || null);
