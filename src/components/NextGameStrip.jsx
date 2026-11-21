@@ -206,7 +206,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
           </div>
           <div style={{ fontSize: 12, color: "#8a3c0c", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
           {onRsvp && whoFor && (() => { const n = whoFor(g).coming.length; return (
-            <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עדיין אין אישורים" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
+            <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עדיין אין אישורי הגעה" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
           ); })()}
         </div>
         <div onClick={(e) => { e.stopPropagation(); openSheet(); }} role="button" aria-label="לכל המשחקים"
