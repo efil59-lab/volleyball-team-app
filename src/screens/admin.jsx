@@ -382,6 +382,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     try { return JSON.parse(localStorage.getItem("waSent") || "{}"); } catch { return {}; }
   });
   const [viewId, setViewId] = useState(null);     // אירוע שנבחר לצפייה במקום הקרוב
+  const [gameOpen, setGameOpen] = useState(false); // הפס של המשחק הבא: רשימת השחקניות פתוחה/מוסתרת
 
   // ── איזה אירוע מוצג כאן ──────────────────────────────────────────────────
   // getNextEvent מחזיר רק אירוע עם date >= today. כלומר בחצות של יום האירוע
@@ -462,15 +463,16 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   // תזכורת אישית — שחקנית אחת בכל לחיצה. קודם הכפתור פתח חלון וואטסאפ לכל
   // מי שלא ענתה בלולאה אחת; הדפדפן מתיר חלון אחד ללחיצה וחוסם את השאר, ולכן
   // בפועל נשלח רק לראשונה (דווח 4.10.26).
-  const waKey = (p) => `${nextEvent.id}_${p.id}`;
+  const waKey = (p, ev = nextEvent) => `${ev.id}_${p.id}`;
   const waNumber = (p) => String((playerProfiles[p.id] || {}).whatsapp || "").replace(/\D/g, "");
-  function sendWAOne(p) {
+  function sendWAOne(p, ev = nextEvent) {
     const wa = waNumber(p);
     if (!wa) return;
-    const msg = `היי ${p.name}, ${isWeekStart() ? "שבוע טוב! " : ""}ראיתי שלא סימנת הגעה ל${evLabel}. את מתכוונת להגיע?`;
+    const label = ev === nextEvent ? evLabel : `משחק ${formatShort(ev.date)}${ev.opponent ? " נגד " + ev.opponent : ""}`;
+    const msg = `היי ${p.name}, ${isWeekStart() ? "שבוע טוב! " : ""}ראיתי שלא סימנת הגעה ל${label}. את מתכוונת להגיע?`;
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
     setWaSent(prev => {
-      const next = { ...prev, [waKey(p)]: Date.now() };
+      const next = { ...prev, [waKey(p, ev)]: Date.now() };
       // שומרים רק את השבועיים האחרונים, שהרשימה לא תתנפח
       const cut = Date.now() - 14 * 86400000;
       for (const k of Object.keys(next)) if (next[k] < cut) delete next[k];
@@ -487,12 +489,12 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   // תזכורת קבוצתית: הודעה אחת עם שמות החוסרים, לשיתוף לקבוצת הוואטסאפ.
   // (קישור chat.whatsapp.com הוא קישור הצטרפות בלבד — לא ניתן לשלוח אליו טקסט מוכן,
   //  לכן: שיתוף נייטיב אם נתמך, אחרת העתקה ללוח + פתיחת הקבוצה.)
-  async function shareGroupReminder() {
-    const pending = getList("pending");
+  async function shareGroupReminder(ev = nextEvent) {
+    const pending = ev === nextEvent ? getList("pending") : roster.filter(p => !attendance[`${ev.id}_${p.id}`]?.status);
     if (pending.length === 0) return;
     const names = pending.map(p => p.name).join(", ");
-    const kind = nextEvent.type === "training" ? "לאימון" : "למשחק";
-    const text = `🏐 ${isWeekStart() ? "שבוע טוב! " : ""}טרם סימנו הגעה ${kind} ב-${formatShort(nextEvent.date)}: ${names}.\nאנא סמנו באפליקציה 🙏`;
+    const kind = ev.type === "training" ? "לאימון" : `למשחק${ev.opponent ? " נגד " + ev.opponent : ""}`;
+    const text = `🏐 ${isWeekStart() ? "שבוע טוב! " : ""}טרם סימנו הגעה ${kind} ב-${formatShort(ev.date)}: ${names}.\nאנא סמנו באפליקציה 🙏`;
     try {
       if (navigator.share) {
         await navigator.share({ text });
@@ -575,7 +577,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         );
       })()}
       {!eventPassed && countAtt("pending") > 0 && (
-        <button onClick={shareGroupReminder}
+        <button onClick={() => shareGroupReminder()}
           style={{ width: "100%", padding: "10px", background: "white", color: "#16a34a", border: "2px solid #25D366", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
           📢 תזכורת קבוצתית עם שמות החוסרות ({countAtt("pending")})
         </button>
@@ -601,20 +603,58 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
             style={{ background: "#1d4ed8", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>הצג אותו</button>
         </div>
       )}
-      {/* אישורים מוקדמים למשחק הבא (מהפס הצהוב) — מופיע רק כשיש כאלה (אפי, 21.11.26) */}
+      {/* המשחק הבא (אפי, 21.11.26): המסך נשאר על האירוע הקרוב; הפס מסכם את האישורים
+          המוקדמים, ו"הצג" פותח בתוכו את כל השחקניות למשחק + תזכורות אישית וקבוצתית. "הסתר" מקפל. */}
       {!viewId && (() => {
         const ng = nextGameOf(events, upcoming);
         if (!ng) return null;
-        const yes = roster.filter(p => (attendance[`${ng.id}_${p.id}`] || {}).status === "coming").length;
-        const no = roster.filter(p => (attendance[`${ng.id}_${p.id}`] || {}).status === "notcoming").length;
-        if (!yes && !no) return null;
+        const st = (p) => (attendance[`${ng.id}_${p.id}`] || {}).status;
+        const yesL = roster.filter(p => st(p) === "coming"), noL = roster.filter(p => st(p) === "notcoming"), pendL = roster.filter(p => !st(p));
+        const chip = (p, bg, fg) => <span key={p.id} style={{ background: bg, color: fg, borderRadius: 999, padding: "3px 10px", fontSize: 12.5, fontWeight: 700 }}>{p.name}</span>;
+        const group = (title, color, list, bg, fg) => list.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color, marginBottom: 5 }}>{title} ({list.length})</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{list.map(p => chip(p, bg, fg))}</div>
+          </div>
+        );
         return (
-          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12.5, color: "#78350f", flex: 1, minWidth: 160, lineHeight: 1.5, fontWeight: 600 }}>
-              🏆 המשחק הבא {formatShort(ng.date)}{ng.opponent ? ` נגד ${ng.opponent}` : ""}: ✅ {yes} מגיעות{no ? ` · ❌ ${no}` : ""}
-            </span>
-            <button onClick={() => setViewId(ng.id)}
-              style={{ background: "#b45309", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>הצג</button>
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12.5, color: "#78350f", flex: 1, minWidth: 160, lineHeight: 1.5, fontWeight: 600 }}>
+                🏆 המשחק הבא {formatShort(ng.date)}{ng.opponent ? ` נגד ${ng.opponent}` : ""}: {yesL.length || noL.length ? <>✅ {yesL.length} מגיעות{noL.length ? ` · ❌ ${noL.length}` : ""}</> : "עדיין אין אישורי הגעה"}
+              </span>
+              <button onClick={() => setGameOpen(v => !v)}
+                style={{ background: "#b45309", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>{gameOpen ? "הסתר" : "הצג"}</button>
+            </div>
+            {gameOpen && (
+              <div style={{ borderTop: "1px solid #fde68a", marginTop: 10 }}>
+                {group("✅ מגיעות", "#16a34a", yesL, "#dcfce7", "#166534")}
+                {group("❌ לא מגיעות", "#dc2626", noL, "#fee2e2", "#991b1b")}
+                {pendL.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 800, color: "#b45309", marginBottom: 2 }}>⏳ עוד לא ענו ({pendL.length})</div>
+                    {pendL.map(p => {
+                      const has = !!waNumber(p), done = !!waSent[waKey(p, ng)];
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderTop: "1px solid #fef3c7" }}>
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>{p.name}</span>
+                          {!has ? <span style={{ fontSize: 11.5, color: "#94a3b8" }}>אין מספר וואטסאפ</span> : (
+                            <button onClick={() => sendWAOne(p, ng)}
+                              style={{ flexShrink: 0, border: done ? "1px solid #bbf7d0" : "none", borderRadius: 9, padding: "6px 11px", cursor: "pointer", fontSize: 12, fontWeight: 800, background: done ? "#f0fdf4" : "#25D366", color: done ? "#166534" : "white" }}>
+                              {done ? "נשלח ✓ · שוב" : "💬 תזכורת אישית"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <button onClick={() => shareGroupReminder(ng)}
+                      style={{ width: "100%", marginTop: 8, padding: "9px", background: "white", color: "#16a34a", border: "2px solid #25D366", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                      📢 תזכורת קבוצתית למשחק ({pendL.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })()}
@@ -623,12 +663,6 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           style={{ background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>
           ← חזרה לאירוע הקרוב
         </button>
-      )}
-      {/* מתחת ל"חזרה": שיהיה ברור שהרשימה היא של המשחק הבא (אפי, 21.11.26) */}
-      {viewId && upcoming && String(viewId) !== String(upcoming.id) && nextEvent && !isPastEv(nextEvent) && (
-        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "9px 12px", marginBottom: 10, fontSize: 13, fontWeight: 800, color: "#78350f" }}>
-          🏆 מוצג: {nextEvent.type === "game" ? "המשחק הבא" : "אירוע אחר"} · {formatShort(nextEvent.date)}{nextEvent.opponent ? ` נגד ${nextEvent.opponent}` : ""}
-        </div>
       )}
       {roster.map(p => {
         const prof = playerProfiles[p.id] || {};
