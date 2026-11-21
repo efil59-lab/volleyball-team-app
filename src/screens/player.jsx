@@ -525,8 +525,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
               {/* הודעות המנהלת — גם במסך האישי, לא רק בדף הבית: רוב הבנות נכנסות
                   ישר לכאן ולא רואות את דף הבית (אפי, 9.11.26) */}
               {(() => {
-                // בחשבון הבדיקה הפס הצהוב מחליף את הודעת לוח הליגה
-                const shown = isGhost && nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs;
+                // הפס הצהוב מחליף את הודעת לוח הליגה
+                const shown = nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs;
                 return shown.length > 0 && <NotifTicker notifs={shown} pc={pc} sc={sc} />;
               })()}
               {/* ברכת חג — מיד אחרי כרטיס האירוע, לפני המספרים: כרטיס האימון
@@ -540,8 +540,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   {/* ברכת החג ראשונה במסך (בקשת אפי 3.10.26) */}
                   <HolidayBanner slim={myBdayToday} />
                   {showTour && <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => setTab("tournament")} />}
-                  {/* המשחק הבא — תזכורת מעל כרטיס האירוע. בשלב זה לחשבון הבדיקה בלבד */}
-                  {isGhost && <NextGameStrip events={events} archive={archive} current={nextEvent} />}
+                  {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
+                  <NextGameStrip events={events} archive={archive} current={nextEvent} />
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>

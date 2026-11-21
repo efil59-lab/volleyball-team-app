@@ -7,7 +7,7 @@ function formatShort(d) {
   return new Date(d + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
 }
 function getNextEvent(events) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr(); // local date, not UTC (UTC lagged until 02:00-03:00 in Israel)
   return events.filter(e => e.date >= today && e.open && !e.cancelled).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
 }
 // מספר הימים עד תאריך yyyy-mm-dd (0 = היום, 1 = מחר)

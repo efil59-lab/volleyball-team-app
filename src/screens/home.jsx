@@ -178,16 +178,16 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
         </div>
 
         {(() => {
-          // בחשבון הבדיקה הפס הצהוב מחליף את הודעת לוח הליגה
-          const shown = me.ghost && nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs;
+          // הפס הצהוב מחליף את הודעת לוח הליגה
+          const shown = nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs;
           return shown.length > 0 && <div style={{ padding: "10px 16px 0" }}><NotifTicker notifs={shown} pc={pc} sc={sc} /></div>;
         })()}
 
         <div style={{ padding: "12px 16px 0" }}>
           {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}
           <HolidayBanner slim={bdayOthers.length > 0} />
-          {/* המשחק הבא — תזכורת מעל כרטיס האירוע. בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
-          {me.ghost && <NextGameStrip events={events} archive={archive} current={nextEvent} />}
+          {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
+          <NextGameStrip events={events} archive={archive} current={nextEvent} />
           {nextEvent ? (
             <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
