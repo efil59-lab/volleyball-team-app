@@ -8,6 +8,9 @@ import { LinkViewer } from "./NotifLink";
 // לחיצה (או "לכל המשחקים") פותחת את לוח משחקי הליגה — במקום ההודעה שמירי פרסמה.
 const LEAGUE_IMG = "/league.png";
 
+// הודעת המנהלת שמקשרת ללוח הליגה מיותרת איפה שהפס מוצג — הוא כבר פותח אותו
+export const withoutLeagueLink = (notifs) => (notifs || []).filter(n => !String(n.text || "").includes(LEAGUE_IMG));
+
 export function nextGameOf(events, current) {
   const t = todayStr();
   return (events || []).filter(e => e.type === "game" && e.open && !e.cancelled && e.date >= t && (!current || e.id !== current.id))

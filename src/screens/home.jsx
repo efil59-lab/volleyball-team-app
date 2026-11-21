@@ -13,7 +13,7 @@ import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import AppPromo from "../components/AppPromo";
-import NextGameStrip from "../components/NextGameStrip";
+import NextGameStrip, { nextGameOf, withoutLeagueLink } from "../components/NextGameStrip";
 import BirthdayInput from "../components/BirthdayInput";
 import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
@@ -177,7 +177,11 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
           <button onClick={() => setForceRoster(true)} style={{ flexShrink: 0, background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>לא את? החליפי</button>
         </div>
 
-        {activeNotifs.length > 0 && <div style={{ padding: "10px 16px 0" }}><NotifTicker notifs={activeNotifs} pc={pc} sc={sc} /></div>}
+        {(() => {
+          // בחשבון הבדיקה הפס הצהוב מחליף את הודעת לוח הליגה
+          const shown = me.ghost && nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs;
+          return shown.length > 0 && <div style={{ padding: "10px 16px 0" }}><NotifTicker notifs={shown} pc={pc} sc={sc} /></div>;
+        })()}
 
         <div style={{ padding: "12px 16px 0" }}>
           {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}

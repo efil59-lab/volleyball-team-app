@@ -19,7 +19,7 @@ import HolidayBanner from "../components/HolidayBanner";
 import AppPromo from "../components/AppPromo";
 import CalendarSubscribe from "../components/CalendarSubscribe";
 import AddToCalendar from "../components/AddToCalendar";
-import NextGameStrip from "../components/NextGameStrip";
+import NextGameStrip, { nextGameOf, withoutLeagueLink } from "../components/NextGameStrip";
 import BirthdayInput from "../components/BirthdayInput";
 import { NotifText } from "../components/NotifLink";
 import ThemeToggle from "../components/ThemeToggle";
@@ -524,7 +524,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
             <>
               {/* הודעות המנהלת — גם במסך האישי, לא רק בדף הבית: רוב הבנות נכנסות
                   ישר לכאן ולא רואות את דף הבית (אפי, 9.11.26) */}
-              {activeNotifs.length > 0 && <NotifTicker notifs={activeNotifs} pc={pc} sc={sc} />}
+              {(() => {
+                // בחשבון הבדיקה הפס הצהוב מחליף את הודעת לוח הליגה
+                const shown = isGhost && nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs;
+                return shown.length > 0 && <NotifTicker notifs={shown} pc={pc} sc={sc} />;
+              })()}
               {/* ברכת חג — מיד אחרי כרטיס האירוע, לפני המספרים: כרטיס האימון
                   הוא הסיבה שפתחו את האפליקציה ואסור לדחוף אותו למטה, אבל מתחת
                   למונים ולרשימות הברכה נקברת. ביום בלי אירוע היא עולה מעצמה. */}
