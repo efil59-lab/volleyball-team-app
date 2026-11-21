@@ -43,7 +43,7 @@ export default function CalendarSubscribe({ pc }) {
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: "20px 20px 0 0", padding: "20px 18px calc(20px + env(safe-area-inset-bottom))", width: "100%", maxWidth: 480, boxSizing: "border-box" }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>📅 לוח הקבוצה ביומן שלך</div>
             <div style={{ fontSize: 13, color: "#64748b", textAlign: "center", marginTop: 4, lineHeight: 1.5 }}>
-              כל האימונים והמשחקים, גם אלה שייקבעו בהמשך, יופיעו ביומן — וביטול או שינוי שעה יתעדכנו לבד.
+              כל האימונים והמשחקים, גם אלה שייקבעו בהמשך, יופיעו ביומן — וביטול או שינוי שעה יתעדכנו אוטומטית.
             </div>
 
             {err && <div style={{ color: "#dc2626", fontSize: 13, fontWeight: 700, textAlign: "center", marginTop: 14 }}>{err}</div>}
