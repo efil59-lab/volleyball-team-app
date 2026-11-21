@@ -169,7 +169,7 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
       setNoteOpen(false);
     }
     return (
-      <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden" }}>
+      <div style={{ minHeight: "100vh", background: "#f1f5f9", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
         {header}
 
         <div style={{ padding: "14px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -285,7 +285,8 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
 
         {/* הזמנה ל"המטבח שלי". לא תלויה ב-hidePromoBanner: המתג ההוא משתיק את
             הצעת המכירה של האפליקציה עצמה, וזו הזמנה אחרת. */}
-        <div style={{ padding: "14px 16px 0" }}><AppPromo /></div>
+        {/* בתחתית המסך (אפי, 21.11.26): margin-top:auto דוחף אותו למטה כשיש מקום */}
+        <div style={{ marginTop: "auto", padding: "14px 16px 0" }}><AppPromo /></div>
 
         {adminLink}
       </div>
