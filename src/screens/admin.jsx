@@ -620,7 +620,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
         return (
           <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12.5, color: "#78350f", flex: 1, minWidth: 160, lineHeight: 1.5, fontWeight: 600 }}>
+              <span style={{ fontSize: 12.5, color: "#92400e", flex: 1, minWidth: 160, lineHeight: 1.5, fontWeight: 600 }}>
                 🏆 המשחק הבא {formatShort(ng.date)}{ng.opponent ? ` נגד ${ng.opponent}` : ""}: {yesL.length || noL.length ? <>✅ {yesL.length} מגיעות{noL.length ? ` · ❌ ${noL.length}` : ""}</> : "עדיין אין אישורי הגעה"}
               </span>
               <button onClick={() => setGameOpen(v => !v)}
