@@ -552,7 +552,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
                   <NextGameStrip events={events} archive={archive} current={nextEvent}
                     statusOf={(ev) => (attendance[`${ev.id}_${player.id}`] || {}).status || null}
-                    onRsvp={isGhost ? earlyRsvp : undefined} />
+                    onRsvp={isGhost ? earlyRsvp : undefined}
+                    whoFor={(ev) => ({ coming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })} />
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>

@@ -21,6 +21,7 @@ import { AttModal, CalEventRow, Empty, Label, LegendEventsModal, OutcomeBadge, B
 import useNow from "../lib/useNow";
 import { useIsDesktop, SiteChrome, AdminStrip } from "../site/Site";
 import PlayersDesktop from "../site/PlayersDesktop";
+import { nextGameOf } from "../components/NextGameStrip";
 
 // ── ADMIN GALLERY (מחיקה גורפת למנהל) ─────────────────────────────────────────
 function AdminGallery({ gallery, upd, pc, sc, askConfirm }) {
@@ -600,6 +601,23 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
             style={{ background: "#1d4ed8", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>הצג אותו</button>
         </div>
       )}
+      {/* אישורים מוקדמים למשחק הבא (מהפס הצהוב) — מופיע רק כשיש כאלה (אפי, 21.11.26) */}
+      {!viewId && (() => {
+        const ng = nextGameOf(events, upcoming);
+        if (!ng) return null;
+        const yes = roster.filter(p => (attendance[`${ng.id}_${p.id}`] || {}).status === "coming").length;
+        const no = roster.filter(p => (attendance[`${ng.id}_${p.id}`] || {}).status === "notcoming").length;
+        if (!yes && !no) return null;
+        return (
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12.5, color: "#78350f", flex: 1, minWidth: 160, lineHeight: 1.5, fontWeight: 600 }}>
+              🏆 המשחק הבא {formatShort(ng.date)}{ng.opponent ? ` נגד ${ng.opponent}` : ""}: ✅ {yes} מגיעות{no ? ` · ❌ ${no}` : ""}
+            </span>
+            <button onClick={() => setViewId(ng.id)}
+              style={{ background: "#b45309", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>הצג</button>
+          </div>
+        );
+      })()}
       {viewId && upcoming && String(viewId) !== String(upcoming.id) && (
         <button onClick={() => setViewId(null)}
           style={{ background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>

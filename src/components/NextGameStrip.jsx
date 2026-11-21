@@ -104,7 +104,19 @@ const NGS_CSS = `
 // כשהמסך מעביר onRsvp, בצד ימין של הפס יש כפתור "אישור הגעה" (ואחרי תשובה —
 // הסטטוס, ולחיצה משנה). התשובה נשמרת על המשחק עצמו, כמו בכרטיס הראשי, כך
 // שכשהמשחק הופך לאירוע הקרוב היא כבר מסומנת שם, והמנהלת רואה אותה ברשימה.
-function RsvpSheet({ g, status, onPick, onClose }) {
+function WhoList({ title, color, names }) {
+  if (!names || !names.length) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 800, color, marginBottom: 5 }}>{title} ({names.length})</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {names.map((n, i) => <span key={i} style={{ background: "#f1f5f9", borderRadius: 999, padding: "3px 10px", fontSize: 12.5, color: "#334155", fontWeight: 600 }}>{n}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function RsvpSheet({ g, status, who, onPick, onClose }) {
   const big = (c, on) => ({ flex: 1, padding: "14px 8px", borderRadius: 14, fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", border: on ? `2px solid ${c}` : "1px solid #e2e8f0", background: on ? c : "white", color: on ? "white" : c });
   return (
     <div onClick={onClose} role="dialog" aria-label="אישור הגעה למשחק"
@@ -119,13 +131,19 @@ function RsvpSheet({ g, status, onPick, onClose }) {
           <button onClick={() => onPick("notcoming")} style={big("#dc2626", status === "notcoming")}>❌ לא מגיעה</button>
         </div>
         <div style={{ textAlign: "center", fontSize: 12, color: "#94a3b8", marginTop: 10 }}>התשובה תופיע גם בכרטיס המשחק כשיגיע תורו</div>
+        {who && (who.coming.length + who.notcoming.length > 0) && (
+          <div style={{ marginTop: 6, borderTop: "1px solid #eef2f7", paddingTop: 4, maxHeight: "34vh", overflowY: "auto" }}>
+            <WhoList title="✅ מגיעות" color="#16a34a" names={who.coming} />
+            <WhoList title="❌ לא מגיעות" color="#dc2626" names={who.notcoming} />
+          </div>
+        )}
         <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: 8, background: "transparent", border: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: 10, cursor: "pointer", fontFamily: "inherit" }}>סגירה</button>
       </div>
     </div>
   );
 }
 
-export default function NextGameStrip({ events, archive, current, statusOf, onRsvp }) {
+export default function NextGameStrip({ events, archive, current, statusOf, onRsvp, whoFor }) {
   const [open, setOpen] = useState(false);
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const [seen, setSeen] = useState(readSeen);
@@ -179,6 +197,9 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
             {newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 7px", fontSize: 10.5, fontWeight: 800, verticalAlign: "middle" }}>חדש</span>}
           </div>
           <div style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
+          {onRsvp && whoFor && (() => { const n = whoFor(g).coming.length; return (
+            <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עוד אין אישורים" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
+          ); })()}
         </div>
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
           <span className={days <= 1 ? "ngs-soon" : undefined} style={{ display: "inline-block", background: "#78350f", color: "#fde68a", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{when}</span>
@@ -186,7 +207,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
         </div>
       </div>
       {open && <GamesSheet events={events} archive={archive} newIds={sheetNew} onClose={() => setOpen(false)} />}
-      {rsvpOpen && onRsvp && <RsvpSheet g={g} status={statusOf ? statusOf(g) : null} onClose={() => setRsvpOpen(false)}
+      {rsvpOpen && onRsvp && <RsvpSheet g={g} status={statusOf ? statusOf(g) : null} who={whoFor ? whoFor(g) : null} onClose={() => setRsvpOpen(false)}
         onPick={async (s) => { setRsvpOpen(false); try { await onRsvp(g, s); } catch (e) { console.error("early rsvp:", e); } }} />}
     </>
   );

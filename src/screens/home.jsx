@@ -189,6 +189,7 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
           {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
           <NextGameStrip events={events} archive={archive} current={nextEvent}
             statusOf={(ev) => (attendance[`${ev.id}_${me.id}`] || {}).status || null}
+            whoFor={(ev) => ({ coming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })}
             onRsvp={me.ghost ? async (ev, status) => {
               // אישור מוקדם מהפס — בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26)
               const authed = auth.currentUser && !auth.currentUser.isAnonymous;
