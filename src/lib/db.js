@@ -254,7 +254,9 @@ const callCalendarLinkFn = httpsCallable(functions, "calendarLink");
 // The calendar-subscription link for this team (an ICS feed the phone's calendar
 // subscribes to). Members only — enforced on the server.
 async function calendarLinkRemote() {
-  const res = await callCalendarLinkFn({ teamId: CURRENT_TEAM });
+  const ua = navigator.userAgent || "";
+  const platform = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) ? "ios" : /Android/i.test(ua) ? "android" : "other";
+  const res = await callCalendarLinkFn({ teamId: CURRENT_TEAM, platform });
   return res.data; // { https, webcal }
 }
 const callSuperFeedbackFn = httpsCallable(functions, "superAdminFeedback");
@@ -265,6 +267,10 @@ async function sendFeedbackRemote({ rating, text, name }) {
 }
 async function superAdminFeedbackList() {
   const res = await callSuperFeedbackFn({ op: "list" });
+  return (res.data && res.data.items) || [];
+}
+async function superAdminCalendarOpens() {
+  const res = await callSuperFeedbackFn({ op: "calendarOpens" });
   return (res.data && res.data.items) || [];
 }
 async function superAdminFeedbackDelete(id) {
@@ -549,7 +555,7 @@ export {
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote, testPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
   superAdminChatList, superAdminChatDelete, adminPushStatusRemote, setPlayerManagerRemote,
-  sendFeedbackRemote, superAdminFeedbackList, superAdminFeedbackDelete, calendarLinkRemote,
+  sendFeedbackRemote, superAdminFeedbackList, superAdminFeedbackDelete, superAdminCalendarOpens, calendarLinkRemote,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,

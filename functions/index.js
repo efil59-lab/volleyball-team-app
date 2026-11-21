@@ -352,6 +352,13 @@ exports.superAdminFeedback = onCall(async (request) => {
     const snap = await db.collection("feedback").orderBy("ts", "desc").limit(100).get();
     return { ok: true, items: snap.docs.map((x) => ({ id: x.id, ...x.data() })) };
   }
+  if (op === "calendarOpens") {
+    // בלי orderBy: שאילתת collectionGroup ממוינת דורשת אינדקס; ממיינים כאן
+    const snap = await db.collectionGroup("calendarOpens").get();
+    const items = snap.docs.map((x) => ({ id: x.id, teamId: x.ref.parent.parent.id, ...x.data() }))
+      .sort((a, b) => (b.last || 0) - (a.last || 0)).slice(0, 300);
+    return { ok: true, items };
+  }
   if (op === "delete") {
     if (!id || !SAFE_ID.test(String(id))) throw new HttpsError("invalid-argument", "id לא חוקי");
     await db.doc(`feedback/${id}`).delete();
@@ -1059,6 +1066,21 @@ exports.calendarLink = onCall(async (request) => {
   if (!teamId || !/^[^/]+$/.test(String(teamId))) throw new HttpsError("invalid-argument", "teamId לא חוקי");
   const mem = await db.doc(`teams/${teamId}/members/${request.auth.uid}`).get();
   if (!mem.exists) await assertAdmin(request.auth, teamId); // לא חברה — רק מנהלת עוברת
+  // מי פתחה את חלון היומן (אפי, 21.11.26) — מסמך לכל משתמשת, נקרא רק בפאנל הבעלים.
+  // הצלחה עצמה לא ניתנת למדידה (גוגל לא מגלה מי הצטרפה ליומן ציבורי).
+  try {
+    const pid = mem.exists ? mem.data().playerId : null;
+    const pl = pid != null ? (await getTeamValue(teamId, "players", [])).find((p) => Number(p.id) === Number(pid)) : null;
+    const platform = ["ios", "android"].includes(String((request.data || {}).platform)) ? String(request.data.platform) : "other";
+    const ref = db.doc(`teams/${teamId}/calendarOpens/${request.auth.uid}`);
+    const now = Date.now();
+    await db.runTransaction(async (tx) => {
+      const cur = await tx.get(ref);
+      const prev = cur.exists ? cur.data() : {};
+      tx.set(ref, { playerId: pid ?? null, name: pl ? pl.name : (mem.exists ? null : "מנהלת"), ghost: !!(pl && pl.ghost), platform,
+        first: prev.first || now, last: now, count: (prev.count || 0) + 1 });
+    });
+  } catch (e) { console.error("calendarOpens log:", e); }
   const token = await calendarToken(teamId);
   const https = `${CAL_FN_URL}?team=${encodeURIComponent(teamId)}&k=${token}`;
   // יומן Google של הקבוצה (לאנדרואיד) — נוצר בבקשה הראשונה ומסונכרן מיד

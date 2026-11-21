@@ -10,7 +10,7 @@ import {
   setTeamPaid, extendTrial, setTeamPromoHidden,
   adminDeleteTeamRemote, adminResetTeamActivityRemote,
   superAdminChatList, superAdminChatDelete,
-  superAdminFeedbackList, superAdminFeedbackDelete,
+  superAdminFeedbackList, superAdminFeedbackDelete, superAdminCalendarOpens,
 } from "../lib/db";
 import { loadErrorLogs, clearErrorLogs } from "../lib/errorLog";
 
@@ -61,6 +61,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
   const [errBusy, setErrBusy] = useState(false);
   const [expandedErr, setExpandedErr] = useState(null);
   const [feedback, setFeedback] = useState(null);   // משוב מהמשתמשות (null = טוען)
+  const [calOpens, setCalOpens] = useState(null);   // מי פתחה את "לוח הקבוצה ביומן שלי"
   const [fbConfirm, setFbConfirm] = useState(null); // המשוב שעומד להימחק
   const [fbBusy, setFbBusy] = useState(false);
   const [copiedLink, setCopiedLink] = useState(null); // איזה קישור שיווקי הועתק זה עתה
@@ -145,6 +146,9 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     } catch (e) { setChatErr(e.message || "המחיקה נכשלה"); }
     setChatBusy(null);
   }
+  async function refreshCalOpens() {
+    try { setCalOpens(await superAdminCalendarOpens()); } catch { setCalOpens([]); }
+  }
   async function refreshFeedback() {
     try { setFeedback(await superAdminFeedbackList()); } catch { setFeedback([]); }
   }
@@ -170,7 +174,7 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
     setErrors([]);
     setErrBusy(false);
   }
-  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); refreshErrors(); refreshFeedback(); } }, [isOwner]);
+  useEffect(() => { if (isOwner) { refreshTeams(); refreshRequests(); refreshErrors(); refreshFeedback(); refreshCalOpens(); } }, [isOwner]);
 
   async function act(teamId, status) {
     setBusyId(teamId);
@@ -278,6 +282,25 @@ function SuperAdminScreen({ pc, sc, authUser, onGoogle, onBack }) {
           style={{ background: "white", borderRadius: 14, padding: "16px 18px", textDecoration: "none", color: pc, fontWeight: 700, fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 22 }}>🗺️</span> מפת הדרכים (ROADMAP)
         </a>
+
+        {/* ── מי פתחה את חלון היומן (לוח הקבוצה ביומן שלי). פתיחה ≠ הצלחה — את זה אי אפשר למדוד ── */}
+        <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 20 }}>📅</span>
+            <span style={{ fontWeight: 800, color: "#1e293b", fontSize: 14 }}>מי פתחה את היומן{calOpens ? ` (${calOpens.filter(c => !c.ghost).length})` : ""}</span>
+            <button onClick={refreshCalOpens} style={{ marginRight: "auto", background: "transparent", border: "none", color: pc, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>↻ רענן</button>
+          </div>
+          <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "0 0 6px" }}>פתיחת החלון "לוח הקבוצה ביומן שלי". אם ההוספה הצליחה — אי אפשר לדעת מכאן.</p>
+          {calOpens === null && <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>טוען…</p>}
+          {calOpens && calOpens.length === 0 && <p style={{ fontSize: 12.5, color: "#94a3b8", margin: 0, fontWeight: 600 }}>עדיין אף אחת לא פתחה</p>}
+          {calOpens && calOpens.map(c => (
+            <div key={c.teamId + c.id} style={{ borderTop: "1px solid #f1f5f9", paddingTop: 7, marginTop: 7, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{c.name || "—"}{c.ghost ? " 👻" : ""}</span>
+              <span style={{ fontSize: 11.5, color: "#64748b" }}>{c.platform === "ios" ? "🍎 אייפון" : c.platform === "android" ? "🤖 אנדרואיד" : "💻 אחר"}</span>
+              <span style={{ fontSize: 11.5, color: "#94a3b8", marginRight: "auto" }}>{c.teamId} · {c.count > 1 ? `${c.count} פעמים · ` : ""}{agoOf(c.last)}</span>
+            </div>
+          ))}
+        </div>
 
         {/* ── משוב מהמשתמשות — נשלח מ"אודות", נקרא רק כאן ── */}
         <div style={{ background: "white", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" }}>
