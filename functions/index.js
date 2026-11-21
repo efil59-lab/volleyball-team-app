@@ -992,3 +992,106 @@ async function runDailyBackup() {
 
 // 03:00 לפנות בוקר שעון ישראל, כל יום
 exports.dailyBackup = onSchedule({ schedule: "0 3 * * *", timeZone: TZ, memory: "512MiB", timeoutSeconds: 300 }, runDailyBackup);
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// לוח השנה של הטלפון — מנוי ICS (אפי, 21.11.26)
+// ═══════════════════════════════════════════════════════════════════════════════
+// שחקנית לוחצת פעם אחת "הוספה ללוח השנה", והיומן של הטלפון נרשם כמנוי לכתובת
+// הזו: כל האימונים והמשחקים, גם אלה שייקבעו בעתיד, וביטול/שינוי מתעדכנים לבד
+// (גוגל מרעננת מנויים פעם בכמה שעות; אייפון לפי ההגדרה שלו).
+// בפיד אין שום פרט אישי — רק מועד, סוג, יריבה ואולם. הכתובת מוגנת בטוקן אקראי
+// לקבוצה (teams/{t}/data/calendarFeed), שרק חברה בקבוצה מקבלת (calendarLink).
+const CAL_FN_URL = "https://us-central1-volleyball-team-app-e1a2f.cloudfunctions.net/calendarFeed";
+const APP_URL = "https://volleyball-team-app-green.vercel.app";
+
+async function calendarToken(teamId) {
+  const ref = db.doc(`teams/${teamId}/data/calendarFeed`);
+  const snap = await ref.get();
+  const cur = snap.exists ? (snap.data().value || {}) : {};
+  if (cur.token) return cur.token;
+  const token = require("crypto").randomBytes(18).toString("base64url");
+  await ref.set({ value: { token, createdAt: new Date().toISOString() } });
+  return token;
+}
+
+exports.calendarLink = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "נדרשת התחברות");
+  const { teamId } = request.data || {};
+  if (!teamId || !/^[^/]+$/.test(String(teamId))) throw new HttpsError("invalid-argument", "teamId לא חוקי");
+  const mem = await db.doc(`teams/${teamId}/members/${request.auth.uid}`).get();
+  if (!mem.exists) await assertAdmin(request.auth, teamId); // לא חברה — רק מנהלת עוברת
+  const token = await calendarToken(teamId);
+  const https = `${CAL_FN_URL}?team=${encodeURIComponent(teamId)}&k=${token}`;
+  return { https, webcal: https.replace(/^https:/, "webcal:") };
+});
+
+// שעה מקומית בישראל → UTC (נכון גם במעברי שעון קיץ/חורף)
+function ilToUtc(dateStr, timeStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = String(timeStr || "00:00").split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh || 0, mm || 0);
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+    .formatToParts(new Date(guess)).reduce((o, p) => (o[p.type] = p.value, o), {});
+  const asIl = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+  return new Date(guess - (asIl - guess));
+}
+const icsDate = (dt) => dt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+const icsText = (s) => String(s || "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/([,;])/g, "\\$1");
+// שורות ICS מוגבלות ל-75 בתים; עברית היא 2 בתים לתו, אז קופלים לפי בתים
+function fold(line) {
+  const out = []; let cur = ""; let bytes = 0;
+  for (const ch of line) {
+    const b = Buffer.byteLength(ch);
+    if (bytes + b > (out.length ? 74 : 75)) { out.push(cur); cur = ""; bytes = 0; }
+    cur += ch; bytes += b;
+  }
+  out.push(cur);
+  return out.join("\r\n ");
+}
+
+exports.calendarFeed = require("firebase-functions/https").onRequest(async (req, res) => {
+  const teamId = String(req.query.team || "");
+  const k = String(req.query.k || "");
+  if (!teamId || !/^[^/]+$/.test(teamId) || !k) { res.status(400).send("bad request"); return; }
+  const tokSnap = await db.doc(`teams/${teamId}/data/calendarFeed`).get();
+  const tok = tokSnap.exists ? (tokSnap.data().value || {}).token : null;
+  if (!tok || tok !== k) { res.status(403).send("forbidden"); return; }
+
+  const [events, archive, settings] = await Promise.all([
+    getTeamValue(teamId, "events", []), getTeamValue(teamId, "archive", []), getTeamValue(teamId, "settings", {}),
+  ]);
+  const teamName = (settings && settings.teamName) || "הקבוצה";
+  const since = ilDate(-60);
+  const all = [...(Array.isArray(archive) ? archive : []), ...(Array.isArray(events) ? events : [])]
+    .filter((e) => e && e.date && e.date >= since);
+  // ?event=<id> — אירוע בודד כקובץ, לכפתור "הוספה ליומן" (אייפון פותח אותו כ"הוסף אירוע")
+  const one = req.query.event ? String(req.query.event) : null;
+  const list = one ? all.filter((e) => String(e.id) === one) : all;
+  if (one && !list.length) { res.status(404).send("not found"); return; }
+  const seen = new Set();
+  const stamp = icsDate(new Date());
+  const lines = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//volleyball-team-app//calendar//HE", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    `X-WR-CALNAME:${icsText("🏐 " + teamName)}`, "X-WR-TIMEZONE:Asia/Jerusalem",
+    "REFRESH-INTERVAL;VALUE=DURATION:PT3H", "X-PUBLISHED-TTL:PT3H",
+  ];
+  for (const e of list) {
+    const uid = `${teamId}-${e.id}@volleyball-team-app`;
+    if (seen.has(uid)) continue; // אירוע שאורכב ועדיין ברשימה — פעם אחת
+    seen.add(uid);
+    const start = ilToUtc(e.date, e.time);
+    const end = new Date(start.getTime() + 2 * 3600 * 1000);
+    const isGame = e.type === "game";
+    const title = (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " נגד " + e.opponent : ""}` : "🏐 אימון כדורשת");
+    const desc = [e.note, `${teamName}`, `אישור הגעה באפליקציה: ${APP_URL}/?team=${teamId}`].filter(Boolean).join("\n");
+    lines.push("BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${stamp}`, `DTSTART:${icsDate(start)}`, `DTEND:${icsDate(end)}`,
+      `SUMMARY:${icsText(title)}`, e.location ? `LOCATION:${icsText(e.location)}` : null, `DESCRIPTION:${icsText(desc)}`,
+      `STATUS:${e.cancelled ? "CANCELLED" : "CONFIRMED"}`, "END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  res.set("Content-Type", "text/calendar; charset=utf-8");
+  if (one) res.set("Content-Disposition", `inline; filename="event-${one}.ics"`);
+  res.set("Cache-Control", "public, max-age=900");
+  res.send(lines.filter(Boolean).map(fold).join("\r\n") + "\r\n");
+});

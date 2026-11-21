@@ -17,6 +17,8 @@ import { AboutScreen } from "./info";
 import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
 import AppPromo from "../components/AppPromo";
+import CalendarSubscribe from "../components/CalendarSubscribe";
+import AddToCalendar from "../components/AddToCalendar";
 import BirthdayInput from "../components/BirthdayInput";
 import { NotifText } from "../components/NotifLink";
 import ThemeToggle from "../components/ThemeToggle";
@@ -543,6 +545,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       <span>📍 {nextEvent.location}</span>
                     </div>
                     {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
+                    {/* הוספת האירוע הזה ליומן — בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
+                    {isGhost && !preview && <div style={{ marginTop: 10 }}><AddToCalendar ev={nextEvent} teamName={settings && settings.teamName} /></div>}
                   </div>
 
                   {/* Clickable counters */}
@@ -725,6 +729,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
               {/* הזמנה ל"המטבח שלי" — אחרון במסך, מתחת לסטטיסטיקה (אפי, 10.10.26).
                   כאן ולא רק בדף הבית: שחקנית שהמכשיר זוכר נכנסת ישר למסך הזה. */}
+              {/* מנוי ללוח השנה של הטלפון — בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
+              {isGhost && !preview && <div style={{ marginTop: 14 }}><CalendarSubscribe pc={pc} /></div>}
               {!isDesk && <div style={{ marginTop: 14 }}><AppPromo /></div>}
             </>
           )}

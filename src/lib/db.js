@@ -250,6 +250,13 @@ const callSuperAdminChatFn = httpsCallable(functions, "superAdminChat");
 const callPushStatusFn = httpsCallable(functions, "adminPushStatus");
 const callSetManagerFn = httpsCallable(functions, "adminSetPlayerManager");
 const callSendFeedbackFn = httpsCallable(functions, "sendFeedback");
+const callCalendarLinkFn = httpsCallable(functions, "calendarLink");
+// The calendar-subscription link for this team (an ICS feed the phone's calendar
+// subscribes to). Members only — enforced on the server.
+async function calendarLinkRemote() {
+  const res = await callCalendarLinkFn({ teamId: CURRENT_TEAM });
+  return res.data; // { https, webcal }
+}
 const callSuperFeedbackFn = httpsCallable(functions, "superAdminFeedback");
 // Feedback from the About screen. Throws on failure — the form shows the error
 // and lets her try again (unlike the notify* calls, this one IS the action).
@@ -542,7 +549,7 @@ export {
   adminResetPlayer, adminDeletePlayerRemote, adminDeleteTeamRemote, notifyTeamPushRemote, testPushRemote,
   notifyPlayerJoinedRemote, notifyPlayerActivityRemote, savePlayerDevice,
   superAdminChatList, superAdminChatDelete, adminPushStatusRemote, setPlayerManagerRemote,
-  sendFeedbackRemote, superAdminFeedbackList, superAdminFeedbackDelete,
+  sendFeedbackRemote, superAdminFeedbackList, superAdminFeedbackDelete, calendarLinkRemote,
   adminResetTeamActivityRemote, adminResetPlayerToSetupRemote,
   syncTeamIndex, listAllTeams, setTeamStatus, setTeamPaid, extendTrial, setTeamPromoHidden, seedNewTeam, generateTeamId, resolveAdminTeam,
   pollVote, pollUpsert, pollSetActive, pollDelete, applauseAdd, personalNotifAdd, personalNotifSetItems,
