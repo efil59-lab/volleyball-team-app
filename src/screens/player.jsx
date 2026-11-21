@@ -231,7 +231,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
   }
 
   // אישור הגעה מוקדם למשחק הבא מהפס הצהוב — אותה כתיבה ואותה התראה למנהלת.
-  // בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26)
+  // לכולן מגרסה 22 (אפי, 21.11.26)
   async function earlyRsvp(ev, status) {
     const key = `${ev.id}_${player.id}`;
     const cur = attendance[key] || {};
@@ -552,7 +552,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
                   <NextGameStrip events={events} archive={archive} current={nextEvent}
                     statusOf={(ev) => (attendance[`${ev.id}_${player.id}`] || {}).status || null}
-                    onRsvp={isGhost ? earlyRsvp : undefined}
+                    onRsvp={!isViewer && !preview ? earlyRsvp : undefined}
                     whoFor={(ev) => ({ coming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })} />
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -747,8 +747,8 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
 
               {/* הזמנה ל"המטבח שלי" — אחרון במסך, מתחת לסטטיסטיקה (אפי, 10.10.26).
                   כאן ולא רק בדף הבית: שחקנית שהמכשיר זוכר נכנסת ישר למסך הזה. */}
-              {/* מנוי ללוח השנה של הטלפון — בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
-              {isGhost && !preview && <div style={{ marginTop: 14 }}><CalendarSubscribe pc={pc} /></div>}
+              {/* מנוי ללוח השנה של הטלפון — לכולן מגרסה 22 (אפי, 21.11.26) */}
+              {!preview && <div style={{ marginTop: 14 }}><CalendarSubscribe pc={pc} /></div>}
               {!isDesk && <div style={{ marginTop: 14 }}><AppPromo /></div>}
             </>
           )}

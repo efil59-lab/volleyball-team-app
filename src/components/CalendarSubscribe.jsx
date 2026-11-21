@@ -47,7 +47,7 @@ export default function CalendarSubscribe({ pc }) {
             </div>
 
             {err && <div style={{ color: "#dc2626", fontSize: 13, fontWeight: 700, textAlign: "center", marginTop: 14 }}>{err}</div>}
-            {!err && !link && <div style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", marginTop: 16 }}>מכינה את הקישור…</div>}
+            {!err && !link && <div style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", marginTop: 16 }}>מכין את הקישור…</div>}
 
             {link && ios && (
               <div style={{ marginTop: 14 }}>
@@ -62,7 +62,7 @@ export default function CalendarSubscribe({ pc }) {
                 <div style={step}><span style={num}>1</span><span>לחצי על הכפתור. ייפתח יומן Google.</span></div>
                 <div style={step}><span style={num}>2</span><span>אם הוא שואל לאיזה חשבון לצרף — בחרי את החשבון הרגיל שלך. זהו, האימונים כבר ביומן.</span></div>
                 <div style={{ ...step, background: "#f8fafc", borderRadius: 10, padding: "8px 10px", fontSize: 12.5, color: "#475569" }}>
-                  <span>📱 <b>עם יומן סמסונג?</b> אם אחרי כמה דקות האימונים לא מופיעים שם: ביומן Google ← ☰ ← הגדרות ← היומן של הקבוצה ← כבי והדליקי את <b>"סנכרון"</b>.</span>
+                  <span>📱 <b>עם יומן סמסונג?</b> שם האימונים מופיעים לפעמים רק אחרי זמן מה. אם עברו כמה שעות ועדיין אין: ביומן Google ← ☰ ← הגדרות ← היומן של הקבוצה ← כבי והדליקי את <b>"סנכרון"</b>.</span>
                 </div>
               </div>
             )}

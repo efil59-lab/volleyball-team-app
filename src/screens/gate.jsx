@@ -111,7 +111,7 @@ function WhatsNewScreen({ pc, sc, onDone }) {
         ))}
 
         <button onClick={onDone} style={{ width: "100%", marginTop: 22, padding: 15, background: pc, color: "white", border: "none", borderRadius: 14, cursor: "pointer", fontSize: 16, fontWeight: 800 }}>
-          מגניב! בואו נתחיל 🏐
+          {WHATS_NEW.confirmLabel || "מגניב! בואו נתחיל 🏐"}
         </button>
       </div>
     </div>

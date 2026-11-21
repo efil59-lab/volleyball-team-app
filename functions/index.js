@@ -543,7 +543,7 @@ async function remindArchive(teamId) {
 // משחק צריך זמן התארגנות — יום אחד לפני לא מספיק. בשעת תזכורת הערב של הקבוצה,
 // למי שעוד לא ענתה על משחק שמתקיים בעוד 7 או 3 ימים. בשלב בדיקה — רק לחשבונות
 // הבדיקה (player.ghost); EARLY_GAME_TEST_ONLY=false פותח לכולן.
-const EARLY_GAME_TEST_ONLY = true;
+const EARLY_GAME_TEST_ONLY = false; // נפתח לכולן עם גרסה 22 (21.11.26)
 const EARLY_GAME_DAYS = [7, 3];
 async function remindGamesEarly(teamId) {
   const events = await getTeamValue(teamId, "events", []);
