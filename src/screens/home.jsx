@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { updatePassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { S } from "../styles/S";
-import { getNextEvent, formatDate, formatShort, todayStr, monthDay, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf, rememberOnly } from "../lib/utils";
+import { getNextEvent, formatDate, formatShort, todayStr, monthDay, isBirthdayToday, eventPhase, eventStateLabel, showGhosts, rosterOf, rememberOnly, greeting } from "../lib/utils";
 import useNow from "../lib/useNow";
 import { CURRENT_TEAM, bindPlayerMembership, notifyPlayerJoinedRemote, notifyPlayerActivityRemote } from "../lib/db";
 import { playerEmail, emailAuth } from "../lib/auth";
@@ -173,7 +173,7 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
         {header}
 
         <div style={{ padding: "14px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", minWidth: 0, overflowWrap: "break-word" }}>שלום {me.name} 👋</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", minWidth: 0, overflowWrap: "break-word" }}>{greeting()}, {me.name} 👋</span>
           <button onClick={() => setForceRoster(true)} style={{ flexShrink: 0, background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>לא את? החליפי</button>
         </div>
 

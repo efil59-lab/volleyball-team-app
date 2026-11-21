@@ -6,6 +6,7 @@ import { S } from "../styles/S";
 import {
   formatDate, formatShort, getNextEvent, todayStr, monthDay, eventPhase, eventStateLabel, attendanceWords, rosterOf, rememberOnly,
   isBirthdayToday, applauseThisMonth, alreadyApplaudedToday, deviceLabel,
+  greeting,
 } from "../lib/utils";
 import { CURRENT_TEAM, notifyPlayerActivityRemote, savePlayerDevice } from "../lib/db";
 import { compressImage, uploadProfilePhoto } from "../lib/images";
@@ -1035,7 +1036,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
           <button onClick={() => !profilePhotoUploading && photoRef.current.click()} style={{ position: "absolute", bottom: 0, left: -2, background: sc, border: "2px solid white", borderRadius: "50%", width: 24, height: 24, cursor: profilePhotoUploading ? "default" : "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{profilePhotoUploading ? "⏳" : "📷"}</button>
           <input ref={preview ? undefined : photoRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
         </div>
-        <h2 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: 0 }}>שלום, {player.name}! 👋</h2>
+        <h2 style={{ color: "white", fontSize: 18, fontWeight: 700, margin: 0 }}>{greeting()}, {player.name}! 👋</h2>
         {myApplauseCount > 0 && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "4px 12px", marginTop: 8 }}>
             <span style={{ fontSize: 14 }}>👏</span>

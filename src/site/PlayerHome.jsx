@@ -9,7 +9,7 @@
 // הכל מגיע ב-props מאותו state של המסך הנייד. מסכי העומק (לוח מלא, תוצאות,
 // צ'אט מלא, גלריה) הם עמודים נפרדים — כאן רק התקצירים והקישור אליהם.
 import { useMemo } from "react";
-import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf, isBirthdayToday, todayStr, monthDay } from "../lib/utils";
+import { formatShort, countdownLabel, alreadyApplaudedToday, attendanceWords, rosterOf, isBirthdayToday, todayStr, monthDay, greeting } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
 import { Court, TallyBoard, WhoGroups } from "./Site";
 
@@ -148,7 +148,7 @@ export default function PlayerHome({
         <div className="st-p-hero-in">
           <div className="st-p-hero-main">
             <p className="st-p-eyebrow">
-              שלום {player.name} 👋
+              {greeting()}, {player.name} 👋
               {onProfile && (
                 <button type="button" className="st-p-prof" onClick={onProfile}>✏️ פרופיל והתראות</button>
               )}

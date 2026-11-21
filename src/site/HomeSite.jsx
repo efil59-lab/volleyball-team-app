@@ -7,7 +7,7 @@
 // כדי ששני המסכים ירגישו כאותו אתר. הפעולות מגיעות ב-props מאותו state של
 // המסך הנייד.
 import { useState } from "react";
-import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts } from "../lib/utils";
+import { eventPhase, eventStateLabel, attendanceWords, rosterOf, showGhosts, greeting } from "../lib/utils";
 import HolidayBanner from "../components/HolidayBanner";
 import AppPromo from "../components/AppPromo";
 import { NotifText } from "../components/NotifLink";
@@ -109,7 +109,7 @@ export default function HomeSite({
           <div className="st-p-hero-main">
             {me ? (
               <>
-                <p className="st-p-eyebrow">שלום {me.name} 👋</p>
+                <p className="st-p-eyebrow">{greeting()}, {me.name} 👋</p>
                 {nextEvent ? (
                   <>
                     <div className="st-p-pills">

@@ -235,4 +235,13 @@ function alreadyApplaudedToday(applause, fromId, toId) {
   const today = todayStr();
   return (applause || []).some(a => a.fromId === fromId && a.toId === toId && a.date === today);
 }
-export { eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, birthdayLabel, isWeekStart, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
+// ברכה לפי שעת היום (אפי, 21.11.26): בוקר טוב / צהריים טובים / אחר הצהריים / ערב טוב / לילה טוב
+function greeting(d = new Date()) {
+  const h = d.getHours();
+  if (h >= 5 && h < 12) return "בוקר טוב";
+  if (h >= 12 && h < 16) return "צהריים טובים";
+  if (h >= 16 && h < 18) return "אחר צהריים טובים";
+  if (h >= 18 && h < 22) return "ערב טוב";
+  return "לילה טוב";
+}
+export { greeting, eventPhase, eventStateLabel, attendanceWords, EVENT_MINUTES, rosterOf, showGhosts, rememberOnly, isSamsungInternet, deviceLabel, DEFAULT_INVITE, buildInvite, formatDate, formatShort, getNextEvent, daysUntil, countdownLabel, isIOS, todayStr, monthDay, birthdayLabel, isWeekStart, isBirthdayToday, isBirthdayTomorrow, ageFromBirthday, currentYM, applauseThisMonth, alreadyApplaudedToday };
