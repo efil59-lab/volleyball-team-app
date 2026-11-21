@@ -515,6 +515,14 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   const summaryBlock = (
     <>
       <BirthdayBanners />
+      {/* צפייה במשחק הבא במקום באירוע הקרוב — שיהיה ברור על מה מסתכלים (אפי, 21.11.26) */}
+      {viewId && upcoming && String(viewId) !== String(upcoming.id) && nextEvent && !isPastEv(nextEvent) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "9px 12px", marginBottom: 10 }}>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: "#78350f" }}>🏆 מוצג: {nextEvent.type === "game" ? "המשחק הבא" : "אירוע אחר"} · {formatShort(nextEvent.date)}{nextEvent.opponent ? ` נגד ${nextEvent.opponent}` : ""}</span>
+          <button onClick={() => setViewId(null)}
+            style={{ background: "#78350f", color: "#fde68a", border: "none", borderRadius: 8, padding: "6px 11px", cursor: "pointer", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>← לאירוע הקרוב</button>
+        </div>
+      )}
       <div style={S.card}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>

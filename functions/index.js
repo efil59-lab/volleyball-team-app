@@ -1077,7 +1077,10 @@ exports.calendarLink = onCall(async (request) => {
     await db.runTransaction(async (tx) => {
       const cur = await tx.get(ref);
       const prev = cur.exists ? cur.data() : {};
-      tx.set(ref, { playerId: pid ?? null, name: pl ? pl.name : (mem.exists ? null : "מנהלת"), ghost: !!(pl && pl.ghost), platform,
+      // חשבון מנהל (Google) אין לו שחקנית — מציגים "מנהל/ת" עם המייל, כדי שיהיה ברור מי זה
+      const email = (request.auth.token && request.auth.token.email) || "";
+      const label = pl ? pl.name : `מנהל/ת${email ? " · " + email : ""}`;
+      tx.set(ref, { playerId: pid ?? null, name: label, ghost: !!(pl && pl.ghost), platform,
         first: prev.first || now, last: now, count: (prev.count || 0) + 1 });
     });
   } catch (e) { console.error("calendarOpens log:", e); }
