@@ -19,6 +19,7 @@ import HolidayBanner from "../components/HolidayBanner";
 import AppPromo from "../components/AppPromo";
 import CalendarSubscribe from "../components/CalendarSubscribe";
 import AddToCalendar from "../components/AddToCalendar";
+import NextGameStrip from "../components/NextGameStrip";
 import BirthdayInput from "../components/BirthdayInput";
 import { NotifText } from "../components/NotifLink";
 import ThemeToggle from "../components/ThemeToggle";
@@ -240,13 +241,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     setShowNoteFor(status);
   }
 
-  // המשחק הבא שאינו האירוע הקרוב — פס תזכורת מעל כרטיס האירוע (אפי, 21.11.26:
-  // תזכורת בלבד, בלי סימון הגעה; ההגעה למשחק נסמנת כרגיל כשהוא הופך לאירוע הקרוב)
-  const nextGame = (() => {
-    const t = todayStr();
-    return (events || []).filter(e => e.type === "game" && e.open && !e.cancelled && e.date >= t && (!nextEvent || e.id !== nextEvent.id))
-      .sort((a, b) => a.date.localeCompare(b.date) || String(a.time || "").localeCompare(String(b.time || "")))[0] || null;
-  })();
 
   async function saveNote() {
     const key = `${nextEvent.id}_${player.id}`;
@@ -543,20 +537,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   <HolidayBanner slim={myBdayToday} />
                   {showTour && <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => setTab("tournament")} />}
                   {/* המשחק הבא — תזכורת מעל כרטיס האירוע. בשלב זה לחשבון הבדיקה בלבד */}
-                  {isGhost && nextGame && (() => {
-                    const days = Math.round((new Date(nextGame.date + "T00:00:00") - new Date(todayStr() + "T00:00:00")) / 86400000);
-                    const when = days === 0 ? "היום" : days === 1 ? "מחר" : days < 14 ? `בעוד ${days} ימים` : `בעוד ${Math.round(days / 7)} שבועות`;
-                    return (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#fff7d6,#fde68a)", border: "1px solid #fcd34d", borderRadius: 14, padding: "10px 13px", marginBottom: 12 }}>
-                        <span style={{ fontSize: 22, flexShrink: 0 }}>🏆</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#78350f" }}>המשחק הבא: נגד {nextGame.opponent || "—"}</div>
-                          <div style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>{formatShort(nextGame.date)} · {nextGame.time}{nextGame.location ? ` · ${nextGame.location}` : ""}</div>
-                        </div>
-                        <span style={{ flexShrink: 0, background: "#78350f", color: "#fde68a", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{when}</span>
-                      </div>
-                    );
-                  })()}
+                  {isGhost && <NextGameStrip events={events} current={nextEvent} />}
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
