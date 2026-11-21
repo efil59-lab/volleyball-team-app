@@ -187,7 +187,18 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
           {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}
           <HolidayBanner slim={bdayOthers.length > 0} />
           {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
-          <NextGameStrip events={events} archive={archive} current={nextEvent} />
+          <NextGameStrip events={events} archive={archive} current={nextEvent}
+            statusOf={(ev) => (attendance[`${ev.id}_${me.id}`] || {}).status || null}
+            onRsvp={me.ghost ? async (ev, status) => {
+              // אישור מוקדם מהפס — בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26)
+              const authed = auth.currentUser && !auth.currentUser.isAnonymous;
+              if (!authed) { onSelectPlayer(me); return; }
+              const key = `${ev.id}_${me.id}`;
+              const cur = attendance[key] || {};
+              if (cur.status === status) return;
+              await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+              notifyPlayerActivityRemote(CURRENT_TEAM, me.id, "rsvp", { eventId: ev.id, status });
+            } : undefined} />
           {nextEvent ? (
             <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>

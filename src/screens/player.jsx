@@ -230,6 +230,16 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
     return roster.filter(p => attendance[`${nextEvent.id}_${p.id}`]?.status === status);
   }
 
+  // אישור הגעה מוקדם למשחק הבא מהפס הצהוב — אותה כתיבה ואותה התראה למנהלת.
+  // בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26)
+  async function earlyRsvp(ev, status) {
+    const key = `${ev.id}_${player.id}`;
+    const cur = attendance[key] || {};
+    if (cur.status === status) return;
+    await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+    notifyPlayerActivityRemote(CURRENT_TEAM, player.id, "rsvp", { eventId: ev.id, status });
+  }
+
   async function handleRSVP(status) {
     const key = `${nextEvent.id}_${player.id}`;
     await upd.attendance({ ...attendance, [key]: { status, note: "", time: new Date().toISOString() } });
@@ -540,7 +550,9 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   <HolidayBanner slim={myBdayToday} />
                   {showTour && <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => setTab("tournament")} />}
                   {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
-                  <NextGameStrip events={events} archive={archive} current={nextEvent} />
+                  <NextGameStrip events={events} archive={archive} current={nextEvent}
+                    statusOf={(ev) => (attendance[`${ev.id}_${player.id}`] || {}).status || null}
+                    onRsvp={isGhost ? earlyRsvp : undefined} />
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>

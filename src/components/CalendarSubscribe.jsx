@@ -4,8 +4,9 @@ import { calendarLinkRemote } from "../lib/db";
 // ── "הוספת האימונים ללוח השנה שלי" ───────────────────────────────────────────
 // מנוי ליומן של הטלפון (פיד ICS מהשרת, ראה calendarFeed ב-functions): לחיצה אחת
 // ואישור, ומאז כל אימון ומשחק — גם עתידיים — מופיעים ביומן ומתעדכנים לבד.
-// אייפון: webcal:// נפתח ישר באפליקציית היומן. אנדרואיד: יומן גוגל מקבל מנוי
-// רק דרך האתר שלו, ולכן הקישור פותח אותו בדפדפן עם המנוי מוכן לאישור.
+// אייפון: webcal:// נפתח ישר באפליקציית היומן. אנדרואיד: יומן Google של הקבוצה
+// (link.google, קישור ?cid=) — אפליקציית יומן Google מצרפת אותו בלחיצה, ומשם הוא
+// מגיע גם ליומן סמסונג. מנוי URL באנדרואיד לא עבד מהטלפון (נבדק 21.11.26).
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 export default function CalendarSubscribe({ pc }) {
@@ -21,7 +22,7 @@ export default function CalendarSubscribe({ pc }) {
     try { setLink(await calendarLinkRemote()); }
     catch (e) { console.error("calendarLink:", e); setErr("לא הצלחתי להכין את הקישור. נסי שוב בעוד רגע."); }
   }
-  const googleUrl = link ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(link.webcal)}` : "#";
+  const googleUrl = link ? (link.google || `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(link.webcal)}`) : "#";
   const btn = { display: "block", width: "100%", boxSizing: "border-box", textAlign: "center", textDecoration: "none", border: "none", borderRadius: 12, padding: "13px 12px", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" };
   const step = { display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: "#334155", lineHeight: 1.55, marginTop: 8 };
   const num = { flex: "0 0 22px", height: 22, borderRadius: "50%", background: pc, color: "white", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" };
@@ -58,9 +59,11 @@ export default function CalendarSubscribe({ pc }) {
             {link && !ios && (
               <div style={{ marginTop: 14 }}>
                 <a href={googleUrl} target="_blank" rel="noopener" style={{ ...btn, background: pc, color: "white" }}>📆 הוספה ליומן גוגל</a>
-                <div style={step}><span style={num}>1</span><span>לחצי על הכפתור. ייפתח יומן גוגל בדפדפן.</span></div>
-                <div style={step}><span style={num}>2</span><span>אם צריך, היכנסי עם חשבון הגוגל שלך (אותו חשבון שבטלפון).</span></div>
-                <div style={step}><span style={num}>3</span><span>יופיע חלון "להוסיף את היומן?" — לחצי <b>"הוספה"</b>. תוך כמה דקות האימונים יופיעו באפליקציית היומן בטלפון.</span></div>
+                <div style={step}><span style={num}>1</span><span>לחצי על הכפתור. ייפתח יומן Google.</span></div>
+                <div style={step}><span style={num}>2</span><span>אם הוא שואל לאיזה חשבון לצרף — בחרי את החשבון הרגיל שלך. זהו, האימונים כבר ביומן.</span></div>
+                <div style={{ ...step, background: "#f8fafc", borderRadius: 10, padding: "8px 10px", fontSize: 12.5, color: "#475569" }}>
+                  <span>📱 <b>עם יומן סמסונג?</b> אם אחרי כמה דקות האימונים לא מופיעים שם: ביומן Google ← ☰ ← הגדרות ← היומן של הקבוצה ← כבי והדליקי את <b>"סנכרון"</b>.</span>
+                </div>
               </div>
             )}
             {link && (

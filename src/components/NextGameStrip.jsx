@@ -100,8 +100,34 @@ const NGS_CSS = `
 @media (prefers-reduced-motion:reduce){.ngs-cup,.ngs-spark,.ngs.call,.ngs.call::before,.ngs.call::after,.ngs-soon{animation:none}.ngs-spark{display:none}.ngs.call{box-shadow:0 0 0 2px #f5b81e}}
 `;
 
-export default function NextGameStrip({ events, archive, current }) {
+// ── אישור הגעה מוקדם מהפס (אפי, 21.11.26) ───────────────────────────────────
+// כשהמסך מעביר onRsvp, בצד ימין של הפס יש כפתור "אישור הגעה" (ואחרי תשובה —
+// הסטטוס, ולחיצה משנה). התשובה נשמרת על המשחק עצמו, כמו בכרטיס הראשי, כך
+// שכשהמשחק הופך לאירוע הקרוב היא כבר מסומנת שם, והמנהלת רואה אותה ברשימה.
+function RsvpSheet({ g, status, onPick, onClose }) {
+  const big = (c, on) => ({ flex: 1, padding: "14px 8px", borderRadius: 14, fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", border: on ? `2px solid ${c}` : "1px solid #e2e8f0", background: on ? c : "white", color: on ? "white" : c });
+  return (
+    <div onClick={onClose} role="dialog" aria-label="אישור הגעה למשחק"
+      style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(8,10,30,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", padding: "18px 16px calc(18px + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
+        <div style={{ textAlign: "center", fontSize: 17, fontWeight: 900, color: "#1a237e" }}>🏆 משחק נגד {g.opponent || "—"}</div>
+        <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", marginTop: 3 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
+        <div style={{ textAlign: "center", fontSize: 14.5, fontWeight: 800, color: "#334155", margin: "16px 0 10px" }}>{status ? "התשובה שלך — אפשר לשנות:" : "מגיעה למשחק?"}</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => onPick("coming")} style={big("#16a34a", status === "coming")}>✅ מגיעה</button>
+          <button onClick={() => onPick("notcoming")} style={big("#dc2626", status === "notcoming")}>❌ לא מגיעה</button>
+        </div>
+        <div style={{ textAlign: "center", fontSize: 12, color: "#94a3b8", marginTop: 10 }}>התשובה תופיע גם בכרטיס המשחק כשיגיע תורו</div>
+        <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: 8, background: "transparent", border: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: 10, cursor: "pointer", fontFamily: "inherit" }}>סגירה</button>
+      </div>
+    </div>
+  );
+}
+
+export default function NextGameStrip({ events, archive, current, statusOf, onRsvp }) {
   const [open, setOpen] = useState(false);
+  const [rsvpOpen, setRsvpOpen] = useState(false);
   const [seen, setSeen] = useState(readSeen);
   const [sheetNew, setSheetNew] = useState(null);
   const g = nextGameOf(events, current);
@@ -128,12 +154,27 @@ export default function NextGameStrip({ events, archive, current }) {
       <style>{NGS_CSS}</style>
       <div onClick={openSheet} role="button" className={"ngs" + (calling ? " call" : "")}
         style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#fff7d6,#fde68a)", border: "1px solid #fcd34d", borderRadius: 14, padding: "10px 13px", marginBottom: 12, cursor: "pointer" }}>
-        <span style={{ position: "relative", fontSize: 22, flexShrink: 0 }}>
-          <span className="ngs-cup">🏆</span>
-          <span className="ngs-spark">✨</span>
-        </span>
+        {onRsvp ? (() => {
+          const st = statusOf ? statusOf(g) : null;
+          const look = st === "coming" ? { bg: "#16a34a", fg: "white", bd: "#16a34a", ic: "✅", tx: "מגיעה" }
+            : st === "notcoming" ? { bg: "#dc2626", fg: "white", bd: "#dc2626", ic: "❌", tx: "לא מגיעה" }
+            : { bg: "white", fg: "#78350f", bd: "#d97706", ic: "✋", tx: "אישור הגעה" };
+          return (
+            <button onClick={(e) => { e.stopPropagation(); setRsvpOpen(true); }} aria-label="אישור הגעה למשחק"
+              style={{ flex: "0 0 auto", width: 66, display: "flex", flexDirection: "column", alignItems: "center", gap: 1, padding: "6px 4px", borderRadius: 12, border: `1.5px solid ${look.bd}`, background: look.bg, color: look.fg, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(120,53,15,0.15)" }}>
+              <span style={{ fontSize: 17, lineHeight: 1 }}>{look.ic}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1.15, textAlign: "center" }}>{look.tx}</span>
+            </button>
+          );
+        })() : (
+          <span style={{ position: "relative", fontSize: 22, flexShrink: 0 }}>
+            <span className="ngs-cup">🏆</span>
+            <span className="ngs-spark">✨</span>
+          </span>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 800, color: "#78350f" }}>
+            {onRsvp && <span style={{ position: "relative", display: "inline-block", marginLeft: 4 }}><span className="ngs-cup">🏆</span><span className="ngs-spark">✨</span></span>}
             המשחק הבא: נגד {g.opponent || "—"}
             {newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 7px", fontSize: 10.5, fontWeight: 800, verticalAlign: "middle" }}>חדש</span>}
           </div>
@@ -145,6 +186,8 @@ export default function NextGameStrip({ events, archive, current }) {
         </div>
       </div>
       {open && <GamesSheet events={events} archive={archive} newIds={sheetNew} onClose={() => setOpen(false)} />}
+      {rsvpOpen && onRsvp && <RsvpSheet g={g} status={statusOf ? statusOf(g) : null} onClose={() => setRsvpOpen(false)}
+        onPick={async (s) => { setRsvpOpen(false); try { await onRsvp(g, s); } catch (e) { console.error("early rsvp:", e); } }} />}
     </>
   );
 }

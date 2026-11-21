@@ -588,6 +588,7 @@ exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ 
       if (!ARCHIVE_QUIET(hour) && st.archiveReminders !== false) {
         try { total += await remindArchive(teamId); } catch (e) { console.error("remindArchive team=" + teamId + ":", e); }
       }
+      try { await syncTeamGcal(teamId); } catch (e) { console.error("syncTeamGcal hourly team=" + teamId + ":", e); }
       if (st.remindersEnabled === false) continue; // המנהלת כיבתה — מדלגים
       const eveningHour = Number.isFinite(Number(st.reminderEveningHour)) ? Number(st.reminderEveningHour) : 19;
       const morningHour = Number.isFinite(Number(st.reminderMorningHour)) ? Number(st.reminderMorningHour) : 10;
@@ -1060,7 +1061,14 @@ exports.calendarLink = onCall(async (request) => {
   if (!mem.exists) await assertAdmin(request.auth, teamId); // לא חברה — רק מנהלת עוברת
   const token = await calendarToken(teamId);
   const https = `${CAL_FN_URL}?team=${encodeURIComponent(teamId)}&k=${token}`;
-  return { https, webcal: https.replace(/^https:/, "webcal:") };
+  // יומן Google של הקבוצה (לאנדרואיד) — נוצר בבקשה הראשונה ומסונכרן מיד
+  let google = null;
+  try {
+    const calId = await teamGcal(teamId, true);
+    google = gcalCid(calId);
+    await syncTeamGcal(teamId).catch((e) => console.error("calendarLink first sync:", e));
+  } catch (e) { console.error("calendarLink gcal:", e); }
+  return { https, webcal: https.replace(/^https:/, "webcal:"), google };
 });
 
 // שעה מקומית בישראל → UTC (נכון גם במעברי שעון קיץ/חורף)
@@ -1131,4 +1139,129 @@ exports.calendarFeed = require("firebase-functions/https").onRequest(async (req,
   if (one) res.set("Content-Disposition", `inline; filename="event-${one}.ics"`);
   res.set("Cache-Control", "public, max-age=900");
   res.send(lines.filter(Boolean).map(fold).join("\r\n") + "\r\n");
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// יומן Google של הקבוצה (אפי, 21.11.26)
+// ═══════════════════════════════════════════════════════════════════════════════
+// באנדרואיד, מנוי ICS לא נוסף מהטלפון (יומן Google מוסיף כתובת URL רק באתר
+// המחשב) ומתרענן לאט. במקומו: יומן אמיתי אצל גוגל, בבעלות חשבון השירות של
+// הפונקציות, ציבורי לקריאה (אפי אישר: מועד, סוג, יריבה ואולם — בלי שחקניות ובלי
+// הערות). קישור ?cid= פותח באפליקציית יומן Google חלון "לצרף לחשבון" — נבדק
+// בטלפון של אפי, כולל יומן סמסונג. כל שינוי ב-events/archive/settings מסונכרן
+// מיד (onDocumentWritten), ועוד מעבר פעם בשעה ליתר ביטחון.
+// היומן נוצר רק כשמישהי מבקשת את הקישור (calendarLink); עד אז אין סנכרון.
+const GCAL_API = "https://www.googleapis.com/calendar/v3";
+async function gcalHeaders() {
+  const r = await fetch("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token?scopes=https://www.googleapis.com/auth/calendar", { headers: { "Metadata-Flavor": "Google" } });
+  if (!r.ok) throw new Error("gcal token " + r.status);
+  const t = (await r.json()).access_token;
+  return { authorization: "Bearer " + t, "content-type": "application/json" };
+}
+async function gcalFetch(H, path, opts = {}) {
+  const r = await fetch(GCAL_API + path, { ...opts, headers: H });
+  const text = await r.text();
+  let body = null; try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  return { status: r.status, ok: r.ok, body };
+}
+const gcalCid = (id) => "https://calendar.google.com/calendar/u/0?cid=" + Buffer.from(id).toString("base64").replace(/=+$/, "");
+// מזהה אירוע יציב: base32hex (a-v, 0-9) — hex של מזהה האירוע באפליקציה
+const gcalEventId = (ev) => "vb" + Buffer.from(String(ev.id)).toString("hex");
+
+// היומן של הקבוצה; create=true יוצר אותו אם אין. נעילה ב-create() כדי שלא ייווצרו שניים.
+async function teamGcal(teamId, create) {
+  const ref = db.doc(`teams/${teamId}/data/googleCalendar`);
+  for (let i = 0; i < 6; i++) {
+    const snap = await ref.get(); // שגיאת קריאה נזרקת — לא יוצרים כלום
+    const cur = snap.exists ? (snap.data().value || {}) : null;
+    if (cur && cur.id) return cur.id;
+    if (!create) return null;
+    if (!snap.exists) {
+      try { await ref.create({ value: { creating: new Date().toISOString() } }); }
+      catch { continue; } // מישהו אחר התחיל ממש עכשיו
+      try {
+        const settings = await getTeamValue(teamId, "settings", {});
+        const H = await gcalHeaders();
+        const cal = await gcalFetch(H, "/calendars", { method: "POST", body: JSON.stringify({ summary: "🏐 " + ((settings && settings.teamName) || "הקבוצה"), timeZone: TZ }) });
+        if (!cal.ok || !cal.body.id) throw new Error("create calendar " + cal.status + " " + JSON.stringify(cal.body).slice(0, 200));
+        const acl = await gcalFetch(H, "/calendars/" + encodeURIComponent(cal.body.id) + "/acl", { method: "POST", body: JSON.stringify({ role: "reader", scope: { type: "default" } }) });
+        if (!acl.ok) throw new Error("acl " + acl.status);
+        await ref.set({ value: { id: cal.body.id, createdAt: new Date().toISOString() } });
+        return cal.body.id;
+      } catch (e) { await ref.delete().catch(() => {}); throw e; }
+    }
+    await new Promise((r) => setTimeout(r, 1500)); // בתהליך יצירה אצל מישהו אחר
+  }
+  throw new Error("team calendar busy");
+}
+
+async function syncTeamGcal(teamId) {
+  const calId = await teamGcal(teamId, false);
+  if (!calId) return { skipped: true };
+  // קריאה מלאה ומוצלחת לפני כל כתיבה; מסמך אירועים שלא קיים = לא נוגעים ביומן
+  const [evSnap, arSnap, settings] = await Promise.all([
+    db.doc(`teams/${teamId}/data/events`).get(), db.doc(`teams/${teamId}/data/archive`).get(), getTeamValue(teamId, "settings", {}),
+  ]);
+  if (!evSnap.exists) return { skipped: "no events doc" };
+  const events = evSnap.data().value, archive = arSnap.exists ? arSnap.data().value : [];
+  if (!Array.isArray(events)) return { skipped: "events not array" };
+  const teamName = (settings && settings.teamName) || "הקבוצה";
+  const since = ilDate(-60), today = ilDate(0);
+  const want = new Map();
+  for (const e of [...(Array.isArray(archive) ? archive : []), ...events]) {
+    if (!e || !e.date || !e.id || e.date < since) continue;
+    const start = ilToUtc(e.date, e.time);
+    const end = new Date(start.getTime() + 2 * 3600 * 1000);
+    const isGame = e.type === "game";
+    want.set(gcalEventId(e), {
+      summary: (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " נגד " + e.opponent : ""}` : "🏐 אימון כדורשת"),
+      location: e.location || "",
+      description: `${teamName}\nאישור הגעה באפליקציה: ${APP_URL}/?team=${teamId}`,
+      start: { dateTime: start.toISOString(), timeZone: TZ }, end: { dateTime: end.toISOString(), timeZone: TZ },
+      status: "confirmed", transparency: "opaque",
+    });
+  }
+  const H = await gcalHeaders();
+  const enc = encodeURIComponent(calId);
+  const have = new Map();
+  let pageToken = "";
+  do {
+    const r = await gcalFetch(H, `/calendars/${enc}/events?maxResults=2500&showDeleted=false${pageToken ? "&pageToken=" + pageToken : ""}`);
+    if (!r.ok) throw new Error("list " + r.status); // בלי רשימה תקינה — לא כותבים ולא מוחקים
+    for (const it of r.body.items || []) have.set(it.id, it);
+    pageToken = r.body.nextPageToken || "";
+  } while (pageToken);
+
+  const same = (a, b) => a && (a.summary || "") === b.summary && (a.location || "") === b.location && (a.description || "") === b.description
+    && new Date(a.start && a.start.dateTime).getTime() === new Date(b.start.dateTime).getTime()
+    && new Date(a.end && a.end.dateTime).getTime() === new Date(b.end.dateTime).getTime();
+  let ins = 0, upd = 0, del = 0;
+  for (const [id, body] of want) {
+    const cur = have.get(id);
+    if (same(cur, body)) continue;
+    if (cur) {
+      const r = await gcalFetch(H, `/calendars/${enc}/events/${id}`, { method: "PUT", body: JSON.stringify(body) });
+      if (!r.ok) console.error("gcal update", id, r.status); else upd++;
+    } else {
+      let r = await gcalFetch(H, `/calendars/${enc}/events`, { method: "POST", body: JSON.stringify({ id, ...body }) });
+      if (r.status === 409) r = await gcalFetch(H, `/calendars/${enc}/events/${id}`, { method: "PUT", body: JSON.stringify(body) }); // נמחק בעבר — משחזרים
+      if (!r.ok) console.error("gcal insert", id, r.status, JSON.stringify(r.body).slice(0, 200)); else ins++;
+    }
+  }
+  // אירוע עתידי שנמחק מהאפליקציה יורד מהיומן; עבר נשאר לתיעוד
+  for (const [id, it] of have) {
+    if (want.has(id) || !id.startsWith("vb")) continue;
+    const d = String((it.start && (it.start.dateTime || it.start.date)) || "").slice(0, 10);
+    if (d && d < today) continue;
+    const r = await gcalFetch(H, `/calendars/${enc}/events/${id}`, { method: "DELETE" });
+    if (r.ok || r.status === 410) del++; else console.error("gcal delete", id, r.status);
+  }
+  console.log(`syncTeamGcal ${teamId} want=${want.size} have=${have.size} ins=${ins} upd=${upd} del=${del}`);
+  return { ins, upd, del };
+}
+
+exports.gcalOnTeamData = require("firebase-functions/firestore").onDocumentWritten("teams/{teamId}/data/{key}", async (event) => {
+  const { teamId, key } = event.params;
+  if (!["events", "archive", "settings"].includes(key)) return;
+  try { await syncTeamGcal(teamId); } catch (e) { console.error("gcalOnTeamData " + teamId + ":", e); }
 });
