@@ -33,7 +33,7 @@ function GamesSheet({ events, archive, newIds, onClose }) {
     <div onClick={onClose} role="dialog" aria-label="כל המשחקים"
       style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(8,10,30,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ background: "#f3f5fb", width: "100%", maxWidth: 520, maxHeight: "88vh", borderRadius: "20px 20px 0 0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        style={{ background: "#f1f5f9", width: "100%", maxWidth: 520, maxHeight: "88vh", borderRadius: "20px 20px 0 0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ background: "linear-gradient(160deg,#2a36a8 0%,#1a237e 55%,#10164f 100%)", color: "white", padding: "16px 18px 14px", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 26 }}>🏆</span>
           <div style={{ flex: 1 }}>
@@ -204,7 +204,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
             המשחק הבא: נגד {g.opponent || "—"}
             {newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 7px", fontSize: 10.5, fontWeight: 800, verticalAlign: "middle" }}>חדש</span>}
           </div>
-          <div style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
+          <div style={{ fontSize: 12, color: "#8a3c0c", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
           {onRsvp && whoFor && (() => { const n = whoFor(g).coming.length; return (
             <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עדיין אין אישורים" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
           ); })()}
