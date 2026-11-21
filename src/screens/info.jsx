@@ -78,7 +78,10 @@ function AboutScreen({ pc, sc, settings, onBack, embedded = false }) {
             <div style={{ fontSize: 12, color: "#94a3b8" }}>פותח על ידי</div>
             <div style={{ fontSize: 15, fontWeight: 800, color: pc }}>אפי לוי</div>
           </div>
-          <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 12 }}>{WHATS_NEW.versionName || `גרסה ${WHATS_NEW.version}`}</div>
+          <button onClick={() => window.dispatchEvent(new Event("vb:whatsnew"))}
+            style={{ display: "block", margin: "12px auto 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "#94a3b8", textDecoration: "underline" }}>
+            {WHATS_NEW.versionName || `גרסה ${WHATS_NEW.version}`} · מה חדש?
+          </button>
         </div>
         {isDesk && !embedded && <div style={{ height: 14 }} />}
         <FeedbackBox pc={pc} sc={sc} card={S.card} />

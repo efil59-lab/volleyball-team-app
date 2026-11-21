@@ -72,6 +72,14 @@ export default function App() {
   const [confirm, setConfirm] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  // פתיחה חוזרת של "מה חדש" מתוך אודות (לחיצה על מספר הגרסה, אפי 21.11.26):
+  // בסיום חוזרים לאותו מסך ולא לדף הבית.
+  const whatsNewReopenRef = useRef(false);
+  useEffect(() => {
+    const open = () => { whatsNewReopenRef.current = true; setShowWhatsNew(true); };
+    window.addEventListener("vb:whatsnew", open);
+    return () => window.removeEventListener("vb:whatsnew", open);
+  }, []);
   const [googleLoginError, setGoogleLoginError] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [teamMeta, setTeamMeta] = useState(null); // meta של הקבוצה הנוכחית (status/בעלות) — לשער הכניסה
@@ -462,7 +470,9 @@ export default function App() {
   }} />;
   if (showWhatsNew) return <WhatsNewScreen pc={pc} sc={sc} onDone={() => {
     localStorage.setItem("whatsNewSeenVer", String(WHATS_NEW.version));
-    setShowWhatsNew(false); setScreen("home");
+    setShowWhatsNew(false);
+    if (whatsNewReopenRef.current) { whatsNewReopenRef.current = false; return; }
+    setScreen("home");
   }} />;
 
   // קבוצה pending: השחקניות רואות מסך נעילה. המנהלת (admin-login/admin/superAdmin) ממשיכה רגיל.
