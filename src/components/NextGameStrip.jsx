@@ -160,6 +160,12 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
   const days = Math.round((new Date(g.date + "T00:00:00") - new Date(todayStr() + "T00:00:00")) / 86400000);
   const when = days === 0 ? "היום" : days === 1 ? "מחר" : days < 14 ? `בעוד ${days} ימים` : `בעוד ${Math.round(days / 7)} שבועות`;
   const calling = !seen || newIds.size > 0;
+  // הפס נרגע ברגע שלחצו עליו — לאישור או לרשימה
+  const markSeen = () => {
+    const ids = [...(archive || []), ...(events || [])].filter(e => e && e.type === "game").map(e => String(e.id));
+    const v = { opened: true, games: ids }; writeSeen(v); setSeen(v);
+  };
+  const openRsvp = () => { setRsvpOpen(true); markSeen(); };
   const openSheet = () => {
     setSheetNew(newIds);
     setOpen(true);
@@ -170,7 +176,9 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
   return (
     <>
       <style>{NGS_CSS}</style>
-      <div onClick={openSheet} role="button" className={"ngs" + (calling ? " call" : "")}
+      {/* לחיצה על הפס (ימין ומרכז) = אישור הגעה; "לכל המשחקים" משמאל = רשימת המשחקים (אפי, 21.11.26).
+          בלי אישור הגעה (צופה) — כל הפס פותח את המשחקים. */}
+      <div onClick={onRsvp ? openRsvp : openSheet} role="button" className={"ngs" + (calling ? " call" : "")}
         style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#fff7d6,#fde68a)", border: "1px solid #fcd34d", borderRadius: 14, padding: "10px 13px", marginBottom: 12, cursor: "pointer" }}>
         {onRsvp ? (() => {
           const st = statusOf ? statusOf(g) : null;
@@ -178,7 +186,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
             : st === "notcoming" ? { bg: "#dc2626", fg: "white", bd: "#dc2626", ic: "❌", tx: "לא מגיעה" }
             : { bg: "white", fg: "#78350f", bd: "#d97706", ic: "✋", tx: "אישור הגעה" };
           return (
-            <button onClick={(e) => { e.stopPropagation(); setRsvpOpen(true); }} aria-label="אישור הגעה למשחק"
+            <button onClick={(e) => { e.stopPropagation(); openRsvp(); }} aria-label="אישור הגעה למשחק"
               style={{ flex: "0 0 auto", width: 66, display: "flex", flexDirection: "column", alignItems: "center", gap: 1, padding: "6px 4px", borderRadius: 12, border: `1.5px solid ${look.bd}`, background: look.bg, color: look.fg, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(120,53,15,0.15)" }}>
               <span style={{ fontSize: 17, lineHeight: 1 }}>{look.ic}</span>
               <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1.15, textAlign: "center" }}>{look.tx}</span>
@@ -201,7 +209,8 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
             <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עדיין אין אישורים" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
           ); })()}
         </div>
-        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+        <div onClick={(e) => { e.stopPropagation(); openSheet(); }} role="button" aria-label="לכל המשחקים"
+          style={{ flexShrink: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, margin: "-10px 0 -10px -13px", padding: "10px 8px 10px 13px" }}>
           <span className={days <= 1 ? "ngs-soon" : undefined} style={{ display: "inline-block", background: "#78350f", color: "#fde68a", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{when}</span>
           <span style={{ color: "#78350f", fontSize: 11.5, fontWeight: 800, textDecoration: "underline", whiteSpace: "nowrap" }}>לכל המשחקים ←</span>
         </div>
