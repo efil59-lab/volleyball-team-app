@@ -19,7 +19,7 @@ import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../com
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
 
 // ── HOME SCREEN ───────────────────────────────────────────────────────────────
-function HomeScreen({ players, events, attendance, settings, notifications, playerProfiles, tournaments, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
+function HomeScreen({ players, events, archive, attendance, settings, notifications, playerProfiles, tournaments, upd, pc, sc, notify, onSelectPlayer, onAdmin, onHelp, onAbout, onSuperAdmin, onPurchase }) {
   const isDesktop = useIsDesktop();
   const lpRef = useRef();
   const gridRef = useRef();
@@ -187,7 +187,7 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
           {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}
           <HolidayBanner slim={bdayOthers.length > 0} />
           {/* המשחק הבא — תזכורת מעל כרטיס האירוע. בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
-          {me.ghost && <NextGameStrip events={events} current={nextEvent} />}
+          {me.ghost && <NextGameStrip events={events} archive={archive} current={nextEvent} />}
           {nextEvent ? (
             <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
