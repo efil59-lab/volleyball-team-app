@@ -539,6 +539,42 @@ async function remindArchive(teamId) {
   return r.sent;
 }
 
+// ── תזכורת מוקדמת למשחק: שבוע ו-3 ימים לפני (אפי, 21.11.26) ─────────────────
+// משחק צריך זמן התארגנות — יום אחד לפני לא מספיק. בשעת תזכורת הערב של הקבוצה,
+// למי שעוד לא ענתה על משחק שמתקיים בעוד 7 או 3 ימים. בשלב בדיקה — רק לחשבונות
+// הבדיקה (player.ghost); EARLY_GAME_TEST_ONLY=false פותח לכולן.
+const EARLY_GAME_TEST_ONLY = true;
+const EARLY_GAME_DAYS = [7, 3];
+async function remindGamesEarly(teamId) {
+  const events = await getTeamValue(teamId, "events", []);
+  const players = (await getTeamValue(teamId, "players", [])).filter((p) => !p.viewer && (EARLY_GAME_TEST_ONLY ? p.ghost : !p.ghost));
+  if (!players.length) return 0;
+  let tokens = null, total = 0;
+  for (const days of EARLY_GAME_DAYS) {
+    const day = ilDate(days);
+    const games = (Array.isArray(events) ? events : []).filter((e) => e && e.type === "game" && e.date === day && e.open !== false && !e.cancelled);
+    for (const ev of games) {
+      const att = await db.collection(`teams/${teamId}/attendance`).get();
+      const answered = new Set();
+      att.forEach((d) => { const rec = (d.data() || {})[String(ev.id)]; if (rec && rec.status) answered.add(String(d.id)); });
+      const missing = new Set(players.filter((p) => !answered.has(String(p.id))).map((p) => String(p.id)));
+      if (!missing.size) continue;
+      if (!tokens) tokens = await getTeamPushTokens(teamId);
+      const target = tokens.filter((t) => hasRole(t, "player") && missing.has(String(t.playerId)));
+      const [, mm, dd] = ev.date.split("-");
+      const when = days === 7 ? "בעוד שבוע" : `בעוד ${days} ימים`;
+      const r = await sendPush(target, {
+        title: `🏆 ${when} ${evLabel(ev)}`,
+        body: `${Number(dd)}.${Number(mm)} · ${ev.time}${ev.location ? " · " + ev.location : ""} — מגיעה? לחצי לאישור ✅`,
+        url: "/?team=" + teamId, tag: `early_${teamId}_${ev.id}_${days}`,
+      });
+      console.log(`remindGamesEarly ${teamId} ev=${ev.id} days=${days} missing=${missing.size} sent=${r.sent}`);
+      total += r.sent;
+    }
+  }
+  return total;
+}
+
 // רץ כל שעה ובודק לכל קבוצה אם זו שעת התזכורת שלה (לפי ההגדרות שלה).
 // ברירות מחדל: ערב-לפני 19:00 · בוקר-האירוע 10:00 · פעיל. המנהלת שולטת בטאב ההגדרות.
 exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ }, async () => {
@@ -556,6 +592,7 @@ exports.eventRemindersHourly = onSchedule({ schedule: "0 * * * *", timeZone: TZ 
       const eveningHour = Number.isFinite(Number(st.reminderEveningHour)) ? Number(st.reminderEveningHour) : 19;
       const morningHour = Number.isFinite(Number(st.reminderMorningHour)) ? Number(st.reminderMorningHour) : 10;
       if (hour === eveningHour) total += await remindTeam(teamId, "evening");
+      if (hour === eveningHour) { try { total += await remindGamesEarly(teamId); } catch (e) { console.error("remindGamesEarly team=" + teamId + ":", e); } }
       if (hour === morningHour) total += await remindTeam(teamId, "morning");
     } catch (e) { console.error("remindersHourly team=" + teamId + ":", e); }
   }
