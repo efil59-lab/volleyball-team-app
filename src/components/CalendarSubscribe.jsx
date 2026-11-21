@@ -39,8 +39,8 @@ export default function CalendarSubscribe({ pc }) {
       </button>
 
       {open && (
-        <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(10,15,45,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: "20px 20px 0 0", padding: "20px 18px calc(20px + env(safe-area-inset-bottom))", width: "100%", maxWidth: 480, boxSizing: "border-box" }}>
+        <div onClick={() => setOpen(false)} className="vb-sheet-ov" style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(10,15,45,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} className="vb-sheet" style={{ background: "white", borderRadius: "20px 20px 0 0", padding: "20px 18px calc(20px + env(safe-area-inset-bottom))", width: "100%", maxWidth: 480, boxSizing: "border-box" }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>📅 לוח הקבוצה ביומן שלך</div>
             <div style={{ fontSize: 13, color: "#64748b", textAlign: "center", marginTop: 4, lineHeight: 1.5 }}>
               כל האימונים והמשחקים, גם אלה שייקבעו בהמשך, יופיעו ביומן — וביטול או שינוי שעה יתעדכנו אוטומטית.

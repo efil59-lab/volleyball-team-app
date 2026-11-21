@@ -199,3 +199,8 @@ html[data-theme="dark"] [style*="background: rgb(250, 204, 21)"],
 html[data-theme="dark"] [style*="background-color: rgb(250, 204, 21)"],
 html[data-theme="dark"] [style*="background: rgb(251, 191, 36)"],
 html[data-theme="dark"] [style*="background-color: rgb(251, 191, 36)"] { color: #10163f !important; }
+
+/* חלוניות תחתונות (אישור הגעה למשחק, כל המשחקים, לוח הקבוצה ביומן): בלילה בולטות
+   מהמסך שמאחוריהן — כחול בהיר יותר, פס זהב למעלה, רקע מוחשך יותר (אפי, 21.11.26) */
+html[data-theme="dark"] .vb-sheet-ov { background: rgba(0, 0, 0, 0.72) !important; }
+html[data-theme="dark"] .vb-sheet { background-color: #2a3456 !important; border-top: 3px solid #f5c842; box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.6); }

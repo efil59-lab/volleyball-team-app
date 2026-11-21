@@ -30,9 +30,9 @@ function GamesSheet({ events, archive, newIds, onClose }) {
   const nextId = (games.find(g => g.date >= t && !g.cancelled && !g.outcome) || {}).id;
   const thisYear = new Date().getFullYear();
   return (
-    <div onClick={onClose} role="dialog" aria-label="כל המשחקים" className="ngs-ov"
+    <div onClick={onClose} role="dialog" aria-label="כל המשחקים" className="vb-sheet-ov"
       style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(8,10,30,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} className="ngs-sheet"
+      <div onClick={(e) => e.stopPropagation()} className="vb-sheet"
         style={{ background: "#f1f5f9", width: "100%", maxWidth: 520, maxHeight: "88vh", borderRadius: "20px 20px 0 0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ background: "linear-gradient(160deg,#2a36a8 0%,#1a237e 55%,#10164f 100%)", color: "white", padding: "16px 18px 14px", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 26 }}>🏆</span>
@@ -97,8 +97,6 @@ const NGS_CSS = `
 @keyframes ngs-halo{0%,100%{box-shadow:0 0 0 0 rgba(245,184,30,0)}50%{box-shadow:0 0 0 3px rgba(245,184,30,.45),0 0 16px rgba(245,184,30,.55)}}
 @keyframes ngs-sheen{0%,55%{transform:translateX(-140%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
 @keyframes ngs-pill{0%,100%{transform:scale(1)}50%{transform:scale(1.1);box-shadow:0 0 0 3px rgba(120,53,15,.18)}}
-html[data-theme="dark"] .ngs-ov{background:rgba(0,0,0,.72)!important}
-html[data-theme="dark"] .ngs-sheet{background-color:#2a3456!important;border-top:3px solid #f5c842;box-shadow:0 -12px 34px rgba(0,0,0,.6)}
 @media (prefers-reduced-motion:reduce){.ngs-cup,.ngs-spark,.ngs.call,.ngs.call::before,.ngs.call::after,.ngs-soon{animation:none}.ngs-spark{display:none}.ngs.call{box-shadow:0 0 0 2px #f5b81e}}
 `;
 
@@ -121,9 +119,9 @@ function WhoList({ title, color, names }) {
 function RsvpSheet({ g, status, who, onPick, onClose }) {
   const big = (c, on) => ({ flex: 1, padding: "14px 8px", borderRadius: 14, fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", border: on ? `2px solid ${c}` : "1px solid #e2e8f0", background: on ? c : "white", color: on ? "white" : c });
   return (
-    <div onClick={onClose} role="dialog" aria-label="אישור הגעה למשחק" className="ngs-ov"
+    <div onClick={onClose} role="dialog" aria-label="אישור הגעה למשחק" className="vb-sheet-ov"
       style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(8,10,30,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} className="ngs-sheet"
+      <div onClick={(e) => e.stopPropagation()} className="vb-sheet"
         style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", padding: "18px 16px calc(18px + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
         <div style={{ textAlign: "center", fontSize: 17, fontWeight: 900, color: "#1a237e" }}>🏆 משחק נגד {g.opponent || "—"}</div>
         <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", marginTop: 3 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
