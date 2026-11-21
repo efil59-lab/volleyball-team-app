@@ -18,7 +18,6 @@ import useNow from "../lib/useNow";
 import HolidayBanner from "../components/HolidayBanner";
 import AppPromo from "../components/AppPromo";
 import CalendarSubscribe from "../components/CalendarSubscribe";
-import AddToCalendar from "../components/AddToCalendar";
 import NextGameStrip, { nextGameOf, withoutLeagueLink } from "../components/NextGameStrip";
 import BirthdayInput from "../components/BirthdayInput";
 import { NotifText } from "../components/NotifLink";
@@ -553,8 +552,6 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                       <span>📍 {nextEvent.location}</span>
                     </div>
                     {nextEvent.note && <div style={{ color: sc, fontSize: 14, fontWeight: 600, marginTop: 10 }}>📝 {nextEvent.note}</div>}
-                    {/* הוספת האירוע הזה ליומן — בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
-                    {isGhost && !preview && <div style={{ marginTop: 10 }}><AddToCalendar ev={nextEvent} teamName={settings && settings.teamName} /></div>}
                   </div>
 
                   {/* Clickable counters */}
