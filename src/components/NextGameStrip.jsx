@@ -198,7 +198,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
           </div>
           <div style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
           {onRsvp && whoFor && (() => { const n = whoFor(g).coming.length; return (
-            <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עוד אין אישורים" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
+            <div style={{ fontSize: 11.5, color: "#78350f", fontWeight: 700, marginTop: 1 }}>👥 {n === 0 ? "עדיין אין אישורים" : n === 1 ? "אחת כבר מגיעה" : `${n} כבר מגיעות`}</div>
           ); })()}
         </div>
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
