@@ -60,9 +60,9 @@ export default function CalendarSubscribe({ pc }) {
               <div style={{ marginTop: 14 }}>
                 <a href={googleUrl} target="_blank" rel="noopener" style={{ ...btn, background: pc, color: "white" }}>📆 הוספה ליומן גוגל</a>
                 <div style={step}><span style={num}>1</span><span>לחצי על הכפתור. ייפתח יומן Google.</span></div>
-                <div style={step}><span style={num}>2</span><span>אם הוא שואל לאיזה חשבון לצרף — בחרי את החשבון הרגיל שלך. זהו, האימונים כבר ביומן.</span></div>
+                <div style={step}><span style={num}>2</span><span>אם הוא שואל לאיזה חשבון לצרף — בחרי את החשבון הרגיל שלך. זהו, האימונים והמשחקים כבר ביומן.</span></div>
                 <div style={{ ...step, background: "#f8fafc", borderRadius: 10, padding: "8px 10px", fontSize: 12.5, color: "#475569" }}>
-                  <span>📱 <b>עם יומן סמסונג?</b> שם האימונים מופיעים לפעמים רק אחרי זמן מה. אם עברו כמה שעות ועדיין אין: ביומן Google ← ☰ ← הגדרות ← היומן של הקבוצה ← כבי והדליקי את <b>"סנכרון"</b>.</span>
+                  <span>📱 <b>עם יומן סמסונג?</b> שם האימונים והמשחקים מופיעים לפעמים רק אחרי זמן מה. אם עברו כמה שעות ועדיין אין: ביומן Google ← ☰ ← הגדרות ← היומן של הקבוצה ← כבי והדליקי את <b>"סנכרון"</b>.</span>
                 </div>
               </div>
             )}
