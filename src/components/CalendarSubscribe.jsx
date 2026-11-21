@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { calendarLinkRemote } from "../lib/db";
 
-// ── "הוספת האימונים ללוח השנה שלי" ───────────────────────────────────────────
+// ── "לוח הקבוצה ביומן שלי" ───────────────────────────────────────────
 // מנוי ליומן של הטלפון (פיד ICS מהשרת, ראה calendarFeed ב-functions): לחיצה אחת
 // ואישור, ומאז כל אימון ומשחק — גם עתידיים — מופיעים ביומן ומתעדכנים לבד.
 // אייפון: webcal:// נפתח ישר באפליקציית היומן. אנדרואיד: יומן Google של הקבוצה
@@ -32,7 +32,7 @@ export default function CalendarSubscribe({ pc }) {
       <button onClick={start} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "13px 14px", cursor: "pointer", textAlign: "right", fontFamily: "inherit", marginBottom: 14, boxShadow: "0 2px 8px rgba(26,35,126,0.06)" }}>
         <span style={{ fontSize: 26 }}>📅</span>
         <span style={{ flex: 1 }}>
-          <b style={{ display: "block", fontSize: 14.5, color: "#1e293b" }}>הוספת האימונים ללוח השנה שלי</b>
+          <b style={{ display: "block", fontSize: 14.5, color: "#1e293b" }}>לוח הקבוצה ביומן שלי</b>
           <span style={{ fontSize: 12, color: "#64748b" }}>פעם אחת — ומאז כל אימון ומשחק מופיעים ביומן של הטלפון</span>
         </span>
         <span style={{ color: pc, fontSize: 18 }}>←</span>
@@ -41,7 +41,7 @@ export default function CalendarSubscribe({ pc }) {
       {open && (
         <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(10,15,45,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "white", borderRadius: "20px 20px 0 0", padding: "20px 18px calc(20px + env(safe-area-inset-bottom))", width: "100%", maxWidth: 480, boxSizing: "border-box" }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>📅 האימונים בלוח השנה שלך</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>📅 לוח הקבוצה ביומן שלך</div>
             <div style={{ fontSize: 13, color: "#64748b", textAlign: "center", marginTop: 4, lineHeight: 1.5 }}>
               כל האימונים והמשחקים, גם אלה שייקבעו בהמשך, יופיעו ביומן — וביטול או שינוי שעה יתעדכנו לבד.
             </div>
