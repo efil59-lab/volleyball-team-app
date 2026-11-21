@@ -24,7 +24,7 @@ export default function PlayerHome({
   player, players = [], playerProfiles = {}, attendance = {}, archive = [], events = [],
   chat = [], polls = [], gallery = [], applause = [], nextEvent, myRecord,
   clapList = [], clapLabel = "", evPhase = "before", evState = null,
-  onRSVP, onVote, onApplause, onOpen, onProfile, tourCard,
+  onRSVP, onVote, onApplause, onOpen, onProfile, tourCard, nextGameStrip = null, calendarCard = null,
 }) {
   // ── האירוע הקרוב ─────────────────────────────────────────────────────────
   // צופה (מאמנת) מחוץ לספירות — היא אינה מסמנת נוכחות
@@ -208,6 +208,8 @@ export default function PlayerHome({
 
       <div className="st-p-body">
         <div className="st-p-main">
+          {/* המשחק הבא — אותו פס צהוב כמו בטלפון (אפי, 21.11.26) */}
+          {nextGameStrip}
           {/* ── מי מגיעה ───────────────────────────────────────────────────── */}
           {nextEvent && (
             <section className="st-p-card" id="st-team">
@@ -346,6 +348,7 @@ export default function PlayerHome({
         <aside className="st-side">
           <HolidayBanner slim={isBirthdayToday((playerProfiles[player.id] || {}).birthday)} />
           {tourCard}
+          {calendarCard}
           <div className="st-side-card">
             <h4>הבא בלוח <button className="st-p-link" onClick={() => onOpen("calendar")}>הלוח המלא ←</button></h4>
             {upcoming.length === 0 ? (

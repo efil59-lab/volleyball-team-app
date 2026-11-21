@@ -520,6 +520,11 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       onApplause={sendApplause}
       onOpen={goDesk}
       tourCard={showTour ? <TournamentCard t={tour} state={tourState} now={now} size={tourLive ? "auto" : "slim"} onOpen={() => goDesk("tournament")} /> : null}
+      nextGameStrip={<NextGameStrip events={events} archive={archive} current={nextEvent}
+        statusOf={(ev) => (attendance[`${ev.id}_${player.id}`] || {}).status || null}
+        onRsvp={!isViewer ? earlyRsvp : undefined}
+        whoFor={(ev) => ({ coming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })} />}
+      calendarCard={<CalendarSubscribe pc={pc} />}
       onProfile={openProfileEditor}
     />
   );

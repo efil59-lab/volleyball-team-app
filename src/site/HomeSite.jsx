@@ -48,7 +48,7 @@ function SiteNote({ note, onSave }) {
 
 export default function HomeSite({
   me, players = [], playerProfiles = {}, attendance = {}, settings = {},
-  nextEvent, myStatus, activeNotifs = [], bdayOthers = [],
+  nextEvent, myStatus, activeNotifs = [], bdayOthers = [], nextGameStrip = null,
   onRSVP, onNote, myNote = "", onSelectPlayer, onOpenMine, onOpenTab, onSwitchUser, tourCard,
   onAdmin, onAbout, onSuperAdmin, onPurchase, superAdminHandlers, pc, sc,
 }) {
@@ -165,6 +165,7 @@ export default function HomeSite({
         <div className="st-p-main">
           {me ? (
             <>
+              {nextGameStrip}
               {nextEvent && (
                 <section className="st-p-card">
                   <div className="st-p-sh">

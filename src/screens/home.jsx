@@ -107,6 +107,23 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
     await upd.attendance({ ...attendance, [key]: { ...cur, note: text } });
   }
 
+  // הפס הצהוב של המשחק הבא — אותו רכיב בטלפון ובמחשב (אפי, 21.11.26)
+  const gameStrip = (m) => m ? (
+    <NextGameStrip events={events} archive={archive} current={nextEvent}
+      statusOf={(ev) => (attendance[`${ev.id}_${m.id}`] || {}).status || null}
+      whoFor={(ev) => ({ coming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })}
+      onRsvp={!m.viewer ? async (ev, status) => {
+        // אישור מוקדם מהפס — לכולן מגרסה 22 (אפי, 21.11.26)
+        const authed = auth.currentUser && !auth.currentUser.isAnonymous;
+        if (!authed) { onSelectPlayer(m); return; }
+        const key = `${ev.id}_${m.id}`;
+        const cur = attendance[key] || {};
+        if (cur.status === status) return;
+        await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
+        notifyPlayerActivityRemote(CURRENT_TEAM, m.id, "rsvp", { eventId: ev.id, status });
+      } : undefined} />
+  ) : null;
+
   // ── שכבת הדסקטופ ────────────────────────────────────────────────────────
   // כל מה שמתחת ל-1100×600 ממשיך בדיוק כפי שהיה — הפריסה הניידת לא נגעה בה.
   if (isDesktop) {
@@ -124,7 +141,8 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
             me={me} players={players} playerProfiles={playerProfiles} attendance={attendance}
             settings={settings} nextEvent={nextEvent}
             myStatus={me && nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).status : null}
-            activeNotifs={activeNotifs} bdayOthers={bdayOthers}
+            activeNotifs={me && nextGameOf(events, nextEvent) ? withoutLeagueLink(activeNotifs) : activeNotifs} bdayOthers={bdayOthers}
+            nextGameStrip={gameStrip(me)}
             onRSVP={(s) => rsvpFor(me, s)}
             onNote={me ? (t) => saveNoteFor(me, t) : null}
             myNote={me && nextEvent ? (attendance[`${nextEvent.id}_${me.id}`] || {}).note || "" : ""}
@@ -187,19 +205,7 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
           {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}
           <HolidayBanner slim={bdayOthers.length > 0} />
           {/* המשחק הבא — תזכורת מעל כרטיס האירוע (לכולן מ-21.11.26) */}
-          <NextGameStrip events={events} archive={archive} current={nextEvent}
-            statusOf={(ev) => (attendance[`${ev.id}_${me.id}`] || {}).status || null}
-            whoFor={(ev) => ({ coming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })}
-            onRsvp={!me.viewer ? async (ev, status) => {
-              // אישור מוקדם מהפס — לכולן מגרסה 22 (אפי, 21.11.26)
-              const authed = auth.currentUser && !auth.currentUser.isAnonymous;
-              if (!authed) { onSelectPlayer(me); return; }
-              const key = `${ev.id}_${me.id}`;
-              const cur = attendance[key] || {};
-              if (cur.status === status) return;
-              await upd.attendance({ ...attendance, [key]: { ...cur, status, note: cur.note || "", time: new Date().toISOString() } });
-              notifyPlayerActivityRemote(CURRENT_TEAM, me.id, "rsvp", { eventId: ev.id, status });
-            } : undefined} />
+          {gameStrip(me)}
           {nextEvent ? (
             <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
