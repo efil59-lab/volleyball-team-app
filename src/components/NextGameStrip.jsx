@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { todayStr, formatShort } from "../lib/utils";
 import { OutcomeBadge } from "./shared";
 
@@ -21,7 +21,7 @@ export function nextGameOf(events, current) {
 const MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 const DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 
-function GamesSheet({ events, archive, onClose }) {
+function GamesSheet({ events, archive, newIds, onClose }) {
   const t = todayStr();
   const seen = new Set();
   const games = [...(archive || []), ...(events || [])]
@@ -59,6 +59,7 @@ function GamesSheet({ events, archive, onClose }) {
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#1a237e" }}>
                     {g.cancelled ? "❌ בוטל · " : ""}נגד {g.opponent || "—"}
                     {isNext && <span style={{ marginRight: 6, background: "#f5c842", color: "#10163f", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>הבא</span>}
+                    {newIds && newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>חדש</span>}
                   </div>
                   <div style={{ fontSize: 12.5, color: "#475569" }}>🕒 {g.time}{g.location ? ` · 📍 ${g.location}` : ""}</div>
                   {g.outcome && <div><OutcomeBadge outcome={g.outcome} result={g.result} /></div>}
@@ -72,27 +73,78 @@ function GamesSheet({ events, archive, onClose }) {
   );
 }
 
+// ── תשומת לב (אפי, 21.11.26) ────────────────────────────────────────────────
+// 1. הגביע מתנדנד בעדינות כל כמה שניות, תמיד.
+// 2. עד הלחיצה הראשונה במכשיר: מסגרת זהב פועמת + ברק אור שחולף על הפס.
+// 3. הקריאה חוזרת כשנוסף משחק חדש (תגית "חדש") עד שפותחים את הרשימה,
+//    וה"מחר"/"היום" פועם ביום שלפני המשחק וביומו.
+// "הפחתת תנועה" בטלפון = הכל סטטי. הזיכרון מקומי למכשיר (localStorage).
+const SEEN_KEY = "vb_ngs_seen";
+const readSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "null"); } catch { return null; } };
+const writeSeen = (v) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(v)); } catch { /* private mode */ } };
+
+const NGS_CSS = `
+.ngs{position:relative;overflow:hidden;isolation:isolate}
+.ngs-cup{display:inline-block;transform-origin:50% 90%;animation:ngs-wiggle 4.5s ease-in-out infinite}
+.ngs-spark{position:absolute;top:-4px;left:-6px;font-size:11px;opacity:0;animation:ngs-spark 4.5s ease-in-out infinite;pointer-events:none}
+.ngs.call::before{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 2px #f5b81e,0 0 0 0 transparent;opacity:0;animation:ngs-glow 1.8s ease-in-out infinite;pointer-events:none;z-index:-1}
+.ngs.call{animation:ngs-halo 1.8s ease-in-out infinite}
+.ngs.call::after{content:"";position:absolute;top:0;bottom:0;width:38%;left:0;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:translateX(-140%) skewX(-18deg);animation:ngs-sheen 3.4s ease-in-out infinite;pointer-events:none}
+.ngs-soon{animation:ngs-pill 1.3s ease-in-out infinite}
+@keyframes ngs-wiggle{0%,68%,100%{transform:rotate(0)}73%{transform:rotate(-15deg)}78%{transform:rotate(12deg)}83%{transform:rotate(-8deg)}88%{transform:rotate(4deg)}93%{transform:rotate(0)}}
+@keyframes ngs-spark{0%,72%,100%{opacity:0;transform:scale(.4)}80%{opacity:1;transform:scale(1.15)}90%{opacity:0;transform:scale(.6)}}
+@keyframes ngs-glow{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes ngs-halo{0%,100%{box-shadow:0 0 0 0 rgba(245,184,30,0)}50%{box-shadow:0 0 0 3px rgba(245,184,30,.45),0 0 16px rgba(245,184,30,.55)}}
+@keyframes ngs-sheen{0%,55%{transform:translateX(-140%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
+@keyframes ngs-pill{0%,100%{transform:scale(1)}50%{transform:scale(1.1);box-shadow:0 0 0 3px rgba(120,53,15,.18)}}
+@media (prefers-reduced-motion:reduce){.ngs-cup,.ngs-spark,.ngs.call,.ngs.call::before,.ngs.call::after,.ngs-soon{animation:none}.ngs-spark{display:none}.ngs.call{box-shadow:0 0 0 2px #f5b81e}}
+`;
+
 export default function NextGameStrip({ events, archive, current }) {
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(readSeen);
+  const [sheetNew, setSheetNew] = useState(null);
   const g = nextGameOf(events, current);
+  // משחקים עתידיים שהמכשיר הזה עוד לא ראה ברשימה
+  const newIds = useMemo(() => {
+    if (!seen) return new Set();
+    const known = new Set((seen.games || []).map(String));
+    const t = todayStr();
+    return new Set((events || []).filter(e => e && e.type === "game" && e.date >= t && !e.cancelled && !known.has(String(e.id))).map(e => String(e.id)));
+  }, [events, seen]);
   if (!g) return null;
   const days = Math.round((new Date(g.date + "T00:00:00") - new Date(todayStr() + "T00:00:00")) / 86400000);
   const when = days === 0 ? "היום" : days === 1 ? "מחר" : days < 14 ? `בעוד ${days} ימים` : `בעוד ${Math.round(days / 7)} שבועות`;
+  const calling = !seen || newIds.size > 0;
+  const openSheet = () => {
+    setSheetNew(newIds);
+    setOpen(true);
+    const ids = [...(archive || []), ...(events || [])].filter(e => e && e.type === "game").map(e => String(e.id));
+    // המשחקים החדשים של הפתיחה הזו נשארים מסומנים ברשימה (sheetNew); הפס נרגע מיד
+    const v = { opened: true, games: ids }; writeSeen(v); setSeen(v);
+  };
   return (
     <>
-      <div onClick={() => setOpen(true)} role="button"
+      <style>{NGS_CSS}</style>
+      <div onClick={openSheet} role="button" className={"ngs" + (calling ? " call" : "")}
         style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg,#fff7d6,#fde68a)", border: "1px solid #fcd34d", borderRadius: 14, padding: "10px 13px", marginBottom: 12, cursor: "pointer" }}>
-        <span style={{ fontSize: 22, flexShrink: 0 }}>🏆</span>
+        <span style={{ position: "relative", fontSize: 22, flexShrink: 0 }}>
+          <span className="ngs-cup">🏆</span>
+          <span className="ngs-spark">✨</span>
+        </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#78350f" }}>המשחק הבא: נגד {g.opponent || "—"}</div>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#78350f" }}>
+            המשחק הבא: נגד {g.opponent || "—"}
+            {newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 7px", fontSize: 10.5, fontWeight: 800, verticalAlign: "middle" }}>חדש</span>}
+          </div>
           <div style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
         </div>
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-          <span style={{ background: "#78350f", color: "#fde68a", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{when}</span>
+          <span className={days <= 1 ? "ngs-soon" : undefined} style={{ display: "inline-block", background: "#78350f", color: "#fde68a", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{when}</span>
           <span style={{ color: "#78350f", fontSize: 11.5, fontWeight: 800, textDecoration: "underline", whiteSpace: "nowrap" }}>לכל המשחקים ←</span>
         </div>
       </div>
-      {open && <GamesSheet events={events} archive={archive} onClose={() => setOpen(false)} />}
+      {open && <GamesSheet events={events} archive={archive} newIds={sheetNew} onClose={() => setOpen(false)} />}
     </>
   );
 }
