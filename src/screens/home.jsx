@@ -13,6 +13,7 @@ import HomeSite from "../site/HomeSite";
 import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import AppPromo from "../components/AppPromo";
+import NextGameStrip from "../components/NextGameStrip";
 import BirthdayInput from "../components/BirthdayInput";
 import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
@@ -181,6 +182,8 @@ function HomeScreen({ players, events, attendance, settings, notifications, play
         <div style={{ padding: "12px 16px 0" }}>
           {/* ברכת החג בראש המסך, מעל כרטיס האימון (בקשת אפי 3.10.26) */}
           <HolidayBanner slim={bdayOthers.length > 0} />
+          {/* המשחק הבא — תזכורת מעל כרטיס האירוע. בשלב זה לחשבון הבדיקה בלבד (אפי, 21.11.26) */}
+          {me.ghost && <NextGameStrip events={events} current={nextEvent} />}
           {nextEvent ? (
             <div style={{ background: pc, borderRadius: 18, padding: 16, marginBottom: 12, boxShadow: `0 6px 20px ${pc}40` }}>
               <button onClick={() => onSelectPlayer(me)} style={{ display: "block", width: "100%", textAlign: "right", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
