@@ -212,7 +212,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
           const st = statusOf ? statusOf(g) : null;
           const look = st === "coming" ? { bg: "#16a34a", fg: "white", bd: "#16a34a", ic: "✅", tx: "מגיעה" }
             : st === "notcoming" ? { bg: "#dc2626", fg: "white", bd: "#dc2626", ic: "❌", tx: "לא מגיעה" }
-            : { bg: "white", fg: "#78350f", bd: "#d97706", ic: "✋", tx: "אישור הגעה" };
+            : { bg: "#fffdf5", fg: "#78350f", bd: "#d97706", ic: "✋", tx: "אישור הגעה" }; // לא "white" — מצב לילה הופך white לכהה והטקסט החום נבלע
           return (
             <button onClick={(e) => { e.stopPropagation(); openRsvp(); }} aria-label="אישור הגעה למשחק"
               style={{ flex: "0 0 auto", width: 66, display: "flex", flexDirection: "column", alignItems: "center", gap: 1, padding: "6px 4px", borderRadius: 12, border: `1.5px solid ${look.bd}`, background: look.bg, color: look.fg, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 2px 6px rgba(120,53,15,0.15)" }}>
