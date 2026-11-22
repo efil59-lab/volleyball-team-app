@@ -74,7 +74,7 @@ export default function HomeSite({
 
   const d = nextEvent ? new Date(nextEvent.date + "T12:00:00") : null;
   const evKind = nextEvent
-    ? (nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? `🏆 משחק מול ${nextEvent.opponent}` : "🏆 משחק")
+    ? (nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? `🏆 משחק מול ${String(nextEvent.opponent).replace(/\s*\([^)]*\)/g, "").trim() || nextEvent.opponent}` : "🏆 משחק")
     : null;
 
   // צבעי הקבוצה מוזרמים כמו ב-SiteChrome. בלי זה כל קבוצה מקבלת את הכחול

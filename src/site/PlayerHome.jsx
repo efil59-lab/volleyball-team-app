@@ -137,7 +137,7 @@ export default function PlayerHome({
   const myVote = poll ? (poll.votes || {})[player.id] : undefined;
 
   const evKind = nextEvent
-    ? (nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? `🏆 משחק מול ${nextEvent.opponent}` : "🏆 משחק")
+    ? (nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? `🏆 משחק מול ${String(nextEvent.opponent).replace(/\s*\([^)]*\)/g, "").trim() || nextEvent.opponent}` : "🏆 משחק")
     : null;
 
   return (
