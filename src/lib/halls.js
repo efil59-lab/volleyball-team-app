@@ -4,7 +4,7 @@
 // functions/index.js (כתובת לאירועי יומן הקבוצה).
 // waze: היעד לניווט, כשהוא שונה מהכתובת (בליך: חניה דרך בית ספר רמת חן;
 // ברנר: הכניסה מאליעזר פרידמן).
-export const HALLS_FOR_ALL = false; // בינתיים רק לחשבון הבדיקה
+export const HALLS_FOR_ALL = true; // פתוח לכולן מ-22.11.26 (אפי אישר)
 
 export const HALLS = [
   { key: "צבי שפירא", name: "אולם צבי שפירא", address: "רח׳ הצבי 5, תל אביב" },
