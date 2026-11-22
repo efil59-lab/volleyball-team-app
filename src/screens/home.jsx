@@ -14,6 +14,7 @@ import HolidayBanner from "../components/HolidayBanner";
 import ThemeToggle from "../components/ThemeToggle";
 import AppPromo from "../components/AppPromo";
 import NextGameStrip, { nextGameOf, withoutLeagueLink } from "../components/NextGameStrip";
+import { HALLS_FOR_ALL } from "../lib/halls";
 import BirthdayInput from "../components/BirthdayInput";
 import { TournamentCard, TournamentOurGames, tournamentFillsEmpty } from "../components/Tournament";
 import { activeTournament, canSeeTournament, tournamentPhase } from "../lib/tournament";
@@ -110,6 +111,7 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
   // הפס הצהוב של המשחק הבא — אותו רכיב בטלפון ובמחשב (אפי, 21.11.26)
   const gameStrip = (m) => m ? (
     <NextGameStrip events={events} archive={archive} current={nextEvent}
+      halls={HALLS_FOR_ALL || !!m.ghost}
       statusOf={(ev) => (attendance[`${ev.id}_${m.id}`] || {}).status || null}
       whoFor={(ev) => ({ coming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: rosterOf(players).filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })}
       onRsvp={!m.viewer ? async (ev, status) => {

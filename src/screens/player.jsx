@@ -20,6 +20,7 @@ import HolidayBanner from "../components/HolidayBanner";
 import AppPromo from "../components/AppPromo";
 import CalendarSubscribe from "../components/CalendarSubscribe";
 import NextGameStrip, { nextGameOf, withoutLeagueLink } from "../components/NextGameStrip";
+import { HALLS_FOR_ALL } from "../lib/halls";
 import BirthdayInput from "../components/BirthdayInput";
 import { NotifText } from "../components/NotifLink";
 import ThemeToggle from "../components/ThemeToggle";
@@ -523,6 +524,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
       nextGameStrip={<NextGameStrip events={events} archive={archive} current={nextEvent}
         statusOf={(ev) => (attendance[`${ev.id}_${player.id}`] || {}).status || null}
         onRsvp={!isViewer ? earlyRsvp : undefined}
+        halls={HALLS_FOR_ALL || isGhost}
         whoFor={(ev) => ({ coming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })} />}
       calendarCard={<CalendarSubscribe pc={pc} />}
       onProfile={openProfileEditor}
@@ -559,6 +561,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   <NextGameStrip events={events} archive={archive} current={nextEvent}
                     statusOf={(ev) => (attendance[`${ev.id}_${player.id}`] || {}).status || null}
                     onRsvp={!isViewer && !preview ? earlyRsvp : undefined}
+                    halls={HALLS_FOR_ALL || isGhost}
                     whoFor={(ev) => ({ coming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })} />
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>

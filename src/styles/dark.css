@@ -204,3 +204,6 @@ html[data-theme="dark"] [style*="background-color: rgb(251, 191, 36)"] { color: 
    מהמסך שמאחוריהן — כחול בהיר יותר, פס זהב למעלה, רקע מוחשך יותר (אפי, 21.11.26) */
 html[data-theme="dark"] .vb-sheet-ov { background: rgba(0, 0, 0, 0.72) !important; }
 html[data-theme="dark"] .vb-sheet { background-color: #2a3456 !important; border-top: 3px solid #f5c842; box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.6); }
+
+/* כתובת אולם ברשימת המשחקים — כחול בהיר על כרטיס כהה */
+html[data-theme="dark"] .vb-hall-link { color: #93c5fd !important; }

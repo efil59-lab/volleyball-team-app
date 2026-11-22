@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { todayStr, formatShort } from "../lib/utils";
 import { OutcomeBadge } from "./shared";
+import { hallOf, wazeUrl } from "../lib/halls";
 
 // ── "המשחק הבא" — פס תזכורת מעל כרטיס האירוע ─────────────────────────────────
 // אפי, 21.11.26: תזכורת בלבד, בלי סימון הגעה — ההגעה למשחק נסמנת כרגיל כשהוא
@@ -21,7 +22,27 @@ export function nextGameOf(events, current) {
 const MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 const DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 
-function GamesSheet({ events, archive, newIds, onClose }) {
+// חלון קטן של אולם: כתובת, הערת הגעה וניווט בוויז (אפי, 22.11.26)
+function HallSheet({ h, onClose }) {
+  return (
+    <div onClick={onClose} role="dialog" aria-label={h.name} className="vb-sheet-ov"
+      style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(8,10,30,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} className="vb-sheet"
+        style={{ background: "white", width: "100%", maxWidth: 380, borderRadius: 18, padding: "18px 16px 12px", boxSizing: "border-box", textAlign: "center" }}>
+        <div style={{ fontSize: 26 }}>📍</div>
+        <div style={{ fontSize: 17, fontWeight: 900, color: "#1a237e", marginTop: 2 }}>{h.name}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#334155", marginTop: 6 }}>{h.address}</div>
+        {h.note && <div style={{ fontSize: 13, color: "#64748b", marginTop: 8, lineHeight: 1.5 }}>{h.note}</div>}
+        <a href={wazeUrl(h)} target="_blank" rel="noopener noreferrer"
+          style={{ display: "block", marginTop: 14, background: "#33ccff", color: "#0b2540", borderRadius: 12, padding: "12px", fontSize: 16, fontWeight: 900, textDecoration: "none" }}>🚗 נווט בוויז</a>
+        <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: 4, background: "transparent", border: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: 10, cursor: "pointer", fontFamily: "inherit" }}>סגירה</button>
+      </div>
+    </div>
+  );
+}
+
+function GamesSheet({ events, archive, newIds, onClose, halls }) {
+  const [hall, setHall] = useState(null);
   const t = todayStr();
   const seen = new Set();
   const games = [...(archive || []), ...(events || [])]
@@ -62,6 +83,12 @@ function GamesSheet({ events, archive, newIds, onClose }) {
                     {newIds && newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>חדש</span>}
                   </div>
                   <div style={{ fontSize: 12.5, color: "#475569" }}>🕒 {g.time}{g.location ? ` · 📍 ${g.location}` : ""}</div>
+                  {halls && (() => { const h = hallOf(g.location); return h && (
+                    <button onClick={() => setHall(h)} className="vb-hall-link"
+                      style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, color: "#1d4ed8", textDecoration: "underline", textAlign: "right" }}>
+                      🗺️ {h.address}
+                    </button>
+                  ); })()}
                   {g.outcome && <div><OutcomeBadge outcome={g.outcome} result={g.result} /></div>}
                 </div>
               </div>
@@ -69,6 +96,7 @@ function GamesSheet({ events, archive, newIds, onClose }) {
           })}
         </div>
       </div>
+      {hall && <HallSheet h={hall} onClose={() => setHall(null)} />}
     </div>
   );
 }
@@ -143,7 +171,7 @@ function RsvpSheet({ g, status, who, onPick, onClose }) {
   );
 }
 
-export default function NextGameStrip({ events, archive, current, statusOf, onRsvp, whoFor }) {
+export default function NextGameStrip({ events, archive, current, statusOf, onRsvp, whoFor, halls = false }) {
   const [open, setOpen] = useState(false);
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const [seen, setSeen] = useState(readSeen);
@@ -215,7 +243,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
           <span style={{ color: "#78350f", fontSize: 11.5, fontWeight: 800, textDecoration: "underline", whiteSpace: "nowrap" }}>לכל המשחקים ←</span>
         </div>
       </div>
-      {open && <GamesSheet events={events} archive={archive} newIds={sheetNew} onClose={() => setOpen(false)} />}
+      {open && <GamesSheet events={events} archive={archive} newIds={sheetNew} halls={halls} onClose={() => setOpen(false)} />}
       {rsvpOpen && onRsvp && <RsvpSheet g={g} status={statusOf ? statusOf(g) : null} who={whoFor ? whoFor(g) : null} onClose={() => setRsvpOpen(false)}
         onPick={async (s) => { setRsvpOpen(false); try { await onRsvp(g, s); } catch (e) { console.error("early rsvp:", e); } }} />}
     </>

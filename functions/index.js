@@ -1231,6 +1231,9 @@ async function syncTeamGcal(teamId) {
   const events = evSnap.data().value, archive = arSnap.exists ? arSnap.data().value : [];
   if (!Array.isArray(events)) return { skipped: "events not array" };
   const teamName = (settings && settings.teamName) || "הקבוצה";
+  // כתובת האולם באירוע — כפתור ניווט מתוך היומן (אפי, 22.11.26). אותה רשימה כמו src/lib/halls.js
+  const HALLS = [["צבי שפירא", "הצבי 5, תל אביב"], ["בליך", "המאה ואחד 24, רמת גן"], ["ברנר", "אליעזר פרידמן 10, פתח תקווה"], ["בגין", "רפאל איתן 33, רמת גן"], ["טבע", "הרצל 155, תל אביב"]];
+  const withAddress = (loc) => { const s = String(loc || ""); const h = s && HALLS.find(([k]) => s.includes(k)); return h ? `${s}, ${h[1]}` : s; };
   const since = ilDate(-60), today = ilDate(0);
   const want = new Map();
   for (const e of [...(Array.isArray(archive) ? archive : []), ...events]) {
@@ -1240,7 +1243,7 @@ async function syncTeamGcal(teamId) {
     const isGame = e.type === "game";
     want.set(gcalEventId(e), {
       summary: (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " נגד " + e.opponent : ""}` : "🏐 אימון כדורשת"),
-      location: e.location || "",
+      location: withAddress(e.location),
       description: `${teamName}\nאישור הגעה באפליקציה: ${APP_URL}/?team=${teamId}`,
       start: { dateTime: start.toISOString(), timeZone: TZ }, end: { dateTime: end.toISOString(), timeZone: TZ },
       status: "confirmed", transparency: "opaque",
