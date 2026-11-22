@@ -448,7 +448,7 @@ async function nonResponders(teamId, eventId) {
 }
 
 function evLabel(ev) {
-  return ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק");
+  return ev.type === "training" ? "אימון" : (ev.opponent ? `משחק מול ${ev.opponent}` : "משחק");
 }
 
 // רשימת הקבוצות הפעילות (מתוך teamIndex)
@@ -1153,7 +1153,7 @@ exports.calendarFeed = require("firebase-functions/https").onRequest(async (req,
     const start = ilToUtc(e.date, e.time);
     const end = new Date(start.getTime() + 2 * 3600 * 1000);
     const isGame = e.type === "game";
-    const title = (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " נגד " + e.opponent : ""}` : "🏐 אימון כדורשת");
+    const title = (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " מול " + e.opponent : ""}` : "🏐 אימון כדורשת");
     const desc = [e.note, `${teamName}`, `אישור הגעה באפליקציה: ${APP_URL}/?team=${teamId}`].filter(Boolean).join("\n");
     lines.push("BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${stamp}`, `DTSTART:${icsDate(start)}`, `DTEND:${icsDate(end)}`,
       `SUMMARY:${icsText(title)}`, e.location ? `LOCATION:${icsText(e.location)}` : null, `DESCRIPTION:${icsText(desc)}`,
@@ -1242,7 +1242,7 @@ async function syncTeamGcal(teamId) {
     const end = new Date(start.getTime() + 2 * 3600 * 1000);
     const isGame = e.type === "game";
     want.set(gcalEventId(e), {
-      summary: (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " נגד " + e.opponent : ""}` : "🏐 אימון כדורשת"),
+      summary: (e.cancelled ? "❌ בוטל: " : "") + (isGame ? `🏆 משחק${e.opponent ? " מול " + e.opponent : ""}` : "🏐 אימון כדורשת"),
       location: withAddress(e.location),
       description: `${teamName}\nאישור הגעה באפליקציה: ${APP_URL}/?team=${teamId}`,
       start: { dateTime: start.toISOString(), timeZone: TZ }, end: { dateTime: end.toISOString(), timeZone: TZ },

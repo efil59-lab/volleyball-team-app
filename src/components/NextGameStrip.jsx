@@ -78,7 +78,7 @@ function GamesSheet({ events, archive, newIds, onClose, halls }) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0, padding: "9px 12px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#1a237e" }}>
-                    {g.cancelled ? "❌ בוטל · " : ""}נגד {g.opponent || "—"}
+                    {g.cancelled ? "❌ בוטל · " : ""}מול {g.opponent || "—"}
                     {isNext && <span style={{ marginRight: 6, background: "#f5c842", color: "#10163f", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>הבא</span>}
                     {newIds && newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>חדש</span>}
                   </div>
@@ -151,7 +151,7 @@ function RsvpSheet({ g, status, who, onPick, onClose }) {
       style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(8,10,30,0.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()} className="vb-sheet"
         style={{ background: "white", width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", padding: "18px 16px calc(18px + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
-        <div style={{ textAlign: "center", fontSize: 17, fontWeight: 900, color: "#1a237e" }}>🏆 משחק נגד {g.opponent || "—"}</div>
+        <div style={{ textAlign: "center", fontSize: 17, fontWeight: 900, color: "#1a237e" }}>🏆 משחק מול {g.opponent || "—"}</div>
         <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", marginTop: 3 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>
         <div style={{ textAlign: "center", fontSize: 14.5, fontWeight: 800, color: "#334155", margin: "16px 0 10px" }}>{status ? "התשובה שלך — אפשר לשנות:" : "מגיעה למשחק?"}</div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -229,7 +229,7 @@ export default function NextGameStrip({ events, archive, current, statusOf, onRs
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 800, color: "#78350f" }}>
             {onRsvp && <span style={{ position: "relative", display: "inline-block", marginLeft: 4 }}><span className="ngs-cup">🏆</span><span className="ngs-spark">✨</span></span>}
-            המשחק הבא: נגד {g.opponent || "—"}
+            {current && current.type === "game" ? "המשחק הבא בתור" : "המשחק הבא"}: מול {g.opponent || "—"}
             {newIds.has(String(g.id)) && <span style={{ marginRight: 6, background: "#dc2626", color: "white", borderRadius: 999, padding: "1px 7px", fontSize: 10.5, fontWeight: 800, verticalAlign: "middle" }}>חדש</span>}
           </div>
           <div style={{ fontSize: 12, color: "#8a3c0c", fontWeight: 600 }}>{formatShort(g.date)} · {g.time}{g.location ? ` · ${g.location}` : ""}</div>

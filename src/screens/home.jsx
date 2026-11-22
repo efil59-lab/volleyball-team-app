@@ -319,7 +319,7 @@ function HomeScreen({ players, events, archive, attendance, settings, notificati
             <div style={{ fontSize: 26 }}>{nextEvent.type === "training" ? "🏋️" : "🏆"}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: "white", fontSize: 15, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {nextEvent.type === "training" ? "אימון" : (nextEvent.opponent ? `משחק נגד ${nextEvent.opponent}` : "משחק")} · {formatShort(nextEvent.date)} · {nextEvent.time}
+                {nextEvent.type === "training" ? "אימון" : (nextEvent.opponent ? `משחק מול ${nextEvent.opponent}` : "משחק")} · {formatShort(nextEvent.date)} · {nextEvent.time}
               </div>
               <div style={{ color: sc, fontSize: 12, fontWeight: 700, marginTop: 2 }}>בחרי את שמך לאישור הגעה ←</div>
             </div>

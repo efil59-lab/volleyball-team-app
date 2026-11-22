@@ -468,7 +468,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
   function sendWAOne(p, ev = nextEvent) {
     const wa = waNumber(p);
     if (!wa) return;
-    const label = ev === nextEvent ? evLabel : `משחק ${formatShort(ev.date)}${ev.opponent ? " נגד " + ev.opponent : ""}`;
+    const label = ev === nextEvent ? evLabel : `משחק ${formatShort(ev.date)}${ev.opponent ? " מול " + ev.opponent : ""}`;
     const msg = `היי ${p.name}, ${isWeekStart() ? "שבוע טוב! " : ""}ראיתי שלא סימנת הגעה ל${label}. את מתכוונת להגיע?`;
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
     setWaSent(prev => {
@@ -493,7 +493,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
     const pending = ev === nextEvent ? getList("pending") : roster.filter(p => !attendance[`${ev.id}_${p.id}`]?.status);
     if (pending.length === 0) return;
     const names = pending.map(p => p.name).join(", ");
-    const kind = ev.type === "training" ? "לאימון" : `למשחק${ev.opponent ? " נגד " + ev.opponent : ""}`;
+    const kind = ev.type === "training" ? "לאימון" : `למשחק${ev.opponent ? " מול " + ev.opponent : ""}`;
     const text = `🏐 ${isWeekStart() ? "שבוע טוב! " : ""}טרם סימנו הגעה ${kind} ב-${formatShort(ev.date)}: ${names}.\nאנא סמנו באפליקציה 🙏`;
     try {
       if (navigator.share) {
@@ -621,7 +621,7 @@ function AdminAttendance({ players, events, attendance, playerProfiles, upd, pc,
           <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontSize: 12.5, color: "#92400e", flex: 1, minWidth: 160, lineHeight: 1.5, fontWeight: 600 }}>
-                🏆 המשחק הבא {formatShort(ng.date)}{ng.opponent ? ` נגד ${ng.opponent}` : ""}: {yesL.length || noL.length ? <>✅ {yesL.length} מגיעות{noL.length ? ` · ❌ ${noL.length}` : ""}</> : "עדיין אין אישורי הגעה"}
+                🏆 המשחק הבא {formatShort(ng.date)}{ng.opponent ? ` מול ${ng.opponent}` : ""}: {yesL.length || noL.length ? <>✅ {yesL.length} מגיעות{noL.length ? ` · ❌ ${noL.length}` : ""}</> : "עדיין אין אישורי הגעה"}
               </span>
               <button onClick={() => setGameOpen(v => !v)}
                 style={{ background: "#b45309", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5, fontWeight: 800 }}>{gameOpen ? "הסתר" : "הצג"}</button>
@@ -1232,7 +1232,7 @@ function AdminEvents({ events, settings, attendance, archive, notifications, pla
         <div key={ev.id} style={{ ...S.card, marginBottom: 10, ...(isPast ? { borderColor: "#fdba74", background: "#fffbeb" } : {}) }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{ev.type === "training" ? "🏋️ אימון" : (ev.opponent ? `🏆 משחק נגד ${ev.opponent}` : "🏆 משחק")}</div>
+              <div style={{ fontWeight: 700, color: pc, fontSize: 13 }}>{ev.type === "training" ? "🏋️ אימון" : (ev.opponent ? `🏆 משחק מול ${ev.opponent}` : "🏆 משחק")}</div>
               {isPast && <div style={{ fontSize: 11, fontWeight: 800, color: "#b45309", marginTop: 2 }}>⚠️ עבר — ממתין לארכוב</div>}
               <div style={{ fontWeight: 700, fontSize: 14 }}>{formatDate(ev.date)} • {ev.time}</div>
               <div style={{ color: "#64748b", fontSize: 13 }}>📍 {ev.location}</div>
@@ -1951,7 +1951,7 @@ function AttendanceMatrix({ archive, players, upd, pc, sc }) {
               <tr>
                 <th className="st-mx-corner">שחקנית</th>
                 {evs.map(ev => (
-                  <th key={ev.id} title={`${ev.type === "training" ? "אימון" : ev.opponent ? "משחק נגד " + ev.opponent : "משחק"} · ${formatShort(ev.date)}`}>
+                  <th key={ev.id} title={`${ev.type === "training" ? "אימון" : ev.opponent ? "משחק מול " + ev.opponent : "משחק"} · ${formatShort(ev.date)}`}>
                     <span className="st-mx-kind">{ev.type === "training" ? "🏋️" : "🏆"}</span>
                     <span className="st-mx-dt">{formatShort(ev.date)}</span>
                   </th>

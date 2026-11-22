@@ -147,7 +147,7 @@ function CalEventRow({ ev, players = [], pc, bg = "white", dateLabel }) {
       .filter(Boolean)
     : [];
   const canOpen = !ev.cancelled && came.length > 0;
-  const title = ev.type === "training" ? "אימון" : (ev.opponent ? `משחק נגד ${ev.opponent}` : "משחק");
+  const title = ev.type === "training" ? "אימון" : (ev.opponent ? `משחק מול ${ev.opponent}` : "משחק");
   const sub = dateLabel || (ev.location ? `📍 ${ev.location}` : "");
   const Tag = canOpen ? "button" : "div";
   return (

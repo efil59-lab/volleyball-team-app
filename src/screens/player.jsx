@@ -936,7 +936,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                 <div key={g.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: 12, color: "#94a3b8" }}>{formatDate(g.date)} • {g.time}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>נגד: {g.opponent || "—"}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>מול: {g.opponent || "—"}</div>
                     <div style={{ fontSize: 13, color: "#64748b" }}>📍 {g.location}</div>
                   </div>
                   {g.outcome

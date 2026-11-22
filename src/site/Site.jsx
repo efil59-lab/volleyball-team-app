@@ -60,7 +60,7 @@ function useSearch({ players = [], events = [], archive = [], playerProfiles = {
           kind: "event",
           key: "e" + ev.id,
           icon: isGame ? "🏆" : "🏋️",
-          title: isGame ? (ev.opponent ? "משחק נגד " + ev.opponent : "משחק") : "אימון",
+          title: isGame ? (ev.opponent ? "משחק מול " + ev.opponent : "משחק") : "אימון",
           sub: `${formatShort(ev.date)}${ev.location ? " · " + ev.location : ""}${ev.result ? " · " + ev.result : ""}`,
           tab: isGame && (ev.outcome || ev.result) ? "games" : "calendar",
         });
@@ -313,7 +313,7 @@ function AdminStrip({ ctx, nextEvent, onGo, title }) {
           <p className="st-eyebrow">פאנל ניהול{title ? " · " + title : ""} · האירוע הקרוב</p>
           <h2 className="st-h2">
             {nextEvent
-              ? `${nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? "🏆 משחק נגד " + nextEvent.opponent : "🏆 משחק"} · ${formatShort(nextEvent.date)} ${nextEvent.time}`
+              ? `${nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? "🏆 משחק מול " + nextEvent.opponent : "🏆 משחק"} · ${formatShort(nextEvent.date)} ${nextEvent.time}`
               : "אין אירוע קרוב"}
           </h2>
         </div>
