@@ -579,7 +579,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                   {/* Clickable counters */}
                   <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
                     {[["coming", evWords.coming, "#22c55e"], ["notcoming", evWords.notcoming, "#ef4444"], ["pending", evWords.pending, "#94a3b8"]].map(([s, label, color]) => (
-                      <button key={s} onClick={() => setAttModal(s)}
+                      <button key={s} data-att onClick={() => setAttModal(s)}
                         style={{ flex: 1, background: "white", border: `2px solid ${color}30`, borderRadius: 12, padding: "10px 4px", cursor: "pointer", textAlign: "center" }}>
                         <div style={{ fontSize: 26, fontWeight: 800, color }}>{countAtt(s)}</div>
                         <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600 }}>{label}</div>

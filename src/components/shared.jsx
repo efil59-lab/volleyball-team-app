@@ -23,8 +23,19 @@ function Confirm({ msg, onOk, onCancel, icon, okLabel, tone }) {
 
 // ── ATTENDANCE MODAL ──────────────────────────────────────────────────────────
 function AttModal({ title, list, players, attendance, eventId, onClose, pc, sc }) {
+  // לחיצה על ריבוע אחר (מגיעות / לא מגיעות / טרם ענו) כשהרשימה פתוחה מחליפה
+  // ישר את הרשימה, במקום רק לסגור אותה ולחייב לחיצה שנייה (אפי, 22.11.26)
+  const onOverlay = (e) => {
+    const ov = e.currentTarget;
+    ov.style.pointerEvents = "none";
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    ov.style.pointerEvents = "";
+    onClose();
+    const btn = under && under.closest && under.closest("[data-att]");
+    if (btn) btn.click();
+  };
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 400, display: "flex", alignItems: "flex-end" }} onClick={onClose}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 400, display: "flex", alignItems: "flex-end" }} onClick={onOverlay}>
       <div style={{ background: "white", borderRadius: "20px 20px 0 0", padding: 24, width: "100%", maxHeight: "65vh", overflowY: "auto", boxSizing: "border-box" }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 15, fontWeight: 700, color: pc, marginBottom: 14 }}>{title} ({list.length})</div>
         {list.length === 0 && <p style={{ color: "#94a3b8", textAlign: "center" }}>אף אחת עדיין</p>}
