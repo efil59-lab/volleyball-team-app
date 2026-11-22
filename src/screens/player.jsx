@@ -565,7 +565,7 @@ function PlayerScreen({ player, events, attendance, players, notifications, game
                     whoFor={(ev) => ({ coming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "coming").map(p => p.name), notcoming: roster.filter(p => (attendance[`${ev.id}_${p.id}`] || {}).status === "notcoming").map(p => p.name) })} />
                   <div style={{ background: pc, borderRadius: 18, padding: "18px 18px 16px", marginBottom: 14, boxShadow: `0 6px 20px ${pc}40` }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                      <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : "🏆 משחק"}</div>
+                      <div style={{ background: "rgba(255,255,255,0.16)", color: "white", borderRadius: 20, padding: "5px 12px", fontSize: 13, fontWeight: 700 }}>{nextEvent.type === "training" ? "🏋️ אימון" : nextEvent.opponent ? `🏆 משחק מול ${nextEvent.opponent}` : "🏆 משחק"}</div>
                       <div style={{ background: evPhase === "live" ? "#22c55e" : evPhase === "done" ? "rgba(255,255,255,0.18)" : sc, color: evPhase === "before" ? pc : "white", borderRadius: 20, padding: "6px 14px", fontSize: 14, fontWeight: 800, transition: "background 0.35s" }}>{evState.pill}</div>
                     </div>
                     <div style={{ color: "white", fontSize: 21, fontWeight: 800, marginBottom: 8, lineHeight: 1.3 }}>{formatDate(nextEvent.date)}</div>
