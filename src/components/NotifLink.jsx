@@ -17,6 +17,8 @@ export function splitLink(text) {
 const isImage = (url) => /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(url);
 
 export function openLink(url, setViewer) {
+  // לוח הליגה (תמונה קבועה) → רשימת המשחקים החיה, בכל מקום שההודעה מופיעה (אפי, 23.11.26)
+  if (/\/league\.png(\?|#|$)/i.test(url)) { window.dispatchEvent(new Event("vb:games")); return; }
   if (isImage(url)) setViewer(url);
   else window.open(url, "_blank", "noopener");
 }

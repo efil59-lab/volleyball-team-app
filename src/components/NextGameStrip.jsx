@@ -41,7 +41,7 @@ function HallSheet({ h, onClose }) {
   );
 }
 
-function GamesSheet({ events, archive, newIds, onClose, halls }) {
+export function GamesSheet({ events, archive, newIds, onClose, halls }) {
   const [hall, setHall] = useState(null);
   const t = todayStr();
   const seen = new Set();

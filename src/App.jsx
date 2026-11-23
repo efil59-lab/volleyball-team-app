@@ -13,6 +13,8 @@ import {
 import { isIOS } from "./lib/utils";
 import { trackScreen } from "./lib/analytics";
 import { Confirm } from "./components/shared";
+import { GamesSheet } from "./components/NextGameStrip";
+import { HALLS_FOR_ALL } from "./lib/halls";
 import { CelebrationGate } from "./components/Celebration";
 import { useApplyTheme } from "./lib/theme";
 import { NoTeamScreen, InstallScreen, WhatsNewScreen, LockedTeamScreen, Splash, PurchaseScreen, NotRegisteredScreen, LandingScreen, PendingRequestScreen, AdminLogin } from "./screens/gate";
@@ -75,6 +77,13 @@ export default function App() {
   // פתיחה חוזרת של "מה חדש" מתוך אודות (לחיצה על מספר הגרסה, אפי 21.11.26):
   // בסיום חוזרים לאותו מסך ולא לדף הבית.
   const whatsNewReopenRef = useRef(false);
+  // רשימת כל המשחקים מכל מקום (הודעת לוח הליגה — אפי, 23.11.26)
+  const [gamesOpen, setGamesOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setGamesOpen(true);
+    window.addEventListener("vb:games", open);
+    return () => window.removeEventListener("vb:games", open);
+  }, []);
   useEffect(() => {
     const open = () => { whatsNewReopenRef.current = true; setShowWhatsNew(true); };
     window.addEventListener("vb:whatsnew", open);
@@ -493,6 +502,7 @@ export default function App() {
           .collapse-grid { transition: none !important; }
         }
       `}</style>
+      {gamesOpen && <GamesSheet events={events} archive={archive} halls={HALLS_FOR_ALL} onClose={() => setGamesOpen(false)} />}
       {confirm && <Confirm msg={confirm.msg} icon={confirm.icon} okLabel={confirm.okLabel} tone={confirm.tone}
         onOk={() => { if (confirm.onOk) confirm.onOk(); setConfirm(null); }}
         onCancel={confirm.notice ? undefined : () => setConfirm(null)} />}
