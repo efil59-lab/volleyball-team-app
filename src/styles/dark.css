@@ -207,3 +207,7 @@ html[data-theme="dark"] .vb-sheet { background-color: #2a3456 !important; border
 
 /* כתובת אולם ברשימת המשחקים — כחול בהיר על כרטיס כהה */
 html[data-theme="dark"] .vb-hall-link { color: #93c5fd !important; }
+
+/* לשוניות האירועים בפאנל הנוכחות — הלשונית הלא פעילה כהה במצב לילה */
+html[data-theme="dark"] .vb-evtab:not(.on) { background: #2a3456 !important; color: #cbd5e1 !important; border-color: #3b4670 !important; }
+html[data-theme="dark"] .vb-evtab.on { box-shadow: inset 0 0 0 2px #f5c842; }
